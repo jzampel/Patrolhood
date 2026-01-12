@@ -319,7 +319,7 @@ function Forum({ user }) {
 function UserList({ currentUser, houses }) {
   const [users, setUsers] = useState([])
   const [editingUser, setEditingUser] = useState(null)
-  const [editForm, setEditForm] = useState({ name: '', surname: '', phone: '', address: '' })
+  const [editForm, setEditForm] = useState({ name: '', surname: '', phone: '', address: '', houseNumber: '' })
 
   useEffect(() => {
     fetch(`${import.meta.env.VITE_API_URL || ''}/api/users`)
@@ -332,11 +332,14 @@ function UserList({ currentUser, houses }) {
 
   const startEdit = (user) => {
     setEditingUser(user)
+    // Find current assigned house
+    const assignedHouse = houses.find(h => h.owner === user.phone)
     setEditForm({
       name: user.name,
       surname: user.surname,
       phone: user.phone || '',
-      address: user.address
+      address: user.address,
+      houseNumber: assignedHouse ? assignedHouse.number : ''
     })
   }
 
@@ -407,6 +410,14 @@ function UserList({ currentUser, houses }) {
 
               <label>Teléfono:</label>
               <input value={editForm.phone} onChange={e => setEditForm({ ...editForm, phone: e.target.value })} />
+
+              <label style={{ color: '#fbbf24', fontWeight: 'bold' }}>📍 Asignar Nº Casa en Mapa:</label>
+              <input
+                value={editForm.houseNumber}
+                onChange={e => setEditForm({ ...editForm, houseNumber: e.target.value })}
+                placeholder="Ej: 12"
+              />
+              <p style={{ fontSize: '0.8em', color: '#888' }}>Escribe el número exacto de la etiqueta del mapa para vincular.</p>
             </div>
             <div style={{ marginTop: '20px', display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
               <button onClick={() => setEditingUser(null)} style={{ background: '#aaa', border: 'none', padding: '10px', borderRadius: '4px', cursor: 'pointer', color: 'white' }}>Cancelar</button>
@@ -459,7 +470,7 @@ function App() {
 
       await fetch(`${import.meta.env.VITE_API_URL || ''}/api/subscribe`, {
         method: 'POST',
-        body: JSON.stringify(subscription),
+        body: JSON.stringify({ subscription, userId: user.id, role: user.role }),
         headers: { 'Content-Type': 'application/json' }
       });
       alert('✅ Notificaciones Activadas en este dispositivo');

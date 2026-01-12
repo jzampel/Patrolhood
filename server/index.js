@@ -49,11 +49,11 @@ webpush.setVapidDetails(
 
 // Subscribe (Push)
 app.post('/api/subscribe', async (req, res) => {
-    const subscription = req.body;
+    const { subscription, userId, role } = req.body;
     try {
         await Subscription.findOneAndUpdate(
             { endpoint: subscription.endpoint },
-            subscription,
+            { ...subscription, userId, role },
             { upsert: true, new: true }
         );
         res.status(201).json({});
@@ -107,6 +107,20 @@ app.post('/api/register', async (req, res) => {
 
         invite.used = true;
         await invite.save();
+
+        // NOTIFY ADMINS
+        try {
+            const adminSubs = await Subscription.find({ role: 'admin' });
+            const payload = JSON.stringify({
+                title: '👤 Nuevo Vecino Registrado',
+                body: `${newUser.name} ${newUser.surname} se ha unido a la comunidad.`
+            });
+            adminSubs.forEach(sub => {
+                webpush.sendNotification(sub, payload).catch(err => console.error('Push Error (Admin):', err));
+            });
+        } catch (notifyErr) {
+            console.error('Error notifying admins:', notifyErr);
+        }
 
         res.json({ success: true, user: { name: newUser.name, role: newUser.role, houseNumber: newUser.address } });
     } catch (error) {
@@ -207,7 +221,7 @@ app.delete('/api/houses/:id', async (req, res) => {
 
 // Users: Update
 app.put('/api/users/:id', async (req, res) => {
-    const { name, surname, phone, address } = req.body;
+    const { name, surname, phone, address, houseNumber } = req.body;
     try {
         const user = await User.findOne({ id: req.params.id });
         if (!user) return res.status(404).json({ success: false });
@@ -218,6 +232,18 @@ app.put('/api/users/:id', async (req, res) => {
         if (address) user.address = address;
 
         await user.save();
+
+        // Assign House if provided
+        if (houseNumber) {
+            // Find house by number (ignore case/spacing ideally, but strict for now)
+            const house = await House.findOne({ number: houseNumber });
+            if (house) {
+                house.owner = user.phone; // Link via phone
+                await house.save();
+                io.emit('house_updated', house); // Update map live
+            }
+        }
+
         res.json({ success: true, user });
     } catch (error) {
         res.status(500).json({ success: false });
