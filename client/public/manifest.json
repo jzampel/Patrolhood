@@ -1,0 +1,21 @@
+{
+    "short_name": "PatrolHood",
+    "name": "Neighbourhood Patrol",
+    "icons": [
+        {
+            "src": "app_logo_final.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any maskable"
+        },
+        {
+            "src": "logo_black.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        }
+    ],
+    "start_url": "/",
+    "display": "standalone",
+    "theme_color": "#222222",
+    "background_color": "#222222"
+}
