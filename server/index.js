@@ -231,9 +231,11 @@ app.put('/api/users/:id', async (req, res) => {
         if (phone) user.phone = phone;
         if (address) user.address = address;
 
+        if (houseNumber !== undefined) user.mapLabel = houseNumber; // Allow clearing if empty string sent
+
         await user.save();
 
-        // Assign House if provided
+        // Assign House if provided (Legacy/Primary owner logic)
         if (houseNumber) {
             // Find house by number (ignore case/spacing ideally, but strict for now)
             const house = await House.findOne({ number: houseNumber });

@@ -320,14 +320,14 @@ function UserList({ currentUser, houses, users, setUsers }) {
 
   const startEdit = (user) => {
     setEditingUser(user)
-    // Find current assigned house
-    const assignedHouse = houses.find(h => h.owner === user.phone)
+    // Find current assigned house based on mapLabel (preferred) or owner phone (legacy)
+    const assignedHouse = houses.find(h => h.number === user.mapLabel || h.owner === user.phone)
     setEditForm({
       name: user.name,
       surname: user.surname,
       phone: user.phone || '',
       address: user.address,
-      houseNumber: assignedHouse ? assignedHouse.number : ''
+      houseNumber: user.mapLabel || (assignedHouse ? assignedHouse.number : '')
     })
   }
 
@@ -362,7 +362,7 @@ function UserList({ currentUser, houses, users, setUsers }) {
               <p className="user-address">🏠 Dirección: {u.address}</p>
               <p className="user-phone">📞 Teléfono: {u.phone}</p>
               <p className="user-tag" style={{ fontSize: '0.8rem', color: '#aaa' }}>
-                🏷️ Etiqueta Casa: {houses.find(h => h.owner === u.phone)?.number ? `#${houses.find(h => h.owner === u.phone).number}` : 'Sin asignar'}
+                🏷️ Etiqueta Casa: {u.mapLabel ? `#${u.mapLabel}` : 'Sin asignar'}
               </p>
 
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '5px' }}>
@@ -735,9 +735,11 @@ function App() {
               <AutoCenter houses={houses} />
               <MapClickHandler onAddHouse={onAddHouse} user={user} />
               {houses.map(h => {
-                const ownerUser = users.find(u => u.phone === h.owner);
-                const isAssigned = !!ownerUser;
-                const labelText = ownerUser ? ownerUser.name : h.number;
+                const inhabitants = users.filter(u => u.mapLabel === h.number || u.phone === h.owner); // Match by label or legacy owner
+                const isAssigned = inhabitants.length > 0;
+
+                // Label is always Number now
+                const labelText = h.number;
                 const isUserAdmin = user.role === 'admin';
                 const isSos = sosActive && activeEmergencyType;
 
@@ -750,7 +752,19 @@ function App() {
                     <Popup className="house-popup">
                       <div className="popup-content">
                         <strong>🏠 Casa #{h.number}</strong>
-                        <p>👤 {ownerUser ? `${ownerUser.name} ${ownerUser.surname}` : 'Sin asignar'}</p>
+
+                        {inhabitants.length > 0 ? (
+                          <div className="inhabitants-list" style={{ marginTop: '5px' }}>
+                            {inhabitants.map(person => (
+                              <div key={person.id} style={{ marginBottom: '8px', borderBottom: '1px solid #eee', paddingBottom: '4px' }}>
+                                <div style={{ fontWeight: 'bold' }}>👤 {person.name} {person.surname}</div>
+                                <div style={{ fontSize: '0.85em', color: '#666' }}>📍 {person.address}</div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p style={{ fontStyle: 'italic', color: '#888' }}>Sin asignar</p>
+                        )}
                         {activeEmergencyType && sosActive && h.isMine && (
                           <div className="popup-alert">🚨 ¡EMERGENCIA ACTIVA!</div>
                         )}

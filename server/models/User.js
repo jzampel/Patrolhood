@@ -8,6 +8,7 @@ const UserSchema = new mongoose.Schema({
     phone: { type: String, required: true, unique: true },
     password: { type: String, required: true },
     role: { type: String, enum: ['admin', 'user'], default: 'user' },
+    mapLabel: { type: String }, // House Number linked to map
     avatar: { type: String } // For future use
 });
 
