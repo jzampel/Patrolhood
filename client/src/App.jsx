@@ -51,24 +51,19 @@ function MapClickHandler({ onAddHouse, user }) {
   return null
 }
 
-function createHouseIcon(number, isMine, sosActive, emergencyType, owner, currentUserPhone) {
-  const isActualMine = isMine || (owner === currentUserPhone)
-  const shouldHighlight = isActualMine && sosActive
+function createHouseIcon(labelText, isAssigned, sosActive, emergencyType) {
+  const shouldHighlight = isAssigned && sosActive
   const emergencyEmoji = sosActive && emergencyType ?
     EMERGENCY_TYPES.find(e => e.id === emergencyType)?.emoji || '' : ''
 
   return L.divIcon({
-    className: `house-marker ${shouldHighlight ? 'sos-active' : ''} ${isMine ? 'my-house' : ''}`,
+    className: `house-marker ${shouldHighlight ? 'sos-active' : ''} ${isAssigned ? 'my-house' : ''}`,
     html: `<div class="house-label">
-      ${number}
+      ${labelText}
       ${emergencyEmoji ? `<span class="emergency-icon">${emergencyEmoji}</span>` : ''}
     </div>`,
-    // Size: Square (e.g. 40x40). Anchor: Bottom Center (20, 50 including arrow space)
-    // CSS arrow is ~10px high. So height might need to cover that.
-    // L.divIcon size is for the div.
-    iconSize: shouldHighlight ? [60, 60] : (isMine ? [50, 50] : [40, 40]),
-    // Anchor X = width/2. Anchor Y = height/2 (Center).
-    iconAnchor: shouldHighlight ? [30, 30] : (isMine ? [25, 25] : [20, 20])
+    iconSize: shouldHighlight ? [60, 60] : (isAssigned ? [50, 50] : [40, 40]),
+    iconAnchor: shouldHighlight ? [30, 30] : (isAssigned ? [25, 25] : [20, 20])
   })
 }
 
@@ -316,19 +311,12 @@ function Forum({ user }) {
   )
 }
 
-function UserList({ currentUser, houses }) {
-  const [users, setUsers] = useState([])
+function UserList({ currentUser, houses, users, setUsers }) {
+  // users state is now passed from parent
   const [editingUser, setEditingUser] = useState(null)
   const [editForm, setEditForm] = useState({ name: '', surname: '', phone: '', address: '', houseNumber: '' })
 
-  useEffect(() => {
-    fetch(`${import.meta.env.VITE_API_URL || ''}/api/users`)
-      .then(res => res.json())
-      .then(data => {
-        if (data.success) setUsers(data.users)
-      })
-      .catch(console.error)
-  }, [])
+  // Internal fetch removed, relies on props
 
   const startEdit = (user) => {
     setEditingUser(user)
@@ -442,6 +430,7 @@ function App() {
   const [notificationsEnabled, setNotificationsEnabled] = useState(false) // Track if enabled
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [houses, setHouses] = useState([])
+  const [users, setUsers] = useState([])
 
   // Register SW and Logic
   const publicVapidKey = 'BNWjTbapEtyTDCywiM1Qk_kiwRx_DmVrDdt0nwi10bVKYlEXOll-hDyexDEffLu1ejd8Spm_E4CLiAfSE3YcaDA';
@@ -501,6 +490,13 @@ function App() {
       .then(res => res.json())
       .then(data => {
         if (data.success) setHouses(data.houses)
+      })
+
+    // Fetch users for map labels
+    fetch(`${import.meta.env.VITE_API_URL || ''}/api/users`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) setUsers(data.users)
       })
 
     // Sockets for live updates
@@ -739,9 +735,9 @@ function App() {
               <AutoCenter houses={houses} />
               <MapClickHandler onAddHouse={onAddHouse} user={user} />
               {houses.map(h => {
-                // Find owner info if available (simulated join)
-                // In a real app we would join with users list
-                const ownerName = h.owner || (h.isMine ? user.name : 'Vecino');
+                const ownerUser = users.find(u => u.phone === h.owner);
+                const isAssigned = !!ownerUser;
+                const labelText = ownerUser ? ownerUser.name : h.number;
                 const isUserAdmin = user.role === 'admin';
                 const isSos = sosActive && activeEmergencyType;
 
@@ -749,12 +745,12 @@ function App() {
                   <Marker
                     key={h.id}
                     position={h.position}
-                    icon={createHouseIcon(h.number, h.isMine, isSos, h.emergencyType, h.owner, user.phone)}
+                    icon={createHouseIcon(labelText, isAssigned, isSos, h.emergencyType)}
                   >
                     <Popup className="house-popup">
                       <div className="popup-content">
                         <strong>🏠 Casa #{h.number}</strong>
-                        <p>👤 {ownerName}</p>
+                        <p>👤 {ownerUser ? `${ownerUser.name} ${ownerUser.surname}` : 'Sin asignar'}</p>
                         {activeEmergencyType && sosActive && h.isMine && (
                           <div className="popup-alert">🚨 ¡EMERGENCIA ACTIVA!</div>
                         )}
@@ -791,7 +787,7 @@ function App() {
         ) : activeTab === 'forum' ? (
           <Forum user={user} />
         ) : (
-          <UserList currentUser={user} houses={houses} />
+          <UserList currentUser={user} houses={houses} users={users} setUsers={setUsers} />
         )}
       </div>
 
