@@ -67,8 +67,8 @@ function createHouseIcon(number, isMine, sosActive, emergencyType, owner, curren
     // CSS arrow is ~10px high. So height might need to cover that.
     // L.divIcon size is for the div.
     iconSize: shouldHighlight ? [60, 60] : (isMine ? [50, 50] : [40, 40]),
-    // Anchor X = width/2. Anchor Y = height + arrow(10px).
-    iconAnchor: shouldHighlight ? [30, 70] : (isMine ? [25, 60] : [20, 50])
+    // Anchor X = width/2. Anchor Y = height/2 (Center).
+    iconAnchor: shouldHighlight ? [30, 30] : (isMine ? [25, 25] : [20, 20])
   })
 }
 
