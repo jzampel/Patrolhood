@@ -270,6 +270,20 @@ app.post('/api/forum', async (req, res) => {
         }
 
         io.emit('forum_message', newMessage);
+
+        // Send Push Notifications (unless channel is ALERTAS, handled by SOS)
+        if (channel !== 'ALERTAS') {
+            const subs = await Subscription.find({});
+            const payload = JSON.stringify({
+                title: `💬 Foro: ${channel}`,
+                body: `${user}: ${text.substring(0, 50)}${text.length > 50 ? '...' : ''}`,
+                icon: '/logo_bull.png'
+            });
+            subs.forEach(sub => {
+                webpush.sendNotification(sub, payload).catch(err => console.error('Push Error (Forum):', err));
+            });
+        }
+
         res.json({ success: true, message: newMessage });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
