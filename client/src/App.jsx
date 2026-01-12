@@ -243,7 +243,7 @@ function Forum({ user }) {
 
   return (
     <div className="forum-container">
-      <div className="forum-header" style={{ display: 'flex', justifyContent: 'space-between', padding: '10px' }}>
+      <div className="forum-header" style={{ display: 'flex', justifyContent: 'center', padding: '10px' }}>
         <div className="forum-tabs">
           {FORUM_CHANNELS.map(ch => (
             <button
@@ -255,10 +255,17 @@ function Forum({ user }) {
             </button>
           ))}
         </div>
-        <button className="rules-btn" onClick={() => setShowRules(true)} style={{ background: 'none', border: '1px solid #aaa', color: '#aaa', borderRadius: '4px', cursor: 'pointer' }}>📜 Normas</button>
       </div>
 
       <div className="forum-messages">
+        {activeChannel === 'General' && (
+          <div className="message-bubble" style={{ background: '#334155', border: '1px solid #fbbf24', color: '#e2e8f0' }}>
+            <div className="msg-header">
+              <span className="msg-user" style={{ color: '#fbbf24' }}>👮 Normas de la Comunidad</span>
+            </div>
+            <div className="msg-text" style={{ whiteSpace: 'pre-wrap', fontSize: '0.9em' }}>{RULES_TEXT}</div>
+          </div>
+        )}
         {messages.map(msg => (
           <div key={msg.id} className={`message-bubble ${msg.user === user.name ? 'mine' : ''} ${msg.type === 'alert' ? 'alert-msg' : ''}`}>
             <div className="msg-header">
@@ -712,7 +719,7 @@ function App() {
       <div className="main-content">
         {activeTab === 'map' ? (
           <div className="map-container">
-            <MapContainer center={[40.4168, -3.7038]} zoom={18} style={{ height: '100%', width: '100%', background: '#222' }}>
+            <MapContainer center={[40.4168, -3.7038]} zoom={18} zoomControl={false} style={{ height: '100%', width: '100%', background: '#222' }}>
               <TileLayer
                 url="https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}"
                 attribution='&copy; Google'
