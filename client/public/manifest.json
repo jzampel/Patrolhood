@@ -3,14 +3,14 @@
     "name": "Neighbourhood Patrol",
     "icons": [
         {
-            "src": "app_logo_final.png",
-            "sizes": "512x512",
+            "src": "logo_bull.png",
+            "sizes": "192x192",
             "type": "image/png",
             "purpose": "any maskable"
         },
         {
-            "src": "logo_black.png",
-            "sizes": "192x192",
+            "src": "logo_bull.png",
+            "sizes": "512x512",
             "type": "image/png"
         }
     ],
