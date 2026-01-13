@@ -58,6 +58,21 @@ try {
     console.error('❌ Firebase Admin Initialization Error:', error.message);
 }
 
+// --- DEBUG ROUTES ---
+app.get('/api/debug/subscriptions', async (req, res) => {
+    try {
+        const count = await Subscription.countDocuments({});
+        const subs = await Subscription.find({});
+        res.json({
+            success: true,
+            count,
+            tokens: subs.map(s => s.token.substring(0, 10) + '...')
+        });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
 // --- ROUTES ---
 
 // Subscribe (Push - Now FCM Token)
