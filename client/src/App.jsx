@@ -483,33 +483,39 @@ function App() {
         return;
       }
 
+      // Get Service Worker Registration
+      const registration = await navigator.serviceWorker.ready;
+
       // Get token
-      const token = await getToken(messaging, { vapidKey });
+      const token = await getToken(messaging, {
+        vapidKey,
+        serviceWorkerRegistration: registration
+      });
 
       if (token) {
         console.log('FCM Token:', token);
-        await fetch(`${import.meta.env.VITE_API_URL || ''}/api/subscribe`, {
+        const response = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/subscribe`, {
           method: 'POST',
           body: JSON.stringify({ token, userId: user.id, role: user.role }),
           headers: { 'Content-Type': 'application/json' }
         });
+
+        if (!response.ok) throw new Error('Error al guardar suscripción en el servidor');
+
         alert('✅ Notificaciones Activadas en este dispositivo');
         setNotificationsEnabled(true);
       } else {
-        console.warn('No registration token available. Request permission to generate one.');
+        throw new Error('No se pudo obtener el token de Firebase');
       }
 
       // Handle foreground messages
       onMessage(messaging, (payload) => {
         console.log('Message received. ', payload);
-        // Foreground messages are handled by showing a toast or updating UI
-        // The standard alert state in App already updates via Sockets, 
-        // but this ensures the notification is seen if sockets are laggy.
       });
 
     } catch (err) {
       console.error('Failed to subscribe', err);
-      alert('Error activando notificaciones. Inténtalo de nuevo.');
+      alert(`Error activando notificaciones: ${err.message}`);
     }
   }
 
