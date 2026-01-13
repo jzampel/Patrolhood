@@ -339,9 +339,10 @@ io.on('connection', (socket) => {
             // Push Notifications via FCM
             try {
                 const subs = await Subscription.find({});
+                console.log(`[FCM] Found ${subs.length} subscribers for SOS alert`);
                 if (subs.length > 0) {
-                    const tokens = subs.map(s => s.token);
-                    await admin.messaging().sendEachForMulticast({
+                    const tokens = subs.map(s => s.token).filter(t => !!t);
+                    const response = await admin.messaging().sendEachForMulticast({
                         tokens,
                         notification: {
                             title: '🚨 ALERTA VECINAL',
@@ -360,6 +361,14 @@ io.on('connection', (socket) => {
                             }
                         }
                     });
+                    console.log(`[FCM] SOS sent successfully. Success: ${response.successCount}, Failure: ${response.failureCount}`);
+                    if (response.failureCount > 0) {
+                        response.responses.forEach((resp, idx) => {
+                            if (!resp.success) {
+                                console.error(`[FCM] Error for token ${tokens[idx].substring(0, 10)}...:`, resp.error.message);
+                            }
+                        });
+                    }
                 }
             } catch (fcmErr) {
                 console.error('FCM Multicast Error (SOS):', fcmErr);
