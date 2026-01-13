@@ -1,11 +1,10 @@
-require('dotenv').config();
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
 const path = require('path');
 const mongoose = require('mongoose');
-const webpush = require('web-push');
+const admin = require('firebase-admin');
 
 // Models
 const User = require('./models/User');
@@ -35,28 +34,42 @@ const io = new Server(server, {
     }
 });
 
-// VAPID Keys
-const publicVapidKey = 'BNWjTbapEtyTDCywiM1Qk_kiwRx_DmVrDdt0nwi10bVKYlEXOll-hDyexDEffLu1ejd8Spm_E4CLiAfSE3YcaDA';
-const privateVapidKey = 'RSXxpByuc_99ANHY3j4CDIWkKoVUxx79DF683-UsPGo';
+// --- FIREBASE ADMIN SDK INITIALIZATION ---
+try {
+    let serviceAccount;
+    if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+        // Render/Heroku typically use environment variables
+        // If it's base64 encoded, decode it, otherwise use as is
+        try {
+            serviceAccount = JSON.parse(Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT, 'base64').toString());
+        } catch (e) {
+            serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+        }
+    } else {
+        // Local development
+        serviceAccount = require('./serviceAccountKey.json');
+    }
 
-webpush.setVapidDetails(
-    'mailto:test@test.com',
-    publicVapidKey,
-    privateVapidKey
-);
+    admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount)
+    });
+    console.log('✅ Firebase Admin Initialized');
+} catch (error) {
+    console.error('❌ Firebase Admin Initialization Error:', error.message);
+}
 
 // --- ROUTES ---
 
-// Subscribe (Push)
+// Subscribe (Push - Now FCM Token)
 app.post('/api/subscribe', async (req, res) => {
-    const { subscription, userId, role } = req.body;
+    const { token, userId, role } = req.body;
     try {
         await Subscription.findOneAndUpdate(
-            { endpoint: subscription.endpoint },
-            { ...subscription, userId, role },
+            { token: token },
+            { token, userId, role },
             { upsert: true, new: true }
         );
-        res.status(201).json({});
+        res.status(201).json({ success: true });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
@@ -108,18 +121,21 @@ app.post('/api/register', async (req, res) => {
         invite.used = true;
         await invite.save();
 
-        // NOTIFY ADMINS
+        // NOTIFY ADMINS (VIA FCM)
         try {
             const adminSubs = await Subscription.find({ role: 'admin' });
-            const payload = JSON.stringify({
-                title: '👤 Nuevo Vecino Registrado',
-                body: `${newUser.name} ${newUser.surname} se ha unido a la comunidad.`
-            });
-            adminSubs.forEach(sub => {
-                webpush.sendNotification(sub, payload).catch(err => console.error('Push Error (Admin):', err));
-            });
+            if (adminSubs.length > 0) {
+                const tokens = adminSubs.map(s => s.token);
+                await admin.messaging().sendEachForMulticast({
+                    tokens,
+                    notification: {
+                        title: '👤 Nuevo Vecino Registrado',
+                        body: `${newUser.name} ${newUser.surname} se ha unido a la comunidad.`
+                    }
+                });
+            }
         } catch (notifyErr) {
-            console.error('Error notifying admins:', notifyErr);
+            console.error('Error notifying admins via FCM:', notifyErr);
         }
 
         res.json({ success: true, user: { id: newUser.id, name: newUser.name, role: newUser.role, mapLabel: newUser.mapLabel, address: newUser.address } });
@@ -271,17 +287,27 @@ app.post('/api/forum', async (req, res) => {
 
         io.emit('forum_message', newMessage);
 
-        // Send Push Notifications (unless channel is ALERTAS, handled by SOS)
+        // Send Push Notifications via FCM (unless channel is ALERTAS, handled by SOS)
         if (channel !== 'ALERTAS') {
-            const subs = await Subscription.find({});
-            const payload = JSON.stringify({
-                title: `💬 Foro: ${channel}`,
-                body: `${user}: ${text.substring(0, 50)}${text.length > 50 ? '...' : ''}`,
-                icon: '/logo_bull.png'
-            });
-            subs.forEach(sub => {
-                webpush.sendNotification(sub, payload).catch(err => console.error('Push Error (Forum):', err));
-            });
+            try {
+                const subs = await Subscription.find({});
+                if (subs.length > 0) {
+                    const tokens = subs.map(s => s.token);
+                    await admin.messaging().sendEachForMulticast({
+                        tokens,
+                        notification: {
+                            title: `💬 Foro: ${channel}`,
+                            body: `${user}: ${text.substring(0, 50)}${text.length > 50 ? '...' : ''}`
+                        },
+                        data: {
+                            channel,
+                            click_action: '/'
+                        }
+                    });
+                }
+            } catch (fcmErr) {
+                console.error('FCM Multicast Error (Forum):', fcmErr);
+            }
         }
 
         res.json({ success: true, message: newMessage });
@@ -310,15 +336,34 @@ io.on('connection', (socket) => {
             });
             io.emit('forum_message', alertMsg);
 
-            // Push Notifications
-            const subs = await Subscription.find({});
-            const payload = JSON.stringify({
-                title: '🚨 ALERTA VECINAL',
-                body: `¡Atención! ${data.emergencyTypeLabel.toUpperCase()} en Casa #${data.houseNumber}. Vecino: ${data.userName}`
-            });
-            subs.forEach(sub => {
-                webpush.sendNotification(sub, payload).catch(err => console.error('Push Error:', err));
-            });
+            // Push Notifications via FCM
+            try {
+                const subs = await Subscription.find({});
+                if (subs.length > 0) {
+                    const tokens = subs.map(s => s.token);
+                    await admin.messaging().sendEachForMulticast({
+                        tokens,
+                        notification: {
+                            title: '🚨 ALERTA VECINAL',
+                            body: `¡Atención! ${data.emergencyTypeLabel.toUpperCase()} en Casa #${data.houseNumber}. Vecino: ${data.userName}`
+                        },
+                        data: {
+                            type: 'SOS',
+                            houseNumber: String(data.houseNumber),
+                            location: JSON.stringify(data.location)
+                        },
+                        android: {
+                            priority: 'high',
+                            notification: {
+                                sound: 'default',
+                                clickAction: 'OPEN_ACTIVITY_1'
+                            }
+                        }
+                    });
+                }
+            } catch (fcmErr) {
+                console.error('FCM Multicast Error (SOS):', fcmErr);
+            }
 
         } catch (err) {
             console.error('Error processing alert:', err);

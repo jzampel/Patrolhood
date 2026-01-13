@@ -454,53 +454,63 @@ function App() {
   const [users, setUsers] = useState([])
 
   // Register SW and Logic
-  const publicVapidKey = 'BNWjTbapEtyTDCywiM1Qk_kiwRx_DmVrDdt0nwi10bVKYlEXOll-hDyexDEffLu1ejd8Spm_E4CLiAfSE3YcaDA';
-
   async function registerServiceWorker() {
     if ('serviceWorker' in navigator) {
       try {
-        const register = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
-        console.log('Service Worker Registered');
+        const register = await navigator.serviceWorker.register('/firebase-messaging-sw.js', { scope: '/' });
+        console.log('FCM Service Worker Registered');
         return register;
       } catch (err) {
-        console.error(err);
+        console.error('Service Worker registration failed:', err);
       }
     }
   }
 
+  // FCM Register and Logic
   async function subscribeToPush() {
-    if (!('serviceWorker' in navigator)) return;
-    const register = await navigator.serviceWorker.ready; // Wait for it to be ready
-
     try {
-      const subscription = await register.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(publicVapidKey)
+      const { initializeApp } = await import('firebase/app');
+      const { getMessaging, getToken, onMessage } = await import('firebase/messaging');
+      const { firebaseConfig, vapidKey } = await import('./firebase-config');
+
+      const app = initializeApp(firebaseConfig);
+      const messaging = getMessaging(app);
+
+      // Request permission
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') {
+        alert('Permiso de notificaciones denegado. No recibirás alertas SOS.');
+        return;
+      }
+
+      // Get token
+      const token = await getToken(messaging, { vapidKey });
+
+      if (token) {
+        console.log('FCM Token:', token);
+        await fetch(`${import.meta.env.VITE_API_URL || ''}/api/subscribe`, {
+          method: 'POST',
+          body: JSON.stringify({ token, userId: user.id, role: user.role }),
+          headers: { 'Content-Type': 'application/json' }
+        });
+        alert('✅ Notificaciones Activadas en este dispositivo');
+        setNotificationsEnabled(true);
+      } else {
+        console.warn('No registration token available. Request permission to generate one.');
+      }
+
+      // Handle foreground messages
+      onMessage(messaging, (payload) => {
+        console.log('Message received. ', payload);
+        // Foreground messages are handled by showing a toast or updating UI
+        // The standard alert state in App already updates via Sockets, 
+        // but this ensures the notification is seen if sockets are laggy.
       });
 
-      await fetch(`${import.meta.env.VITE_API_URL || ''}/api/subscribe`, {
-        method: 'POST',
-        body: JSON.stringify({ subscription, userId: user.id, role: user.role }),
-        headers: { 'Content-Type': 'application/json' }
-      });
-      alert('✅ Notificaciones Activadas en este dispositivo');
-      setNotificationsEnabled(true);
     } catch (err) {
       console.error('Failed to subscribe', err);
-      alert('Error activando notificaciones. Asegúrate de permitirlas en el navegador.');
+      alert('Error activando notificaciones. Inténtalo de nuevo.');
     }
-  }
-
-  // Helper helper
-  function urlBase64ToUint8Array(base64String) {
-    const padding = '='.repeat((4 - base64String.length % 4) % 4);
-    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
-    const rawData = window.atob(base64);
-    const outputArray = new Uint8Array(rawData.length);
-    for (let i = 0; i < rawData.length; ++i) {
-      outputArray[i] = rawData.charCodeAt(i);
-    }
-    return outputArray;
   }
 
   useEffect(() => {
