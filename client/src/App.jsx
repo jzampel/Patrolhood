@@ -28,6 +28,17 @@ const FORUM_CHANNELS = [
   { id: 'ALERTAS', label: '🚨 ALERTAS' }
 ]
 
+// Zoom Effect on Alert
+function AlertZoom({ sosActive, sosLocation }) {
+  const map = useMapEvents({})
+  useEffect(() => {
+    if (sosActive && sosLocation) {
+      map.flyTo(sosLocation, 19, { animate: true, duration: 2.0 })
+    }
+  }, [sosActive, sosLocation, map])
+  return null
+}
+
 function MapClickHandler({ onAddHouse, user }) {
   useMapEvents({
     dblclick(e) {
@@ -37,13 +48,12 @@ function MapClickHandler({ onAddHouse, user }) {
       }
       const number = prompt('¿Número/nombre de la casa?')
       if (number) {
-        const isMine = window.confirm('¿Es esta tu casa?')
+        // const isMine = window.confirm('¿Es esta tu casa?') // Legacy logic removed
         onAddHouse({
           id: Date.now(),
           number: number,
           position: [e.latlng.lat, e.latlng.lng],
-          isMine: isMine,
-          owner: isMine ? user.phone : null
+          owner: null // Removed owner link at creation, managed via Users list now
         })
       }
     }
@@ -51,32 +61,42 @@ function MapClickHandler({ onAddHouse, user }) {
   return null
 }
 
-function createHouseIcon(labelText, isAssigned, sosActive, emergencyType) {
-  const shouldHighlight = isAssigned && sosActive
-  const emergencyEmoji = sosActive && emergencyType ?
+function createHouseIcon(labelText, status, emergencyType) {
+  // Status priority: 'sos' > 'mine' > 'inhabited' > 'empty'
+  let className = 'house-marker'
+  if (status === 'sos') className += ' sos-active'
+  else if (status === 'mine') className += ' my-house'
+  else if (status === 'inhabited') className += ' inhabited'
+
+  const emergencyEmoji = status === 'sos' && emergencyType ?
     EMERGENCY_TYPES.find(e => e.id === emergencyType)?.emoji || '' : ''
 
   return L.divIcon({
-    className: `house-marker ${shouldHighlight ? 'sos-active' : ''} ${isAssigned ? 'my-house' : ''}`,
+    className: className,
     html: `<div class="house-label">
       ${labelText}
       ${emergencyEmoji ? `<span class="emergency-icon">${emergencyEmoji}</span>` : ''}
     </div>`,
-    iconSize: shouldHighlight ? [60, 60] : (isAssigned ? [50, 50] : [40, 40]),
-    iconAnchor: shouldHighlight ? [30, 30] : (isAssigned ? [25, 25] : [20, 20])
+    iconSize: status === 'sos' ? [60, 60] : (status === 'mine' || status === 'inhabited' ? [50, 50] : [40, 40]),
+    iconAnchor: status === 'sos' ? [30, 30] : (status === 'mine' || status === 'inhabited' ? [25, 25] : [20, 20])
   })
 }
 
-// Auto-center map on my house
-function AutoCenter({ houses }) {
+// Auto-center map on my house (Initial load only)
+function AutoCenter({ houses, userMapLabel }) {
   const map = useMapEvents({})
+  const hasCentered = useRef(false)
 
   useEffect(() => {
-    const myHouse = houses.find(h => h.isMine)
+    if (hasCentered.current || !userMapLabel) return
+
+    // Find house by label
+    const myHouse = houses.find(h => h.number === userMapLabel)
     if (myHouse) {
       map.flyTo(myHouse.position, 19, { animate: true, duration: 1.5 })
+      hasCentered.current = true
     }
-  }, [houses, map])
+  }, [houses, map, userMapLabel])
 
   return null
 }
@@ -425,9 +445,10 @@ function App() {
   const [showEmergencyMenu, setShowEmergencyMenu] = useState(false)
   const [sosActive, setSosActive] = useState(false)
   const [sosLocation, setSosLocation] = useState(null)
+  const [sosHouseNumber, setSosHouseNumber] = useState(null) // New: specific house alert
   const [activeEmergencyType, setActiveEmergencyType] = useState(null)
   const [generatedInvite, setGeneratedInvite] = useState(null)
-  const [notificationsEnabled, setNotificationsEnabled] = useState(false) // Track if enabled
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [houses, setHouses] = useState([])
   const [users, setUsers] = useState([])
@@ -589,6 +610,7 @@ function App() {
     socket.on('emergency_alert', (data) => {
       setSosActive(true)
       setActiveEmergencyType(data.emergencyType)
+      setSosHouseNumber(data.houseNumber) // Save triggering house
       if (data.location) setSosLocation([data.location.lat, data.location.lng])
       // startSiren() // Siren sound disabled per user request
     })
@@ -596,6 +618,7 @@ function App() {
     socket.on('stop_alert', () => {
       setSosActive(false)
       setSosLocation(null)
+      setSosHouseNumber(null)
       setActiveEmergencyType(null)
       // stopSiren() // Siren sound disabled per user request
     })
@@ -604,8 +627,8 @@ function App() {
   }, [])
 
   const triggerSOS = (type) => {
-    const myHouse = houses.find(h => h.isMine)
-    if (!myHouse) { alert('Marca tu casa primero'); return; }
+    const myHouse = houses.find(h => h.number === user.mapLabel)
+    if (!myHouse) { alert('No tienes una casa asignada correctamente en el mapa.'); return; }
 
     const info = EMERGENCY_TYPES.find(e => e.id === type)
     socket.emit('emergency_alert', {
@@ -613,8 +636,8 @@ function App() {
       emergencyTypeLabel: info.label,
       emergencyEmoji: info.emoji,
       userName: user.name,
-      houseNumber: myHouse.number,
-      message: `${info.emoji} ${info.label} en casa de ${user.name} (#${myHouse.number})`,
+      houseNumber: user.mapLabel,
+      message: `${info.emoji} ${info.label} en casa de ${user.name} (#${user.mapLabel})`,
       location: { lat: myHouse.position[0], lng: myHouse.position[1] }
     })
     setShowEmergencyMenu(false)
@@ -732,22 +755,31 @@ function App() {
                 attribution='&copy; Google'
                 maxZoom={22}
               />
-              <AutoCenter houses={houses} />
+              <AutoCenter houses={houses} userMapLabel={user.mapLabel} />
+              <AlertZoom sosActive={sosActive} sosLocation={sosLocation} />
               <MapClickHandler onAddHouse={onAddHouse} user={user} />
               {houses.map(h => {
                 const inhabitants = users.filter(u => u.mapLabel === h.number || u.phone === h.owner); // Match by label or legacy owner
                 const isAssigned = inhabitants.length > 0;
 
+                // Determine Status
+                let status = 'empty';
+                const isMine = user.mapLabel === h.number;
+                const isSos = sosActive && sosHouseNumber === h.number;
+
+                if (isSos) status = 'sos';
+                else if (isMine) status = 'mine';
+                else if (isAssigned) status = 'inhabited';
+
                 // Label is always Number now
                 const labelText = h.number;
                 const isUserAdmin = user.role === 'admin';
-                const isSos = sosActive && activeEmergencyType;
 
                 return (
                   <Marker
                     key={h.id}
                     position={h.position}
-                    icon={createHouseIcon(labelText, isAssigned, isSos, h.emergencyType)}
+                    icon={createHouseIcon(labelText, status, h.emergencyType)}
                   >
                     <Popup className="house-popup">
                       <div className="popup-content">
@@ -765,7 +797,7 @@ function App() {
                         ) : (
                           <p style={{ fontStyle: 'italic', color: '#888' }}>Sin asignar</p>
                         )}
-                        {activeEmergencyType && sosActive && h.isMine && (
+                        {status === 'sos' && (
                           <div className="popup-alert">🚨 ¡EMERGENCIA ACTIVA!</div>
                         )}
 
@@ -778,8 +810,14 @@ function App() {
                             🗑️ Borrar (Admin)
                           </button>
                         )}
+                      </div>
+                    </Popup>
+                  </Marker>
+                )
+              })}
+              {sosLocation && sosActive && <CircleMarker center={sosLocation} radius={50} pathOptions={{ color: 'red', fillColor: 'red' }} className="sos-marker" />}
 
-                        {/* Users can still mark "Mine" if we keep that feature, or is that strictly admin too?
+              {/* Users can still mark "Mine" if we keep that feature, or is that strictly admin too?
                             User asked: "users cannot make modifications". I'll hide "Set Mine" too if strict.
                             But user needs to identify their house for SOS.
                             Let's assume "Modifications" means structural changes (adding/removing markers).
@@ -790,20 +828,14 @@ function App() {
                             The user registration has "Address". Maybe we should AUTO-LINK?
                             YES. Ideally, we link `user.address` (from DB) to `house.number` (on Map).
                         */}
-                      </div>
-                    </Popup>
-                  </Marker>
-                )
-              })}
-              {sosLocation && sosActive && <CircleMarker center={sosLocation} radius={50} pathOptions={{ color: 'red', fillColor: 'red' }} className="sos-marker" />}
-            </MapContainer>
-          </div>
+            </MapContainer >
+          </div >
         ) : activeTab === 'forum' ? (
           <Forum user={user} />
         ) : (
           <UserList currentUser={user} houses={houses} users={users} setUsers={setUsers} />
         )}
-      </div>
+      </div >
 
       {showEmergencyMenu && (
         <div className="modal-overlay" onClick={() => setShowEmergencyMenu(false)}>
@@ -821,7 +853,7 @@ function App() {
           </div>
         </div>
       )}
-    </div>
+    </div >
   )
 }
 

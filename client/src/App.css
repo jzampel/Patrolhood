@@ -322,9 +322,13 @@ body {
 }
 
 .house-marker.my-house .house-label {
-  background: var(--primary);
+  background: var(--success);
   font-size: 1.1rem;
-  border-color: #93c5fd;
+  border-color: #86efac;
+}
+
+.house-marker.inhabited .house-label {
+  background: var(--primary);
 }
 
 .house-marker.sos-active .house-label {

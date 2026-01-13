@@ -74,7 +74,7 @@ app.post('/api/login', async (req, res) => {
         });
 
         if (user) {
-            res.json({ success: true, user: { name: user.name, role: user.role, houseNumber: user.address, phone: user.phone } });
+            res.json({ success: true, user: { id: user.id, name: user.name, role: user.role, mapLabel: user.mapLabel, address: user.address, phone: user.phone } });
         } else {
             res.status(401).json({ success: false, message: 'Credenciales incorrectas' });
         }
@@ -122,7 +122,7 @@ app.post('/api/register', async (req, res) => {
             console.error('Error notifying admins:', notifyErr);
         }
 
-        res.json({ success: true, user: { name: newUser.name, role: newUser.role, houseNumber: newUser.address } });
+        res.json({ success: true, user: { id: newUser.id, name: newUser.name, role: newUser.role, mapLabel: newUser.mapLabel, address: newUser.address } });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }
@@ -156,7 +156,7 @@ app.get('/api/forum/:channel', async (req, res) => {
 // Users: Get All
 app.get('/api/users', async (req, res) => {
     try {
-        const users = await User.find({}, 'id name surname address phone role');
+        const users = await User.find({}, 'id name surname address phone role mapLabel');
         res.json({ success: true, users });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
