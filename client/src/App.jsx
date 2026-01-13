@@ -476,8 +476,13 @@ function App() {
       const app = initializeApp(firebaseConfig);
       const messaging = getMessaging(app);
 
-      // Request permission
-      const permission = await Notification.requestPermission();
+      // Request permission (with compatibility check for iOS)
+      if (!window.Notification) {
+        alert('⚠️ Tu navegador o dispositivo no soporta el sistema de notificaciones. \n\nNota para iPhone: Debes añadir esta web a tu pantalla de inicio ("Compartir" -> "Añadir a la pantalla de inicio") para poder activar las alertas.');
+        return;
+      }
+
+      const permission = await window.Notification.requestPermission();
       if (permission !== 'granted') {
         alert('Permiso de notificaciones denegado. No recibirás alertas SOS.');
         return;
