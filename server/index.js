@@ -73,6 +73,15 @@ app.get('/api/debug/subscriptions', async (req, res) => {
     }
 });
 
+app.get('/api/debug/clear-subscriptions', async (req, res) => {
+    try {
+        const result = await Subscription.deleteMany({});
+        res.json({ success: true, message: `Deleted ${result.deletedCount} old subscriptions.` });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
 // --- ROUTES ---
 
 // Subscribe (Push - Now FCM Token)
