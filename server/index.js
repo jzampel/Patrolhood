@@ -66,7 +66,7 @@ app.get('/api/debug/subscriptions', async (req, res) => {
         res.json({
             success: true,
             count,
-            tokens: subs.map(s => s.token.substring(0, 10) + '...')
+            tokens: subs.map(s => (s.token ? s.token.substring(0, 10) + '...' : 'INVALID_TOKEN'))
         });
     } catch (err) {
         res.status(500).json({ success: false, error: err.message });
