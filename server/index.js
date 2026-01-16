@@ -130,19 +130,44 @@ app.post('/api/debug/test-push', async (req, res) => {
     res.json({ success: true, message: `Notification scheduled in ${delaySeconds}s` });
 });
 
+// Clean subscriptions (POST manual trigger)
+app.post('/api/debug/clean-subscriptions', async (req, res) => {
+    try {
+        const result = await Subscription.deleteMany({});
+        console.log(`🧹 Cleared ${result.deletedCount} subscriptions`);
+        res.json({ success: true, count: result.deletedCount });
+    } catch (err) {
+        console.error('❌ Error clearing subscriptions:', err);
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
 // --- ROUTES ---
 
 // Subscribe (Push - Now FCM Token)
 app.post('/api/subscribe', async (req, res) => {
+    console.log('📝 Received subscription request:', JSON.stringify(req.body));
     const { token, userId, role } = req.body;
+
+    if (!token) {
+        console.error('❌ Missing token in subscription request');
+        return res.status(400).json({ error: 'Token is required' });
+    }
+
     try {
-        await Subscription.findOneAndUpdate(
+        const result = await Subscription.findOneAndUpdate(
             { token: token },
-            { token, userId, role },
+            {
+                token,
+                userId: userId || 'unknown',
+                role: role || 'user'
+            },
             { upsert: true, new: true }
         );
+        console.log('✅ Subscription saved:', result);
         res.status(201).json({ success: true });
     } catch (error) {
+        console.error('❌ Error saving subscription:', error); // Log the actual error
         res.status(500).json({ error: error.message });
     }
 });

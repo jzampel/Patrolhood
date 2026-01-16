@@ -713,6 +713,26 @@ function App() {
         ☰
       </button>
 
+      {/* Foreground Notification Toast */}
+      {sosActive && activeTab !== 'map' && (
+        <div
+          className="foreground-toast"
+          onClick={() => setActiveTab('map')}
+          style={{
+            position: 'fixed', top: '10px', left: '50%', transform: 'translateX(-50%)',
+            background: '#ef4444', color: 'white', padding: '10px 20px', borderRadius: '20px',
+            zIndex: 9999, boxShadow: '0 4px 12px rgba(0,0,0,0.5)', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', gap: '10px', width: '90%', maxWidth: '400px'
+          }}
+        >
+          <span style={{ fontSize: '1.5em' }}>🚨</span>
+          <div style={{ flex: 1 }}>
+            <strong>¡ALERTA SOS ACTIVA!</strong>
+            <div style={{ fontSize: '0.9em' }}>Pulsa para ver en el mapa</div>
+          </div>
+        </div>
+      )}
+
       {isSidebarOpen && <div className="sidebar-overlay active" onClick={() => setIsSidebarOpen(false)}></div>}
 
       <div className={`sidebar ${isSidebarOpen ? 'open' : ''}`}>
@@ -777,6 +797,20 @@ function App() {
                     }}
                   >
                     ❓ Verificar Suscriptores
+                  </button>
+
+                  <button
+                    style={{ background: 'none', border: '1px solid #ef4444', color: '#ef4444', padding: '5px 10px', marginTop: '5px', cursor: 'pointer', width: '100%' }}
+                    onClick={async () => {
+                      if (!confirm('¿Borrar TODAS las suscripciones? (Se requerirá volver a activar)')) return;
+                      try {
+                        const res = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/debug/clean-subscriptions`, { method: 'POST' });
+                        const d = await res.json();
+                        alert(`Borradas ${d.count} suscripciones.`);
+                      } catch (e) { alert('Error: ' + e.message); }
+                    }}
+                  >
+                    🗑️ Borrar Suscripciones
                   </button>
                 </div>
               </div>
