@@ -150,6 +150,50 @@ app.get('/api/debug/subscriptions', async (req, res) => {
     }
 });
 
+// --- TELEGRAM BOT SETUP ---
+const TelegramBot = require('node-telegram-bot-api');
+const token = process.env.TELEGRAM_BOT_TOKEN;
+let bot = null;
+
+if (token) {
+    bot = new TelegramBot(token, { polling: true });
+    console.log('🤖 Telegram Bot Initialized');
+
+    // Handle /start command (Link account)
+    bot.onText(/\/start (.+)/, async (msg, match) => {
+        const chatId = msg.chat.id;
+        const userId = match[1]; // The parameter passed in start=USER_ID
+
+        try {
+            const user = await User.findOne({ id: userId });
+            if (user) {
+                user.telegramChatId = chatId;
+                await user.save();
+                bot.sendMessage(chatId, `✅ ¡Hola ${user.name}! Tu cuenta ha sido vinculada correctamente. Recibirás las alertas de emergencia aquí.`);
+                console.log(`🔗 Linked Telegram ChatId ${chatId} to User ${user.name} (${userId})`);
+            } else {
+                bot.sendMessage(chatId, '❌ No pudimos encontrar tu usuario. Intenta abrir el enlace desde la app de nuevo.');
+            }
+        } catch (error) {
+            console.error('Telegram Link Error:', error);
+            bot.sendMessage(chatId, '❌ Error interno al vincular cuenta.');
+        }
+    });
+
+    // Handle simple /start without parameters
+    bot.onText(/\/start$/, (msg) => {
+        bot.sendMessage(msg.chat.id, '❌ Por favor, usa el botón "Activar Alertas" desde la página web de PatrolHood para vincular tu cuenta.');
+    });
+
+    // Log polling errors
+    bot.on('polling_error', (error) => {
+        console.error('Telegram Polling Error:', error.code);  // E.g. ETELEGRAM: 409 Conflict
+    });
+
+} else {
+    console.log('⚠️ Telegram Bot Token not provided. Skipping Telegram setup.');
+}
+
 // --- ROUTES ---
 
 // Subscribe (Push - Now FCM Token)
@@ -524,6 +568,44 @@ io.on('connection', (socket) => {
                 }
             } catch (fcmErr) {
                 console.error('FCM Multicast Error (SOS):', fcmErr);
+            }
+
+
+
+            // --- TELEGRAM NOTIFICATION ---
+            if (bot) {
+                try {
+                    // Find all users with a linked Telegram Chat ID
+                    const telegramUsers = await User.find({ telegramChatId: { $exists: true, $ne: null } });
+                    console.log(`[TELEGRAM] Found ${telegramUsers.length} users to notify.`);
+
+                    const sosMessage = `🚨 *¡ALERTA VECINAL!* 🚨\n\n` +
+                        `🔴 *Tipo:* ${data.emergencyTypeLabel.toUpperCase()}\n` +
+                        `🏠 *Casa:* #${data.houseNumber}\n` +
+                        `👤 *Vecino:* ${data.userName}\n\n` +
+                        `⚠️ _Atención inmediata requerida_`;
+
+                    const locationOptions = {
+                        reply_markup: {
+                            inline_keyboard: [
+                                [{ text: "🌍 Ver en Mapa", url: "https://your-app-url.onrender.com" }] // TODO: Replace with env var
+                            ]
+                        }
+                    };
+
+                    telegramUsers.forEach(u => {
+                        bot.sendMessage(u.telegramChatId, sosMessage, { parse_mode: 'Markdown' })
+                            .then(() => {
+                                if (data.location) {
+                                    bot.sendLocation(u.telegramChatId, data.location.lat, data.location.lng);
+                                }
+                            })
+                            .catch(err => console.error(`[TELEGRAM] Failed to send to ${u.name}:`, err.message));
+                    });
+
+                } catch (tgErr) {
+                    console.error('[TELEGRAM] Error sending alerts:', tgErr);
+                }
             }
 
         } catch (err) {

@@ -9,7 +9,8 @@ const UserSchema = new mongoose.Schema({
     password: { type: String, required: true },
     role: { type: String, enum: ['admin', 'user'], default: 'user' },
     mapLabel: { type: String }, // House Number linked to map
-    avatar: { type: String } // For future use
+    avatar: { type: String }, // For future use
+    telegramChatId: { type: String } // Telegram Chat ID for notifications
 });
 
 module.exports = mongoose.model('User', UserSchema);
