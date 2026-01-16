@@ -59,7 +59,16 @@ try {
     console.error('❌ Firebase Admin Initialization Error:', error.message);
 }
 
-// --- DEBUG ROUTES ---
+// --- DEBUG/STATUS ROUTES ---
+
+app.get('/api/production-status', (req, res) => {
+    res.json({
+        firebaseInitialized: admin.apps.length > 0,
+        hasEnvVar: !!process.env.FIREBASE_SERVICE_ACCOUNT,
+        nodeEnv: process.env.NODE_ENV,
+        mongoReady: mongoose.connection.readyState === 1
+    });
+});
 
 // Test Push Notification (delayed)
 app.post('/api/debug/test-push', async (req, res) => {
