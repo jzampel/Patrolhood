@@ -17,9 +17,27 @@ echo.
 echo 2. Iniciando Servidor Backend...
 start "Backend" cmd /k "cd server && node index.js"
 
+echo.
+echo Esperando a que el servidor este listo...
 timeout /t 5 /nobreak >nul
 
-echo 2. Creando Puerta a Internet (Tunel)...
+REM Verificar si el servidor responde localmente
+curl -s http://localhost:3001/api/health >nul
+if %errorlevel% neq 0 (
+  echo [ERROR] El servidor no parece estar respondiendo en el puerto 3001.
+  echo Revisa los errores en la ventana "Backend".
+  pause
+) else (
+  echo ✅ Servidor respondiendo correctamente.
+)
+
+echo 3. Creando Puerta a Internet (Tunel)...
+echo.
+echo -----------------------------------------------------
+echo  IMPORTANTE: SI TE PIDE "TUNNEL PASSWORD"
+echo  TU CONTRASENA ES ESTA IP:
+curl -s ipv4.icanhazip.com
+echo -----------------------------------------------------
 echo.
 start "ESTA ES LA URL PARA EL MOVIL" cmd /k "npx -y localtunnel --port 3001"
 

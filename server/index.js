@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
@@ -59,28 +60,6 @@ try {
 }
 
 // --- DEBUG ROUTES ---
-app.get('/api/debug/subscriptions', async (req, res) => {
-    try {
-        const count = await Subscription.countDocuments({});
-        const subs = await Subscription.find({});
-        res.json({
-            success: true,
-            count,
-            tokens: subs.map(s => (s.token ? s.token.substring(0, 10) + '...' : 'INVALID_TOKEN'))
-        });
-    } catch (err) {
-        res.status(500).json({ success: false, error: err.message });
-    }
-});
-
-app.get('/api/debug/clear-subscriptions', async (req, res) => {
-    try {
-        const result = await Subscription.deleteMany({});
-        res.json({ success: true, message: `Deleted ${result.deletedCount} old subscriptions.` });
-    } catch (err) {
-        res.status(500).json({ success: false, error: err.message });
-    }
-});
 
 // Test Push Notification (delayed)
 app.post('/api/debug/test-push', async (req, res) => {
@@ -138,6 +117,16 @@ app.post('/api/debug/clean-subscriptions', async (req, res) => {
         res.json({ success: true, count: result.deletedCount });
     } catch (err) {
         console.error('❌ Error clearing subscriptions:', err);
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+// GET subscriptions count
+app.get('/api/debug/subscriptions', async (req, res) => {
+    try {
+        const count = await Subscription.countDocuments();
+        res.json({ success: true, count });
+    } catch (err) {
         res.status(500).json({ success: false, error: err.message });
     }
 });
