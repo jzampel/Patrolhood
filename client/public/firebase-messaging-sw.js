@@ -1,4 +1,5 @@
 // Firebase Cloud Messaging Service Worker
+console.log('👷 [SW] Service Worker File Loaded');
 importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js');
 
@@ -34,4 +35,8 @@ self.addEventListener('notificationclick', function (event) {
     event.waitUntil(
         clients.openWindow('/')
     );
+});
+
+self.addEventListener('push', function (event) {
+    console.log('🔔 [SW] Push Received:', event.data ? event.data.text() : 'no payload');
 });

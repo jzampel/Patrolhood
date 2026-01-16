@@ -82,6 +82,54 @@ app.get('/api/debug/clear-subscriptions', async (req, res) => {
     }
 });
 
+// Test Push Notification (delayed)
+app.post('/api/debug/test-push', async (req, res) => {
+    const { delaySeconds = 10 } = req.body;
+
+    console.log(`🕒 Scheduling test push in ${delaySeconds} seconds...`);
+
+    setTimeout(async () => {
+        try {
+            const subs = await Subscription.find({});
+            console.log(`[TEST-PUSH] Sending to ${subs.length} devices...`);
+
+            if (subs.length > 0) {
+                const tokens = subs.map(s => s.token).filter(t => !!t);
+
+                // Force a very basic notification structure for maximum compatibility
+                const response = await admin.messaging().sendEachForMulticast({
+                    tokens,
+                    notification: {
+                        title: '🔔 Test de Notificación',
+                        body: 'Si ves esto con la app cerrada, ¡funciona! 🎉'
+                    },
+                    android: {
+                        priority: 'high',
+                        notification: {
+                            sound: 'default'
+                        }
+                    },
+                    webpush: {
+                        headers: {
+                            Urgency: 'high'
+                        },
+                        notification: {
+                            icon: '/logo_bull.png',
+                            requireInteraction: true
+                        }
+                    }
+                });
+
+                console.log(`[TEST-PUSH] Results: Success: ${response.successCount}, Failure: ${response.failureCount}`);
+            }
+        } catch (err) {
+            console.error('[TEST-PUSH] Error:', err);
+        }
+    }, delaySeconds * 1000);
+
+    res.json({ success: true, message: `Notification scheduled in ${delaySeconds}s` });
+});
+
 // --- ROUTES ---
 
 // Subscribe (Push - Now FCM Token)

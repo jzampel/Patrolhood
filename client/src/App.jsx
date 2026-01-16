@@ -739,6 +739,27 @@ function App() {
               <div className="admin-section" style={{ marginTop: '15px' }}>
                 <button onClick={generateInvite} className="invite-btn">Generar Invitación</button>
                 {generatedInvite && <div className="invite-code">{generatedInvite}</div>}
+
+                <hr style={{ margin: '15px 0', borderColor: '#444' }} />
+                <h4 style={{ margin: '0 0 10px 0', color: '#aaa' }}>🛠️ Diagnóstico</h4>
+                <button
+                  className="invite-btn"
+                  style={{ background: '#7c3aed' }}
+                  onClick={async () => {
+                    if (!confirm('Esto enviará una notificación a TODOS tras 10s. Cierra la app para probar.')) return;
+                    try {
+                      const res = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/debug/test-push`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ delaySeconds: 10 })
+                      });
+                      const d = await res.json();
+                      alert(d.message);
+                    } catch (e) { alert('Error: ' + e.message); }
+                  }}
+                >
+                  🔔 Probar Push (10s)
+                </button>
               </div>
             )}
           </>
