@@ -36,6 +36,7 @@ const io = new Server(server, {
 });
 
 // --- FIREBASE ADMIN SDK INITIALIZATION ---
+let firebaseInitError = null;
 try {
     let serviceAccount;
     if (process.env.FIREBASE_SERVICE_ACCOUNT) {
@@ -51,11 +52,14 @@ try {
         serviceAccount = require('./serviceAccountKey.json');
     }
 
-    admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount)
-    });
-    console.log('✅ Firebase Admin Initialized');
+    if (!admin.apps.length) {
+        admin.initializeApp({
+            credential: admin.credential.cert(serviceAccount)
+        });
+        console.log('✅ Firebase Admin Initialized');
+    }
 } catch (error) {
+    firebaseInitError = error.message;
     console.error('❌ Firebase Admin Initialization Error:', error.message);
 }
 
@@ -64,6 +68,7 @@ try {
 app.get('/api/production-status', (req, res) => {
     res.json({
         firebaseInitialized: admin.apps.length > 0,
+        firebaseError: firebaseInitError,
         hasEnvVar: !!process.env.FIREBASE_SERVICE_ACCOUNT,
         nodeEnv: process.env.NODE_ENV,
         mongoReady: mongoose.connection.readyState === 1
