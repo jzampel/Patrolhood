@@ -479,6 +479,7 @@ function App() {
   const [sosHouseNumber, setSosHouseNumber] = useState(null) // New: specific house alert
   const [activeEmergencyType, setActiveEmergencyType] = useState(null)
   const [sosUserId, setSosUserId] = useState(null) // New: Track who started the alert
+  const [pendingSOS, setPendingSOS] = useState(null) // New: For double confirmation
   const [generatedInvite, setGeneratedInvite] = useState(null)
   const [notificationsEnabled, setNotificationsEnabled] = useState(false)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
@@ -702,22 +703,28 @@ function App() {
   }, [])
 
   const triggerSOS = (type) => {
+    const info = EMERGENCY_TYPES.find(e => e.id === type)
+    setPendingSOS(info)
+    setShowEmergencyMenu(false)
+  }
+
+  const confirmSOS = () => {
+    if (!pendingSOS) return
+
     const myHouse = houses.find(h => h.number === user.mapLabel)
     if (!myHouse) { alert('No tienes una casa asignada correctamente en el mapa.'); return; }
 
-    const info = EMERGENCY_TYPES.find(e => e.id === type)
     socket.emit('emergency_alert', {
-      emergencyType: type,
-      emergencyTypeLabel: info.label,
-      emergencyEmoji: info.emoji,
-      userId: user.id, // Send User ID
+      emergencyType: pendingSOS.id,
+      emergencyTypeLabel: pendingSOS.label,
+      emergencyEmoji: pendingSOS.emoji,
+      userId: user.id,
       userName: user.name,
       houseNumber: user.mapLabel,
-      message: `${info.emoji} ${info.label} en casa de ${user.name} (#${user.mapLabel})`,
+      message: `${pendingSOS.emoji} ${pendingSOS.label} en casa de ${user.name} (#${user.mapLabel})`,
       location: { lat: myHouse.position[0], lng: myHouse.position[1] }
     })
-    setShowEmergencyMenu(false)
-    // REMOVED: setActiveTab('forum') -> Now stays on map
+    setPendingSOS(null)
   }
 
   const generateInvite = async () => {
@@ -974,6 +981,34 @@ function App() {
               ))}
             </div>
             <button className="cancel-btn" onClick={() => setShowEmergencyMenu(false)}>Cancelar</button>
+          </div>
+        </div>
+      )}
+
+      {pendingSOS && (
+        <div className="modal-overlay" onClick={() => setPendingSOS(null)}>
+          <div className="auth-box confirmation-modal" onClick={e => e.stopPropagation()} style={{ textAlign: 'center', borderColor: '#ef4444' }}>
+            <h2 style={{ color: '#ef4444' }}>⚠️ ¿CONFIRMAR ALERTA?</h2>
+            <div style={{ fontSize: '1.2em', margin: '20px 0' }}>
+              Has seleccionado:<br />
+              <strong style={{ fontSize: '1.5em' }}>{pendingSOS.emoji} {pendingSOS.label.toUpperCase()}</strong>
+            </div>
+            <p style={{ color: '#94a3b8', marginBottom: '20px' }}>Esta acción notificará a todos tus vecinos de inmediato.</p>
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
+              <button
+                onClick={() => setPendingSOS(null)}
+                style={{ background: '#475569', border: 'none', padding: '15px 25px', borderRadius: '8px', cursor: 'pointer', color: 'white', fontWeight: 'bold' }}
+              >
+                CANCELAR
+              </button>
+              <button
+                onClick={confirmSOS}
+                className="sos-button"
+                style={{ width: 'auto', padding: '15px 25px', fontSize: '1em', marginTop: 0 }}
+              >
+                🚨 CONFIRMAR
+              </button>
+            </div>
           </div>
         </div>
       )}

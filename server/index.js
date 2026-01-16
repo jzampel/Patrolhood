@@ -460,7 +460,7 @@ app.post('/api/forum', async (req, res) => {
                         tokens,
                         notification: {
                             title: `💬 Foro: ${channel}`,
-                            body: `${user}: ${text.substring(0, 50)}${text.length > 50 ? '...' : ''}`
+                            body: `${user}: ${text?.substring(0, 50)}${text?.length > 50 ? '...' : ''}`
                         },
                         data: {
                             channel,
@@ -470,6 +470,23 @@ app.post('/api/forum', async (req, res) => {
                 }
             } catch (fcmErr) {
                 console.error('FCM Multicast Error (Forum):', fcmErr);
+            }
+
+            // --- TELEGRAM FORUM NOTIFICATION ---
+            if (bot) {
+                try {
+                    const telegramUsers = await User.find({ telegramChatId: { $exists: true, $ne: null } });
+                    const msgText = text ? text : (image ? "📷 [Imagen]" : "");
+                    const forumMessage = `💬 *Foro: ${channel}*\n\n` +
+                        `👤 *${user}:* ${msgText}`;
+
+                    telegramUsers.forEach(u => {
+                        bot.sendMessage(u.telegramChatId, forumMessage, { parse_mode: 'Markdown' })
+                            .catch(err => console.error(`[TELEGRAM] Failed to send forum msg to ${u.name}:`, err.message));
+                    });
+                } catch (tgErr) {
+                    console.error('[TELEGRAM] Forum notification error:', tgErr);
+                }
             }
         }
 
