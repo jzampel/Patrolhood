@@ -829,67 +829,7 @@ function App() {
             {user.role === 'admin' && (
               <div className="admin-section" style={{ marginTop: '15px' }}>
                 <button onClick={generateInvite} className="invite-btn">Generar Invitación</button>
-                <button
-                  style={{ background: '#10b981', color: 'white', border: 'none', padding: '10px', borderRadius: '4px', cursor: 'pointer', width: '100%', marginTop: '10px' }}
-                  onClick={checkStatus}
-                >
-                  ⚙️ Verificar Configuración
-                </button>
                 {generatedInvite && <div className="invite-code">{generatedInvite}</div>}
-
-                <hr style={{ margin: '15px 0', borderColor: '#444' }} />
-                <h4 style={{ margin: '0 0 10px 0', color: '#aaa' }}>🛠️ Diagnóstico</h4>
-                <button
-                  className="invite-btn"
-                  style={{ background: '#7c3aed' }}
-                  onClick={async () => {
-                    if (!confirm('Esto enviará una notificación a TODOS tras 10s. Cierra la app para probar.')) return;
-                    try {
-                      const res = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/debug/test-push`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ delaySeconds: 10 })
-                      });
-                      const d = await res.json();
-                      alert(d.message);
-                    } catch (e) { alert('Error: ' + e.message); }
-                  }}
-                >
-                  🔔 Probar Push (10s)
-                </button>
-
-                <div style={{ marginTop: '10px', fontSize: '0.9em', color: '#888' }}>
-                  <button
-                    style={{ background: 'none', border: '1px solid #555', color: '#aaa', padding: '5px 10px', cursor: 'pointer', width: '100%' }}
-                    onClick={async (e) => {
-                      const btn = e.target;
-                      btn.innerText = 'Cargando...';
-                      try {
-                        const res = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/debug/subscriptions`);
-                        const data = await res.json();
-                        btn.innerText = `📱 Dispositivos: ${data.count || 0}`;
-                      } catch (err) {
-                        btn.innerText = 'Error al verificar';
-                      }
-                    }}
-                  >
-                    ❓ Verificar Suscriptores
-                  </button>
-
-                  <button
-                    style={{ background: 'none', border: '1px solid #ef4444', color: '#ef4444', padding: '5px 10px', marginTop: '5px', cursor: 'pointer', width: '100%' }}
-                    onClick={async () => {
-                      if (!confirm('¿Borrar TODAS las suscripciones? (Se requerirá volver a activar)')) return;
-                      try {
-                        const res = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/debug/clean-subscriptions`, { method: 'POST' });
-                        const d = await res.json();
-                        alert(`Borradas ${d.count} suscripciones.`);
-                      } catch (e) { alert('Error: ' + e.message); }
-                    }}
-                  >
-                    🗑️ Borrar Suscripciones
-                  </button>
-                </div>
               </div>
             )}
           </>
@@ -906,10 +846,6 @@ function App() {
             <p>Listado oficial de vecinos registrados.</p>
           </div>
         )}
-
-        <button className="notification-btn" onClick={subscribeToPush}>
-          🔔 Activar Notificaciones
-        </button>
 
         <button className="logout-btn" onClick={() => setUser(null)}>Salir</button>
       </div>
