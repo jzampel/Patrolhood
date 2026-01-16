@@ -760,6 +760,25 @@ function App() {
                 >
                   🔔 Probar Push (10s)
                 </button>
+
+                <div style={{ marginTop: '10px', fontSize: '0.9em', color: '#888' }}>
+                  <button
+                    style={{ background: 'none', border: '1px solid #555', color: '#aaa', padding: '5px 10px', cursor: 'pointer', width: '100%' }}
+                    onClick={async (e) => {
+                      const btn = e.target;
+                      btn.innerText = 'Cargando...';
+                      try {
+                        const res = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/debug/subscriptions`);
+                        const data = await res.json();
+                        btn.innerText = `📱 Dispositivos: ${data.count || 0}`;
+                      } catch (err) {
+                        btn.innerText = 'Error al verificar';
+                      }
+                    }}
+                  >
+                    ❓ Verificar Suscriptores
+                  </button>
+                </div>
               </div>
             )}
           </>
