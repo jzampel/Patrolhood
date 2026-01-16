@@ -370,6 +370,27 @@ function UserList({ currentUser, houses, users, setUsers }) {
     }
   }
 
+  const deleteUser = async (userToDelete) => {
+    if (!window.confirm(`¿Estás seguro de que quieres eliminar a ${userToDelete.name} ${userToDelete.surname}? Esta acción no se puede deshacer.`)) {
+      return
+    }
+
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/users/${userToDelete.id}`, {
+        method: 'DELETE'
+      })
+      const data = await res.json()
+
+      if (data.success) {
+        setUsers(prev => prev.filter(u => u.id !== userToDelete.id))
+      } else {
+        alert(data.message || 'Error al eliminar usuario')
+      }
+    } catch (err) {
+      alert('Error de conexión al intentar eliminar')
+    }
+  }
+
   return (
     <div className="user-list-container">
       <h2>👥 Vecinos Registrados</h2>
@@ -389,12 +410,22 @@ function UserList({ currentUser, houses, users, setUsers }) {
                 {u.role === 'admin' && <span className="user-role-badge">Admin</span>}
 
                 {currentUser.role === 'admin' && (
-                  <button
-                    onClick={() => startEdit(u)}
-                    style={{ background: '#3b82f6', border: 'none', color: 'white', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8em' }}
-                  >
-                    ✏️ Editar
-                  </button>
+                  <div style={{ display: 'flex', gap: '5px' }}>
+                    <button
+                      onClick={() => startEdit(u)}
+                      style={{ background: '#3b82f6', border: 'none', color: 'white', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8em' }}
+                    >
+                      ✏️ Editar
+                    </button>
+                    {u.id !== currentUser.id && ( // Don't let admin delete themselves easily from here
+                      <button
+                        onClick={() => deleteUser(u)}
+                        style={{ background: '#ef4444', border: 'none', color: 'white', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8em' }}
+                      >
+                        🗑️ Eliminar
+                      </button>
+                    )}
+                  </div>
                 )}
               </div>
             </div>

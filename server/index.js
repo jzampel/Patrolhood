@@ -373,6 +373,20 @@ app.put('/api/users/:id', async (req, res) => {
     }
 });
 
+// Users: Delete
+app.delete('/api/users/:id', async (req, res) => {
+    try {
+        const result = await User.deleteOne({ id: req.params.id });
+        if (result.deletedCount > 0) {
+            res.json({ success: true });
+        } else {
+            res.status(404).json({ success: false, message: 'Usuario no encontrado' });
+        }
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
 // Forum: Post Message
 app.post('/api/forum', async (req, res) => {
     const { channel, user, text, type, image } = req.body;
