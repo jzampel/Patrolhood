@@ -518,12 +518,30 @@ function App() {
       // Handle foreground messages
       onMessage(messaging, (payload) => {
         console.log('Foreground Message received: ', payload);
-        // You could show a custom toast here if you want
+        if (payload.notification) {
+          alert(`🔔 NOTIFICACIÓN: ${payload.notification.title}\n\n${payload.notification.body}`);
+        }
       });
 
     } catch (err) {
       console.error('❌ Push registration failed:', err);
       alert(`Error activando notificaciones: ${err.message}`);
+    }
+  }
+
+  // Check production status
+  const checkStatus = async () => {
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/production-status`);
+      const data = await res.json();
+      let msg = `Estado del Servidor:\n`;
+      msg += `- Base de Datos: ${data.mongoReady ? '✅ OK' : '❌ Error'}\n`;
+      msg += `- Firebase: ${data.firebaseInitialized ? '✅ OK' : '❌ NO INICIALIZADO'}\n`;
+      if (data.firebaseError) msg += `- Error Firebase: ${data.firebaseError}\n`;
+      msg += `\nEntorno: ${data.nodeEnv}`;
+      alert(msg);
+    } catch (err) {
+      alert('Error al conectar con el servidor para verificar estado.');
     }
   }
 
@@ -758,6 +776,12 @@ function App() {
             {user.role === 'admin' && (
               <div className="admin-section" style={{ marginTop: '15px' }}>
                 <button onClick={generateInvite} className="invite-btn">Generar Invitación</button>
+                <button
+                  style={{ background: '#10b981', color: 'white', border: 'none', padding: '10px', borderRadius: '4px', cursor: 'pointer', width: '100%', marginTop: '10px' }}
+                  onClick={checkStatus}
+                >
+                  ⚙️ Verificar Configuración
+                </button>
                 {generatedInvite && <div className="invite-code">{generatedInvite}</div>}
 
                 <hr style={{ margin: '15px 0', borderColor: '#444' }} />
