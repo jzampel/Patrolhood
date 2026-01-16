@@ -470,7 +470,10 @@ function UserList({ currentUser, houses, users, setUsers }) {
 }
 
 function App() {
-  const [user, setUser] = useState(null)
+  const [user, setUser] = useState(() => {
+    const saved = localStorage.getItem('user')
+    return saved ? JSON.parse(saved) : null
+  })
   const [activeTab, setActiveTab] = useState('map') // 'map' or 'forum' or 'users'
 
   const [showEmergencyMenu, setShowEmergencyMenu] = useState(false)
@@ -761,7 +764,10 @@ function App() {
     await fetch(`${import.meta.env.VITE_API_URL || ''}/api/houses/${id}`, { method: 'DELETE' })
   }
 
-  if (!user) return <AuthOverlay onLogin={setUser} />
+  if (!user) return <AuthOverlay onLogin={(userData) => {
+    localStorage.setItem('user', JSON.stringify(userData))
+    setUser(userData)
+  }} />
 
   return (
     <div className="app">
@@ -854,7 +860,10 @@ function App() {
           </div>
         )}
 
-        <button className="logout-btn" onClick={() => setUser(null)}>Salir</button>
+        <button className="logout-btn" onClick={() => {
+          localStorage.removeItem('user')
+          setUser(null)
+        }}>Salir</button>
       </div>
 
       {activeTab === 'map' && (
