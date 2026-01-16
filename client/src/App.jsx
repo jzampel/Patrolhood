@@ -447,6 +447,7 @@ function App() {
   const [sosLocation, setSosLocation] = useState(null)
   const [sosHouseNumber, setSosHouseNumber] = useState(null) // New: specific house alert
   const [activeEmergencyType, setActiveEmergencyType] = useState(null)
+  const [sosUserId, setSosUserId] = useState(null) // New: Track who started the alert
   const [generatedInvite, setGeneratedInvite] = useState(null)
   const [notificationsEnabled, setNotificationsEnabled] = useState(false)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
@@ -498,7 +499,7 @@ function App() {
       });
 
       if (token) {
-        console.log('FCM Token:', token);
+        console.log('✅ FCM Token generated:', token);
         const response = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/subscribe`, {
           method: 'POST',
           body: JSON.stringify({ token, userId: user.id, role: user.role }),
@@ -507,19 +508,21 @@ function App() {
 
         if (!response.ok) throw new Error('Error al guardar suscripción en el servidor');
 
+        console.log('✅ Subscription saved on server');
         alert('✅ Notificaciones Activadas en este dispositivo');
         setNotificationsEnabled(true);
       } else {
-        throw new Error('No se pudo obtener el token de Firebase');
+        throw new Error('No se pudo obtener el token de Firebase (vacío)');
       }
 
       // Handle foreground messages
       onMessage(messaging, (payload) => {
-        console.log('Message received. ', payload);
+        console.log('Foreground Message received: ', payload);
+        // You could show a custom toast here if you want
       });
 
     } catch (err) {
-      console.error('Failed to subscribe', err);
+      console.error('❌ Push registration failed:', err);
       alert(`Error activando notificaciones: ${err.message}`);
     }
   }
@@ -632,6 +635,7 @@ function App() {
       setSosActive(true)
       setActiveEmergencyType(data.emergencyType)
       setSosHouseNumber(data.houseNumber) // Save triggering house
+      setSosUserId(data.userId) // Save who triggered it
       if (data.location) setSosLocation([data.location.lat, data.location.lng])
       // startSiren() // Siren sound disabled per user request
     })
@@ -641,6 +645,7 @@ function App() {
       setSosLocation(null)
       setSosHouseNumber(null)
       setActiveEmergencyType(null)
+      setSosUserId(null)
       // stopSiren() // Siren sound disabled per user request
     })
 
@@ -656,6 +661,7 @@ function App() {
       emergencyType: type,
       emergencyTypeLabel: info.label,
       emergencyEmoji: info.emoji,
+      userId: user.id, // Send User ID
       userName: user.name,
       houseNumber: user.mapLabel,
       message: `${info.emoji} ${info.label} en casa de ${user.name} (#${user.mapLabel})`,
@@ -762,7 +768,17 @@ function App() {
           {!sosActive ? (
             <button className="sos-button floating" onClick={() => setShowEmergencyMenu(true)}>SOS</button>
           ) : (
-            <button className="stop-button floating" onClick={() => socket.emit('stop_alert')}>🔕 PARAR</button>
+            // Only show STOP button if user is Admin OR if user is the one who started it
+            (user.role === 'admin' || user.id === sosUserId) ? (
+              <button
+                className="stop-button floating"
+                onClick={() => socket.emit('stop_alert', { userId: user.id, role: user.role })}
+              >
+                🔕 PARAR
+              </button>
+            ) : (
+              <div className="sos-active-banner">🚨 ALERTA ACTIVA</div>
+            )
           )}
         </div>
       )}

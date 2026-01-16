@@ -1,47 +1,52 @@
 @echo off
 echo ========================================
-echo  PATROLHOOD - Remote Access (Production Mode)
+echo  PATROLHOOD - Acceso Remoto (Modo Estable)
 echo ========================================
 echo.
-echo 1. Building the App (this takes ~10-20 seconds)...
-echo    PLEASE WAIT...
+
+REM Kill previous node processes to avoid port conflicts
+taskkill /F /IM node.exe /T 2>nul
+
+echo 1. Preparando la App (esto tarda unos 10 segundos)...
 echo.
 
 cd client
 call npm run build
 if %errorlevel% neq 0 (
-  echo [ERROR] Build failed. Please check the errors above.
+  echo [ERROR] El build ha fallado. Revisa los errores.
   pause
   exit /b
 )
 cd ..
 
 echo.
-echo 2. Starting Server...
+echo 2. Iniciando Servidor...
 echo.
 
 REM Start backend server (which serves the built client)
 start "PatrolHood Server" cmd /k "cd server && npm start"
 
 echo.
-echo 3. Creating Public Tunnel...
+echo 3. Creando Tunel Publico...
 echo.
-echo Waiting for server to boot...
+echo Esperando a que el servidor arranque...
 timeout /t 5 /nobreak >nul
 
 REM Create tunnel for backend port 3001
-start "Remote Access URL (SHARE THIS)" cmd /k "npx -y localtunnel --port 3001"
+start "URL DE ACCESO (COPIA ESTO)" cmd /k "npx -y localtunnel --port 3001"
 
 echo.
-echo ========================================
-echo  SUCCESS!
-echo ========================================
+echo =======================================================
+echo  ¡TODO LISTO!
+echo =======================================================
 echo.
-echo 1. Look for the window "Remote Access URL"
-echo 2. Copy the URL (https://xxxx.loca.lt)
-echo 3. That is your ONE SINGLE URL for everything.
+echo 1. Mira la ventana: "URL DE ACCESO (COPIA ESTO)"
+echo 2. Copia la URL (empieza por https://...)
+echo 3. Abre esa URL en tu movil.
 echo.
-echo Open it on your mobile. Login and SOS will work.
+echo IMPORTANTE: Si ves una pagina azul de "localtunnel",
+echo pulsa el boton azul que dice "Click to Continue".
 echo.
-echo ========================================
+echo =======================================================
 pause
+

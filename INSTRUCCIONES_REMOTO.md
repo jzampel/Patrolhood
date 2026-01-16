@@ -8,38 +8,29 @@ Para acceder a la app desde **fuera de casa** (4G/5G), necesitas crear "túneles
 
 ### 1️⃣ Ejecuta el script automático
 
-Haz doble clic en:
+Haz doble clic en el archivo que he creado en la carpeta principal:
 ```
-start_remote_simple.bat
+INICIAR_MOVIL.bat
 ```
 
-### 2️⃣ Copia la URL del Backend
+### 2️⃣ Copia la URL de Internet
 
-Se abrirá una ventana llamada **"Backend Tunnel"**. Verás algo como:
+Se abrirá una ventana llamada **"ESTA ES LA URL PARA EL MOVIL"**. Verás algo como:
 
 ```
 your url is: https://brave-cats-12345.loca.lt
 ```
 
-**Copia esa URL completa** y pégala cuando el script te lo pida.
+**Copia esa URL completa.**
 
-### 3️⃣ Obtén la URL del Frontend
+### 3️⃣ Abre en tu móvil
 
-Se abrirá otra ventana llamada **"Frontend Tunnel"**. Verás:
-
-```
-your url is: https://funny-dogs-67890.loca.lt
-```
-
-**Esa es la URL que abres en tu móvil.**
-
-### 4️⃣ Abre en tu móvil
-
-1. Desactiva el WiFi (usa 4G/5G)
-2. Abre la URL del Frontend en tu navegador
-3. La primera vez verás una página de advertencia de Localtunnel
-4. Haz clic en **"Continue"** o **"Click to Continue"**
+1. Desactiva el WiFi (usa 4G/5G para probar que funciona desde fuera)
+2. Pega la URL en el navegador de tu móvil.
+3. **MUY IMPORTANTE**: Verás una página azul de advertencia de Localtunnel. 
+4. Haz clic en el botón azul **"Click to Continue"**.
 5. ¡Ya puedes usar la app!
+
 
 ## 📱 Instalar como App
 

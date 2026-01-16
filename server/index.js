@@ -342,11 +342,22 @@ app.post('/api/forum', async (req, res) => {
 
 // --- SOCKETS ---
 
+// Store active alert state in memory
+let activeAlert = null;
+
 io.on('connection', (socket) => {
     console.log('✅ Socket connected:', socket.id);
 
     socket.on('emergency_alert', async (data) => {
         console.log('🚨 EMERGENCY:', data);
+
+        // Store the active alert details
+        activeAlert = {
+            userId: data.userId, // We expect userId from client now
+            houseNumber: data.houseNumber,
+            startTime: Date.now()
+        };
+
         io.emit('emergency_alert', data);
 
         // Auto-post to forum
@@ -375,7 +386,8 @@ io.on('connection', (socket) => {
                         data: {
                             type: 'SOS',
                             houseNumber: String(data.houseNumber),
-                            location: JSON.stringify(data.location)
+                            location: JSON.stringify(data.location),
+                            click_action: '/'
                         },
                         android: {
                             priority: 'high',
@@ -383,16 +395,37 @@ io.on('connection', (socket) => {
                                 sound: 'default',
                                 clickAction: 'OPEN_ACTIVITY_1'
                             }
+                        },
+                        webpush: {
+                            headers: {
+                                Urgency: 'high'
+                            },
+                            notification: {
+                                body: `¡Atención! ${data.emergencyTypeLabel.toUpperCase()} en Casa #${data.houseNumber}. Vecino: ${data.userName}`,
+                                icon: '/logo_bull.png',
+                                badge: '/logo_bull.png',
+                                tag: 'sos-alert',
+                                requireInteraction: true,
+                                data: {
+                                    url: '/'
+                                }
+                            }
                         }
                     });
-                    console.log(`[FCM] SOS sent successfully. Success: ${response.successCount}, Failure: ${response.failureCount}`);
-                    if (response.failureCount > 0) {
-                        response.responses.forEach((resp, idx) => {
-                            if (!resp.success) {
-                                console.error(`[FCM] Error for token ${tokens[idx].substring(0, 10)}...:`, resp.error.message);
+                    console.log(`[FCM] SOS sent. Successes: ${response.successCount}, Failures: ${response.failureCount}`);
+
+                    response.responses.forEach((resp, idx) => {
+                        if (!resp.success) {
+                            console.error(`[FCM] Delivery failed to token ${tokens[idx].substring(0, 15)}... Error:`, resp.error.message);
+                            // If token is invalid or not registered, we should ideally remove it
+                            if (resp.error.code === 'messaging/invalid-registration-token' ||
+                                resp.error.code === 'messaging/registration-token-not-registered') {
+                                console.log(`[FCM] Suggestion: Remove stale token ${tokens[idx].substring(0, 15)}...`);
                             }
-                        });
-                    }
+                        } else {
+                            console.log(`[FCM] Delivery success to token ${tokens[idx].substring(0, 15)}... Message ID: ${resp.messageId}`);
+                        }
+                    });
                 }
             } catch (fcmErr) {
                 console.error('FCM Multicast Error (SOS):', fcmErr);
@@ -403,8 +436,27 @@ io.on('connection', (socket) => {
         }
     });
 
-    socket.on('stop_alert', () => {
-        io.emit('stop_alert');
+    socket.on('stop_alert', (data) => {
+        // data should contain { userId, role }
+        const requesterId = data?.userId;
+        const requesterRole = data?.role;
+
+        // If no active alert, just emit stop to be safe or ignore
+        if (!activeAlert) {
+            io.emit('stop_alert');
+            return;
+        }
+
+        // Check permissions: Admin OR the user who started it
+        if (requesterRole === 'admin' || (requesterId && requesterId === activeAlert.userId)) {
+            console.log(`🔕 Alert stopped by ${requesterRole === 'admin' ? 'Admin' : 'Owner'}`);
+            activeAlert = null; // Clear active alert
+            io.emit('stop_alert');
+        } else {
+            console.log('⛔ Unauthorized attempt to stop alert');
+            // Optionally emit an error back to the specific socket
+            socket.emit('error', { message: 'No tienes permiso para desactivar esta alerta.' });
+        }
     });
 });
 
