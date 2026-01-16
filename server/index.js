@@ -53,6 +53,11 @@ try {
     }
 
     if (!admin.apps.length) {
+        // Repair private key format if it was mangled by env vars
+        if (serviceAccount.private_key) {
+            serviceAccount.private_key = serviceAccount.private_key.replace(/\\n/g, '\n');
+        }
+
         admin.initializeApp({
             credential: admin.credential.cert(serviceAccount)
         });
