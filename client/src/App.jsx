@@ -648,6 +648,35 @@ function App() {
     }
   }, [])
 
+  // Auto-sync user profile (to detect Telegram link etc)
+  useEffect(() => {
+    if (!user?.id) return
+
+    const syncUser = async () => {
+      try {
+        const res = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/users/${user.id}`)
+        const data = await res.json()
+        if (data.success) {
+          setUser(prev => {
+            const updated = { ...prev, ...data.user }
+            localStorage.setItem('user', JSON.stringify(updated))
+            return updated
+          })
+        }
+      } catch (err) {
+        console.error('Error syncing user profile:', err)
+      }
+    }
+
+    // Sync on mount
+    syncUser()
+
+    // And every 10 seconds while logged in
+    const interval = setInterval(syncUser, 10000)
+    return () => clearInterval(interval)
+  }, [user?.id])
+
+
   // ... rest of effects ...
 
   // --- SIREN SOUND LOGIC (Web Audio API) ---

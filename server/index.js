@@ -236,7 +236,7 @@ app.post('/api/login', async (req, res) => {
         });
 
         if (user) {
-            res.json({ success: true, user: { id: user.id, name: user.name, role: user.role, mapLabel: user.mapLabel, address: user.address, phone: user.phone } });
+            res.json({ success: true, user: { id: user.id, name: user.name, role: user.role, mapLabel: user.mapLabel, address: user.address, phone: user.phone, telegramChatId: user.telegramChatId } });
         } else {
             res.status(401).json({ success: false, message: 'Credenciales incorrectas' });
         }
@@ -287,7 +287,7 @@ app.post('/api/register', async (req, res) => {
             console.error('Error notifying admins via FCM:', notifyErr);
         }
 
-        res.json({ success: true, user: { id: newUser.id, name: newUser.name, role: newUser.role, mapLabel: newUser.mapLabel, address: newUser.address } });
+        res.json({ success: true, user: { id: newUser.id, name: newUser.name, role: newUser.role, mapLabel: newUser.mapLabel, address: newUser.address, telegramChatId: newUser.telegramChatId } });
     } catch (error) {
         res.status(500).json({ success: false, message: error.message });
     }
@@ -327,6 +327,21 @@ app.get('/api/users', async (req, res) => {
         res.status(500).json({ success: false, message: error.message });
     }
 });
+
+// Users: Get Single (for profile sync)
+app.get('/api/users/:id', async (req, res) => {
+    try {
+        const user = await User.findOne({ id: req.params.id }, 'id name surname address phone role mapLabel telegramChatId');
+        if (user) {
+            res.json({ success: true, user });
+        } else {
+            res.status(404).json({ success: false, message: 'Usuario no encontrado' });
+        }
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
 
 // Houses: Get All
 app.get('/api/houses', async (req, res) => {
