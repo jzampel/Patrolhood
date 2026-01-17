@@ -39,6 +39,16 @@ function AlertZoom({ sosActive, sosLocation }) {
   return null
 }
 
+function MapFocusController({ focusLocation }) {
+  const map = useMapEvents({})
+  useEffect(() => {
+    if (focusLocation) {
+      map.flyTo(focusLocation, 19, { animate: true, duration: 2.0 })
+    }
+  }, [focusLocation, map])
+  return null
+}
+
 function MapClickHandler({ onAddHouse, user }) {
   useMapEvents({
     dblclick(e) {
@@ -331,7 +341,7 @@ function Forum({ user }) {
   )
 }
 
-function UserList({ currentUser, houses, users, setUsers }) {
+function UserList({ currentUser, houses, users, setUsers, onViewOnMap }) {
   // users state is now passed from parent
   const [editingUser, setEditingUser] = useState(null)
   const [editForm, setEditForm] = useState({ name: '', surname: '', phone: '', address: '', houseNumber: '' })
@@ -405,6 +415,18 @@ function UserList({ currentUser, houses, users, setUsers }) {
               <p className="user-tag" style={{ fontSize: '0.8rem', color: '#aaa' }}>
                 🏷️ Etiqueta Casa: {u.mapLabel ? `#${u.mapLabel}` : 'Sin asignar'}
               </p>
+              {u.mapLabel && (
+                <button
+                  onClick={() => onViewOnMap(u.mapLabel)}
+                  style={{
+                    background: 'none', border: 'none', color: '#3b82f6',
+                    cursor: 'pointer', fontSize: '0.85em', textDecoration: 'underline',
+                    marginTop: '2px', padding: 0
+                  }}
+                >
+                  📍 Ver en el mapa
+                </button>
+              )}
 
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '5px' }}>
                 {u.role === 'admin' && <span className="user-role-badge">Admin</span>}
@@ -486,6 +508,7 @@ function App() {
   const [generatedInvite, setGeneratedInvite] = useState(null)
   const [notificationsEnabled, setNotificationsEnabled] = useState(false)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+  const [mapFocusPosition, setMapFocusPosition] = useState(null)
   const [houses, setHouses] = useState([])
   const [users, setUsers] = useState([])
 
@@ -769,6 +792,17 @@ function App() {
     setUser(userData)
   }} />
 
+  const handleViewOnMap = (mapLabel) => {
+    const targetHouse = houses.find(h => h.number === mapLabel)
+    if (targetHouse) {
+      setMapFocusPosition(targetHouse.position)
+      setActiveTab('map')
+      setIsSidebarOpen(false)
+    } else {
+      alert('Esta casa no está ubicada en el mapa todavía.')
+    }
+  }
+
   return (
     <div className="app">
       <button className="mobile-menu-toggle" onClick={() => setIsSidebarOpen(true)}>
@@ -807,6 +841,17 @@ function App() {
           <span style={{ fontSize: '0.4em', color: '#94a3b8', fontFamily: 'Roboto', fontWeight: 'normal', letterSpacing: '0' }}>Bienvenido a</span>
           <span style={{ fontSize: '1.2em', color: '#fbbf24', textShadow: '2px 2px 4px rgba(0,0,0,0.5)' }}>PATROLHOOD</span>
         </h1>
+        <button
+          className="refresh-btn"
+          onClick={() => window.location.reload()}
+          style={{
+            background: 'transparent', border: '1px solid #fbbf24', color: '#fbbf24',
+            padding: '5px 10px', borderRadius: '5px', cursor: 'pointer', marginTop: '10px',
+            fontSize: '0.9em', display: 'flex', alignItems: 'center', gap: '5px', alignSelf: 'center'
+          }}
+        >
+          🔄 Refrescar
+        </button>
         {user.role === 'admin' && <span className="admin-badge">Admin</span>}
 
         <div className="nav-tabs">
@@ -896,6 +941,7 @@ function App() {
                 maxZoom={22}
               />
               <AutoCenter houses={houses} userMapLabel={user.mapLabel} />
+              <MapFocusController focusLocation={mapFocusPosition} />
               <AlertZoom sosActive={sosActive} sosLocation={sosLocation} />
               <MapClickHandler onAddHouse={onAddHouse} user={user} />
               {houses.map(h => {
@@ -973,7 +1019,7 @@ function App() {
         ) : activeTab === 'forum' ? (
           <Forum user={user} />
         ) : (
-          <UserList currentUser={user} houses={houses} users={users} setUsers={setUsers} />
+          <UserList currentUser={user} houses={houses} users={users} setUsers={setUsers} onViewOnMap={handleViewOnMap} />
         )}
       </div >
 
