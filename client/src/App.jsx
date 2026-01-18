@@ -867,8 +867,9 @@ function App() {
             <img src="/logo_bull.png" alt="Logo" style={{ height: '100px', width: 'auto' }} className="logo-img" />
             <span>Hola {user.name}</span>
           </div>
-          <span style={{ fontSize: '0.4em', color: '#94a3b8', fontFamily: 'Roboto', fontWeight: 'normal', letterSpacing: '0' }}>Bienvenido a</span>
-          <span style={{ fontSize: '1.2em', color: '#fbbf24', textShadow: '2px 2px 4px rgba(0,0,0,0.5)' }}>PATROLHOOD</span>
+          <span style={{ fontSize: '0.6em', color: '#94a3b8', fontFamily: 'Roboto', fontWeight: 'normal', letterSpacing: '1px' }}>Bienvenido a</span>
+          <span style={{ fontSize: '1.2em', color: '#fbbf24', textShadow: '2px 2px 4px rgba(0,0,0,0.5)', marginBottom: '5px' }}>PATROLHOOD</span>
+          <span style={{ fontSize: '0.9em', color: '#e2e8f0', fontFamily: 'serif', fontStyle: 'italic', textDecoration: 'underline' }}>Recreo de la Condesa</span>
         </h1>
         <button
           className="refresh-btn"
