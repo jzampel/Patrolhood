@@ -277,6 +277,40 @@ body {
   border-radius: 8px;
 }
 
+.contacts-section {
+  margin-top: 20px;
+  padding: 15px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.contacts-section h3 {
+  font-size: 0.9rem;
+  color: #fbbf24;
+  margin-bottom: 10px;
+  border-bottom: 1px solid rgba(251, 191, 36, 0.2);
+  padding-bottom: 5px;
+}
+
+.contacts-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.contacts-list li {
+  font-size: 0.8rem;
+  color: #e2e8f0;
+}
+
+.contacts-list a {
+  color: #3b82f6;
+  text-decoration: underline;
+  font-weight: bold;
+}
+
 .notification-btn {
   margin-bottom: 10px !important;
   background: #eab308 !important;

@@ -937,6 +937,18 @@ function App() {
           </div>
         )}
 
+        <div className="contacts-section">
+          <h3>📌 Contactos de interés</h3>
+          <ul className="contacts-list">
+            <li><strong>🚨 Emergencias:</strong> <a href="tel:112">112</a></li>
+            <li><strong>👮 Policía Local:</strong> <a href="tel:606311488">606 311 488</a></li>
+            <li><strong>🛡️ Guardia Civil:</strong> <a href="tel:954170749">954 170 749</a></li>
+            <li><strong>👩‍🚒 Bomberos:</strong> <a href="tel:085">085</a></li>
+            <li><strong>🏥 Salud (Gelves):</strong> <a href="tel:955037381">955 037 381</a></li>
+            <li><strong>🏛️ Ayto. Gelves:</strong> <a href="tel:955760000">955 760 000</a></li>
+          </ul>
+        </div>
+
         <button className="logout-btn" onClick={() => {
           localStorage.removeItem('user')
           setUser(null)
