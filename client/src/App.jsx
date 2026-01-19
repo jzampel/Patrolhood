@@ -603,6 +603,33 @@ function App() {
     }
   }
 
+  const deactivateTelegram = async () => {
+    if (!window.confirm('¿Quieres desactivar las alertas por Telegram?')) return
+
+    try {
+      // Assuming we can update the user via the same endpoint or similar. 
+      // Based on previous code, there isn't a direct "update self" endpoint visible in the snippets 
+      // except maybe through the UserList edit functionality which uses PUT /api/users/:id.
+      // Let's try that one.
+      const res = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/users/${user.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ telegramChatId: null }) // distinct null to clear it
+      })
+      const data = await res.json()
+
+      if (data.success) {
+        setUser(prev => ({ ...prev, telegramChatId: null }))
+        alert('Alertas desactivadas correctamente.')
+      } else {
+        alert('Error al desactivar alertas.')
+      }
+    } catch (err) {
+      console.error(err)
+      alert('Error de conexión.')
+    }
+  }
+
   useEffect(() => {
     registerServiceWorker();
 
@@ -890,28 +917,30 @@ function App() {
           <button className={`nav-btn ${activeTab === 'users' ? 'active' : ''}`} onClick={() => { setActiveTab('users'); setIsSidebarOpen(false); }}>👥 Vecinos</button>
         </div>
 
-        {/* Telegram Connect Button */}
-        <div style={{ padding: '10px 20px' }}>
-          <a
-            href={`https://t.me/${import.meta.env.VITE_TELEGRAM_BOT_USERNAME}?start=${user.id}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
-              background: user.telegramChatId ? '#22c55e' : '#0088cc',
-              color: 'white', padding: '10px', borderRadius: '8px',
-              textDecoration: 'none', fontWeight: 'bold', fontSize: '0.9em'
-            }}
-          >
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
-              <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.638z" />
-            </svg>
-            {user.telegramChatId ? 'Alertas activadas (Telegram)' : 'Activar Alertas (Telegram)'}
-          </a>
-          <p style={{ fontSize: '0.7em', color: '#94a3b8', textAlign: 'center', marginTop: '5px' }}>
-            {user.telegramChatId ? 'Recibirás alertas en Telegram.' : 'Únete al bot para recibir alertas fiables en tu móvil.'}
-          </p>
-        </div>
+        {/* Telegram Connect Button - Only show if NOT connected */}
+        {!user.telegramChatId && (
+          <div style={{ padding: '10px 20px' }}>
+            <a
+              href={`https://t.me/${import.meta.env.VITE_TELEGRAM_BOT_USERNAME}?start=${user.id}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                background: '#0088cc',
+                color: 'white', padding: '10px', borderRadius: '8px',
+                textDecoration: 'none', fontWeight: 'bold', fontSize: '0.9em'
+              }}
+            >
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.638z" />
+              </svg>
+              Activar Alertas (Telegram)
+            </a>
+            <p style={{ fontSize: '0.7em', color: '#94a3b8', textAlign: 'center', marginTop: '5px' }}>
+              Únete al bot para recibir alertas fiables en tu móvil.
+            </p>
+          </div>
+        )}
 
 
         {activeTab === 'map' && (
@@ -948,6 +977,20 @@ function App() {
             <li><strong>🏛️ Ayto. Gelves:</strong> <a href="tel:955760000">955 760 000</a></li>
           </ul>
         </div>
+
+        {user.telegramChatId && (
+          <div style={{ textAlign: 'center', marginBottom: '15px' }}>
+            <button
+              onClick={deactivateTelegram}
+              style={{
+                background: 'none', border: 'none', color: '#64748b',
+                textDecoration: 'underline', fontSize: '0.8em', cursor: 'pointer'
+              }}
+            >
+              Desactivar alertas (Telegram)
+            </button>
+          </div>
+        )}
 
         <button className="logout-btn" onClick={() => {
           localStorage.removeItem('user')
