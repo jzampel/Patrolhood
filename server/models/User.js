@@ -6,8 +6,10 @@ const UserSchema = new mongoose.Schema({
     surname: { type: String, required: true },
     address: { type: String, required: true },
     phone: { type: String, required: true, unique: true },
+    email: { type: String, required: true }, // New required field
     password: { type: String, required: true },
     role: { type: String, enum: ['admin', 'user'], default: 'user' },
+    communityName: { type: String, required: true }, // Group by community
     mapLabel: { type: String }, // House Number linked to map
     avatar: { type: String }, // For future use
     telegramChatId: { type: String } // Telegram Chat ID for notifications

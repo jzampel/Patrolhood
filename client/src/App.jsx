@@ -115,7 +115,8 @@ function AuthOverlay({ onLogin }) {
   const [isRegistering, setIsRegistering] = useState(false)
   const [formData, setFormData] = useState({
     username: '', password: '',
-    name: '', surname: '', address: '', phone: '', confirmPassword: '', inviteCode: ''
+    name: '', surname: '', address: '', phone: '', email: '', confirmPassword: '', inviteCode: '',
+    communityName: '', role: 'user' // Default to member
   })
   const [error, setError] = useState('')
 
@@ -156,26 +157,62 @@ function AuthOverlay({ onLogin }) {
   if (isRegistering) {
     return (
       <div className="auth-overlay">
-        <div className="auth-box">
+        <div className="auth-box" style={{ maxWidth: '450px' }}>
           <h2>📝 Registro</h2>
           {error && <p className="error-msg">{error}</p>}
-          <form onSubmit={handleRegister}>
-            <input name="name" placeholder="Nombre" onChange={handleChange} required />
-            <input name="surname" placeholder="Apellidos" onChange={handleChange} required />
-            <input name="address" placeholder="Dirección" onChange={handleChange} required />
-            <input name="phone" placeholder="Teléfono" onChange={handleChange} required />
-            <input name="password" type="password" placeholder="Contraseña" onChange={handleChange} required />
-            <input name="confirmPassword" type="password" placeholder="Confirmar" onChange={handleChange} required />
-            <input name="inviteCode" placeholder="Código Invitación" onChange={handleChange} required />
 
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', marginTop: '10px', fontSize: '0.9em', color: '#ccc' }}>
+          <div className="role-selector" style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+            <button
+              type="button"
+              className={`tab-btn ${formData.role === 'admin' ? 'active' : ''}`}
+              onClick={() => setFormData({ ...formData, role: 'admin' })}
+              style={{ flex: 1, padding: '10px', borderRadius: '8px', border: '1px solid #fbbf24', background: formData.role === 'admin' ? '#fbbf24' : 'transparent', color: formData.role === 'admin' ? '#000' : '#fbbf24', cursor: 'pointer' }}
+            >
+              👑 Ser Admin
+            </button>
+            <button
+              type="button"
+              className={`tab-btn ${formData.role === 'user' ? 'active' : ''}`}
+              onClick={() => setFormData({ ...formData, role: 'user' })}
+              style={{ flex: 1, padding: '10px', borderRadius: '8px', border: '1px solid #fbbf24', background: formData.role === 'user' ? '#fbbf24' : 'transparent', color: formData.role === 'user' ? '#000' : '#fbbf24', cursor: 'pointer' }}
+            >
+              🏠 Ser Miembro
+            </button>
+          </div>
+
+          <form onSubmit={handleRegister}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              <input name="name" placeholder="Nombre" onChange={handleChange} required />
+              <input name="surname" placeholder="Apellidos" onChange={handleChange} required />
+            </div>
+            <input name="email" type="email" placeholder="Email" onChange={handleChange} required />
+            <input name="phone" placeholder="Teléfono" onChange={handleChange} required />
+            <input name="address" placeholder="Dirección Personal" onChange={handleChange} required />
+
+            <div style={{ padding: '10px', background: '#1e293b', borderRadius: '8px', margin: '5px 0' }}>
+              <label style={{ color: '#fbbf24', fontSize: '0.85em', fontWeight: 'bold' }}>🏙️ COMUNIDAD VECINAL</label>
+              <input name="communityName" placeholder="Nombre de tu barrio/comunidad" onChange={handleChange} required style={{ marginTop: '5px' }} />
+            </div>
+
+            {formData.role === 'user' && (
+              <input name="inviteCode" placeholder="Código de Invitación" onChange={handleChange} required />
+            )}
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              <input name="password" type="password" placeholder="Contraseña" onChange={handleChange} required />
+              <input name="confirmPassword" type="password" placeholder="Confirmar" onChange={handleChange} required />
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', marginTop: '10px', fontSize: '0.8em', color: '#ccc' }}>
               <input type="checkbox" required style={{ width: '20px', marginTop: '3px' }} />
               <span>
-                Autorizo que mis datos (Nombre, Dirección, Teléfono) sean visibles para otros vecinos registrados en esta aplicación con fines de seguridad vecinal. Estos datos no se usarán para ningún otro fin.
+                Autorizo que mis datos sean visibles para otros vecinos registrados en mi comunidad con fines de seguridad.
               </span>
             </div>
 
-            <button type="submit" className="login-btn">Registrarse</button>
+            <button type="submit" className="login-btn">
+              {formData.role === 'admin' ? 'Crear Comunidad' : 'Unirse a Comunidad'}
+            </button>
             <button type="button" className="link-btn" onClick={() => setIsRegistering(false)}>Volver a Login</button>
           </form>
         </div>
@@ -212,7 +249,8 @@ function Forum({ user }) {
 
   // ... (useEffect for messages - same as before) ...
   useEffect(() => {
-    fetch(`${import.meta.env.VITE_API_URL || ''}/api/forum/${activeChannel}`)
+    const communityParam = user?.communityName ? `?communityName=${user.communityName}` : ''
+    fetch(`${import.meta.env.VITE_API_URL || ''}/api/forum/${activeChannel}${communityParam}`)
       .then(res => res.json())
       .then(data => setMessages(data.messages))
 
@@ -249,6 +287,7 @@ function Forum({ user }) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         channel: activeChannel,
+        communityName: user.communityName,
         user: user.name,
         text: newMessage,
         image: imagePreview
@@ -560,7 +599,7 @@ function App() {
         console.log('✅ FCM Token generated:', token);
         const response = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/subscribe`, {
           method: 'POST',
-          body: JSON.stringify({ token, userId: user.id, role: user.role }),
+          body: JSON.stringify({ token, userId: user.id, role: user.role, communityName: user.communityName }),
           headers: { 'Content-Type': 'application/json' }
         });
 
@@ -634,18 +673,24 @@ function App() {
     registerServiceWorker();
 
     // Fetch houses from server
-    fetch(`${import.meta.env.VITE_API_URL || ''}/api/houses`)
+    const communityParam = user?.communityName ? `?communityName=${user.communityName}` : ''
+    fetch(`${import.meta.env.VITE_API_URL || ''}/api/houses${communityParam}`)
       .then(res => res.json())
       .then(data => {
         if (data.success) setHouses(data.houses)
       })
 
     // Fetch users for map labels
-    fetch(`${import.meta.env.VITE_API_URL || ''}/api/users`)
+    fetch(`${import.meta.env.VITE_API_URL || ''}/api/users${communityParam}`)
       .then(res => res.json())
       .then(data => {
         if (data.success) setUsers(data.users)
       })
+
+    // Join community socket room
+    if (user?.communityName) {
+      socket.emit('join_community', user.communityName)
+    }
 
     // Sockets for live updates
     socket.on('house_updated', (newHouse) => {
@@ -673,7 +718,7 @@ function App() {
       socket.off('houses_cleared')
       socket.off('house_deleted')
     }
-  }, [])
+  }, [user?.id]) // Re-run when user logs in/out
 
   // Auto-sync user profile (to detect Telegram link etc)
   useEffect(() => {
@@ -799,12 +844,11 @@ function App() {
     socket.emit('emergency_alert', {
       emergencyType: pendingSOS.id,
       emergencyTypeLabel: pendingSOS.label,
-      emergencyEmoji: pendingSOS.emoji,
+      houseNumber: myHouse.number,
+      communityName: user.communityName, // Crucial for filtering
       userId: user.id,
       userName: user.name,
-      houseNumber: user.mapLabel,
-      message: `${pendingSOS.emoji} ${pendingSOS.label} en casa de ${user.name} (#${user.mapLabel})`,
-      location: { lat: myHouse.position[0], lng: myHouse.position[1] }
+      location: myHouse.position ? { lat: myHouse.position[0], lng: myHouse.position[1] } : null
     })
     setPendingSOS(null)
   }
@@ -813,7 +857,7 @@ function App() {
     const res = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/admin/invite`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ role: 'user' })
+      body: JSON.stringify({ role: invitedRole, communityName: user.communityName })
     })
     const data = await res.json()
     setGeneratedInvite(data.code)
@@ -823,7 +867,7 @@ function App() {
     const res = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/houses`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(houseData)
+      body: JSON.stringify({ ...houseData, communityName: user.communityName })
     })
     const data = await res.json()
     if (data.success) {
@@ -835,7 +879,11 @@ function App() {
 
   const clearHouses = async () => {
     if (!window.confirm('¿Estás seguro de que quieres borrar TODAS las etiquetas?')) return
-    await fetch(`${import.meta.env.VITE_API_URL || ''}/api/houses/clear`, { method: 'POST' })
+    await fetch(`${import.meta.env.VITE_API_URL || ''}/api/houses/clear`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ communityName: user.communityName })
+    })
   }
 
   const onDeleteHouse = async (id) => {
@@ -896,7 +944,7 @@ function App() {
           </div>
           <span style={{ fontSize: '0.6em', color: '#94a3b8', fontFamily: 'Roboto', fontWeight: 'normal', letterSpacing: '1px' }}>Bienvenido a</span>
           <span style={{ fontSize: '1.2em', color: '#fbbf24', textShadow: '2px 2px 4px rgba(0,0,0,0.5)', marginBottom: '5px' }}>PATROLHOOD</span>
-          <span style={{ fontSize: '0.9em', color: '#e2e8f0', fontFamily: 'serif', fontStyle: 'italic', textDecoration: 'underline' }}>Recreo de la Condesa</span>
+          <span style={{ fontSize: '0.9em', color: '#e2e8f0', fontFamily: 'serif', fontStyle: 'italic', textDecoration: 'underline' }}>{user.communityName}</span>
         </h1>
         <button
           className="refresh-btn"
@@ -1007,7 +1055,12 @@ function App() {
             (user.role === 'admin' || user.id === sosUserId) ? (
               <button
                 className="stop-button floating"
-                onClick={() => socket.emit('stop_alert', { userId: user.id, role: user.role })}
+                onClick={() => socket.emit('stop_alert', {
+                  userId: user.id,
+                  role: user.role,
+                  communityName: user.communityName
+                })
+                }
               >
                 🔕 PARAR
               </button>
