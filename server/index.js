@@ -153,6 +153,7 @@ app.post('/api/login', async (req, res) => {
                     role: user.role,
                     communityName: user.communityName,
                     telegramBotUsername: community?.telegramBotUsername, // Pass dynamic bot username
+                    communityCenter: community?.center, // Pass community map center
                     email: user.email,
                     address: user.address,
                     phone: user.phone,
@@ -198,11 +199,19 @@ app.post('/api/register', async (req, res) => {
 
 // Admin
 app.post('/api/admin/invite', async (req, res) => {
-    const { role, communityName } = req.body;
-    const code = Math.random().toString(36).substring(2, 8).toUpperCase();
+    // ...
+});
+
+// Update community map center
+app.post('/api/community/center', async (req, res) => {
+    const { communityName, center, adminId } = req.body;
     try {
-        await Invite.create({ code, role, communityName });
-        res.json({ success: true, code });
+        const community = await Community.findOne({ name: communityName, adminId });
+        if (!community) return res.status(403).json({ success: false, message: 'No autorizado' });
+
+        community.center = center;
+        await community.save();
+        res.json({ success: true, center: community.center });
     } catch (error) { res.status(500).json({ success: false }); }
 });
 
@@ -220,7 +229,7 @@ app.get('/api/users/:id', async (req, res) => {
         const user = await User.findOne({ id: req.params.id }, 'id name surname address phone role mapLabel telegramChatId communityName');
         if (user) {
             const community = await Community.findOne({ name: user.communityName });
-            res.json({ success: true, user: { ...user.toObject(), telegramBotUsername: community?.telegramBotUsername } });
+            res.json({ success: true, user: { ...user.toObject(), telegramBotUsername: community?.telegramBotUsername, communityCenter: community?.center } });
         } else res.status(404).json({ success: false });
     } catch (error) { res.status(500).json({ success: false }); }
 });

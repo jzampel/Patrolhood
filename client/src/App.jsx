@@ -93,21 +93,28 @@ function createHouseIcon(labelText, status, emergencyType) {
   })
 }
 
-// Auto-center map on my house (Initial load only)
-function AutoCenter({ houses, userMapLabel }) {
+// Auto-center map (Priority: My House > Community Default > Global Default)
+function AutoCenter({ houses, userMapLabel, communityCenter }) {
   const map = useMapEvents({})
   const hasCentered = useRef(false)
 
   useEffect(() => {
-    if (hasCentered.current || !userMapLabel) return
+    if (hasCentered.current) return
 
-    // Find house by label
+    // 1. Try to center on my specific house
     const myHouse = houses.find(h => h.number === userMapLabel)
     if (myHouse) {
       map.flyTo(myHouse.position, 19, { animate: true, duration: 1.5 })
       hasCentered.current = true
+      return
     }
-  }, [houses, map, userMapLabel])
+
+    // 2. Otherwise center on community default center
+    if (communityCenter && communityCenter[0] !== 40.4168) {
+      map.setView(communityCenter, 18)
+      hasCentered.current = true
+    }
+  }, [houses, map, userMapLabel, communityCenter])
 
   return null
 }
@@ -932,6 +939,22 @@ function App() {
     }
   }
 
+  const setAsCommunityCenter = async (position) => {
+    if (!window.confirm('¿Establecer esta ubicación como el centro inicial para todos los vecinos?')) return
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/community/center`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ communityName: user.communityName, center: position, adminId: user.id })
+      })
+      const data = await res.json()
+      if (data.success) {
+        setUser(prev => ({ ...prev, communityCenter: position }))
+        alert('Centro de la comunidad actualizado.')
+      }
+    } catch (err) { alert('Error al actualizar el centro.') }
+  }
+
   if (!user) return <AuthOverlay onLogin={(userData) => {
     localStorage.setItem('user', JSON.stringify(userData))
     setUser(userData)
@@ -1197,7 +1220,7 @@ function App() {
         {activeTab === 'map' ? (
           <div className="map-container">
             <MapContainer
-              center={[37.3422, -6.0238]} // Focus on Gelves/Seville area as default
+              center={user.communityCenter || [40.4168, -3.7038]}
               zoom={18}
               zoomControl={false}
               style={{ height: '100%', width: '100%', background: '#222' }}
@@ -1208,7 +1231,7 @@ function App() {
                 attribution='&copy; Google'
                 maxZoom={22}
               />
-              <AutoCenter houses={houses} userMapLabel={user.mapLabel} />
+              <AutoCenter houses={houses} userMapLabel={user.mapLabel} communityCenter={user.communityCenter} />
               <MapFocusController focusLocation={mapFocusPosition} />
               <AlertZoom sosActive={sosActive} sosLocation={sosLocation} />
               <MapClickHandler onAddHouse={onAddHouse} user={user} />
@@ -1266,6 +1289,20 @@ function App() {
                         >
                           🎯 Centrar sobre esta casa
                         </button>
+
+                        {isUserAdmin && (
+                          <button
+                            onClick={() => setAsCommunityCenter(h.position)}
+                            style={{
+                              width: '100%', padding: '8px', background: '#fbbf24', color: 'black',
+                              border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px',
+                              marginBottom: '5px', fontWeight: 'bold'
+                            }}
+                          >
+                            📍 Establecer como Centro Inicial
+                          </button>
+                        )}
 
                         {/* Only Admin can delete houses */}
                         {isUserAdmin && (
