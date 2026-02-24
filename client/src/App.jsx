@@ -52,18 +52,19 @@ function MapFocusController({ focusLocation }) {
 function MapClickHandler({ onAddHouse, user }) {
   useMapEvents({
     dblclick(e) {
-      if (user.role !== 'admin') {
+      console.log('🗺️ Double click detected at:', e.latlng)
+      if (!user || user.role !== 'admin') {
+        console.warn('❌ dblclick: user is not admin or missing', user)
         alert('Solo el administrador puede añadir nuevas casas.')
         return
       }
       const number = prompt('¿Número/nombre de la casa?')
       if (number) {
-        // const isMine = window.confirm('¿Es esta tu casa?') // Legacy logic removed
         onAddHouse({
-          id: Date.now(),
+          id: String(Date.now()),
           number: number,
           position: [e.latlng.lat, e.latlng.lng],
-          owner: null // Removed owner link at creation, managed via Users list now
+          owner: null
         })
       }
     }
@@ -719,8 +720,9 @@ function App() {
 
     // Sockets for live updates
     socket.on('house_updated', (newHouse) => {
+      console.log('🏠 Socket: house_updated received', newHouse)
       setHouses(prev => {
-        const index = prev.findIndex(h => h.id === newHouse.id)
+        const index = prev.findIndex(h => String(h.id) === String(newHouse.id))
         if (index !== -1) {
           const updated = [...prev]
           updated[index] = newHouse
@@ -889,16 +891,24 @@ function App() {
   }
 
   const onAddHouse = async (houseData) => {
-    const res = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/houses`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...houseData, communityName: user.communityName })
-    })
-    const data = await res.json()
-    if (data.success) {
-      if (houseData.owner === user.phone) {
-        setUser(prev => ({ ...prev, houseNumber: houseData.number }))
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/houses`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...houseData, communityName: user.communityName })
+      })
+      const data = await res.json()
+      if (data.success) {
+        console.log('✅ Casa guardada en servidor:', data.house)
+        if (houseData.owner === user.phone) {
+          setUser(prev => ({ ...prev, houseNumber: houseData.number }))
+        }
+      } else {
+        alert('❌ Error al guardar la etiqueta: ' + (data.message || 'Error desconocido'))
       }
+    } catch (err) {
+      console.error('Error saving house:', err)
+      alert('❌ Error de conexión al guardar la etiqueta.')
     }
   }
 
@@ -1187,7 +1197,7 @@ function App() {
         {activeTab === 'map' ? (
           <div className="map-container">
             <MapContainer
-              center={[40.4168, -3.7038]}
+              center={[37.3422, -6.0238]} // Focus on Gelves/Seville area as default
               zoom={18}
               zoomControl={false}
               style={{ height: '100%', width: '100%', background: '#222' }}

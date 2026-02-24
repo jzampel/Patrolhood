@@ -261,14 +261,32 @@ app.get('/api/houses', async (req, res) => {
 
 app.post('/api/houses', async (req, res) => {
     const { communityName, ...houseData } = req.body;
+    if (!communityName) return res.status(400).json({ success: false, message: 'Falta nombre de comunidad' });
+
     try {
-        let house = await House.findOne({ communityName, $or: [{ id: houseData.id }, { number: houseData.number }] });
-        if (house) Object.assign(house, houseData);
-        else house = new House({ ...houseData, communityName });
+        // Try to find existing house in THIS community by number
+        let house = await House.findOne({ communityName, number: houseData.number });
+
+        if (house) {
+            // Update existing
+            Object.assign(house, houseData);
+        } else {
+            // Create new. Check if ID conflicts globally (unlikely but possible with unique:true)
+            const idConflict = await House.findOne({ id: houseData.id });
+            if (idConflict) {
+                // If conflict, generate a new ID to satisfy the global unique constraint
+                houseData.id = `${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+            }
+            house = new House({ ...houseData, communityName });
+        }
+
         await house.save();
         io.to(communityName).emit('house_updated', house);
         res.json({ success: true, house });
-    } catch (error) { res.status(500).json({ success: false }); }
+    } catch (error) {
+        console.error('Error in POST /api/houses:', error);
+        res.status(500).json({ success: false, message: error.message });
+    }
 });
 
 app.delete('/api/houses/:id', async (req, res) => {
