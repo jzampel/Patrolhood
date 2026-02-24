@@ -576,6 +576,7 @@ function App() {
   const [communityContacts, setCommunityContacts] = useState([])
   const [isAddingContact, setIsAddingContact] = useState(false)
   const [newContact, setNewContact] = useState({ name: '', phone: '', icon: '📞' })
+  const [invitedRole, setInvitedRole] = useState('user')
 
   // Register SW and Logic
   async function registerServiceWorker() {
@@ -888,13 +889,25 @@ function App() {
   }
 
   const generateInvite = async () => {
-    const res = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/admin/invite`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ role: invitedRole, communityName: user.communityName })
-    })
-    const data = await res.json()
-    setGeneratedInvite(data.code)
+    try {
+      console.log('Generating invite for role:', invitedRole, 'community:', user.communityName);
+      const res = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/admin/invite`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role: invitedRole, communityName: user.communityName })
+      })
+      const data = await res.json()
+      if (data.success) {
+        console.log('✅ Invitación generada:', data.code);
+        setGeneratedInvite(data.code)
+      } else {
+        console.error('❌ Error del servidor:', data.message);
+        alert('Error al generar invitación: ' + (data.message || 'Error desconocido'));
+      }
+    } catch (err) {
+      console.error('❌ Error de conexión:', err);
+      alert('Error de conexión al generar invitación.');
+    }
   }
 
   const onAddHouse = async (houseData) => {
@@ -1065,6 +1078,17 @@ function App() {
           <>
             {user.role === 'admin' && (
               <div className="admin-section" style={{ marginTop: '15px' }}>
+                <div style={{ marginBottom: '10px' }}>
+                  <label style={{ fontSize: '0.8rem', display: 'block', marginBottom: '5px' }}>Rol a invitar:</label>
+                  <select
+                    value={invitedRole}
+                    onChange={(e) => setInvitedRole(e.target.value)}
+                    style={{ width: '100%', padding: '5px', borderRadius: '4px', background: '#333', color: 'white', border: '1px solid #555', marginBottom: '10px' }}
+                  >
+                    <option value="user">Vecino (Usuario)</option>
+                    <option value="admin">Administrador</option>
+                  </select>
+                </div>
                 <button onClick={generateInvite} className="invite-btn">Generar Invitación</button>
                 {generatedInvite && <div className="invite-code">{generatedInvite}</div>}
               </div>
