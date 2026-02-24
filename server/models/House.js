@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
 const HouseSchema = new mongoose.Schema({
-    id: { type: String, required: true, unique: true },
+    id: { type: String, required: true },
     number: { type: String, required: true }, // No longer unique globally, only per community
     communityName: { type: String, required: true },
     position: {
