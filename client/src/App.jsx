@@ -576,7 +576,8 @@ function App() {
   const [communityContacts, setCommunityContacts] = useState([])
   const [isAddingContact, setIsAddingContact] = useState(false)
   const [newContact, setNewContact] = useState({ name: '', phone: '', icon: '📞' })
-  const [invitedRole, setInvitedRole] = useState('user')
+  const [telegramBotTokenInput, setTelegramBotTokenInput] = useState('')
+  const [showTelegramHelp, setShowTelegramHelp] = useState(false)
 
   // Register SW and Logic
   async function registerServiceWorker() {
@@ -890,11 +891,11 @@ function App() {
 
   const generateInvite = async () => {
     try {
-      console.log('Generating invite for role:', invitedRole, 'community:', user.communityName);
+      console.log('Generating invite for role: user community:', user.communityName);
       const res = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/admin/invite`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ role: invitedRole, communityName: user.communityName })
+        body: JSON.stringify({ role: 'user', communityName: user.communityName })
       })
       const data = await res.json()
       if (data.success) {
@@ -907,6 +908,28 @@ function App() {
     } catch (err) {
       console.error('❌ Error de conexión:', err);
       alert('Error de conexión al generar invitación.');
+    }
+  }
+
+  const updateTelegramBotToken = async () => {
+    if (!telegramBotTokenInput) return alert('Por favor, introduce un token válido.');
+    if (!window.confirm('¿Quieres actualizar el Token del bot de Telegram para esta comunidad?')) return;
+
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/community/bot-token`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ communityName: user.communityName, telegramBotToken: telegramBotTokenInput, adminId: user.id })
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert('✅ Token actualizado correctamente. El bot se está reiniciando.');
+        setTelegramBotTokenInput('');
+      } else {
+        alert('❌ Error al actualizar el token: ' + (data.message || 'Error desconocido'));
+      }
+    } catch (err) {
+      alert('❌ Error de conexión al actualizar el token.');
     }
   }
 
@@ -1078,19 +1101,42 @@ function App() {
           <>
             {user.role === 'admin' && (
               <div className="admin-section" style={{ marginTop: '15px' }}>
-                <div style={{ marginBottom: '10px' }}>
-                  <label style={{ fontSize: '0.8rem', display: 'block', marginBottom: '5px' }}>Rol a invitar:</label>
-                  <select
-                    value={invitedRole}
-                    onChange={(e) => setInvitedRole(e.target.value)}
-                    style={{ width: '100%', padding: '5px', borderRadius: '4px', background: '#333', color: 'white', border: '1px solid #555', marginBottom: '10px' }}
-                  >
-                    <option value="user">Vecino (Usuario)</option>
-                    <option value="admin">Administrador</option>
-                  </select>
-                </div>
-                <button onClick={generateInvite} className="invite-btn">Generar Invitación</button>
+                <h4 style={{ color: '#fbbf24', fontSize: '0.85rem', marginBottom: '10px' }}>📦 Gestión de Vecinos</h4>
+                <button onClick={generateInvite} className="invite-btn">Generar Código de Invitación (Vecino)</button>
                 {generatedInvite && <div className="invite-code">{generatedInvite}</div>}
+
+                <div style={{ marginTop: '20px', paddingTop: '15px', borderTop: '1px solid rgba(251, 191, 36, 0.3)' }}>
+                  <h4 style={{ color: '#fbbf24', fontSize: '0.85rem', marginBottom: '10px' }}>🤖 Configurar Bot de Telegram</h4>
+
+                  <button
+                    onClick={() => setShowTelegramHelp(!showTelegramHelp)}
+                    style={{ background: 'transparent', border: '1px solid #94a3b8', color: '#94a3b8', padding: '4px 8px', borderRadius: '4px', fontSize: '0.75rem', cursor: 'pointer', marginBottom: '10px', width: '100%' }}
+                  >
+                    {showTelegramHelp ? '📖 Ocultar Instrucciones' : '📖 Cómo crear el bot'}
+                  </button>
+
+                  {showTelegramHelp && (
+                    <div style={{ background: 'rgba(0,0,0,0.3)', padding: '10px', borderRadius: '8px', fontSize: '0.75rem', color: '#cbd5e1', marginBottom: '10px', lineHeight: '1.4' }}>
+                      <p><strong>Pasos para crear tu bot:</strong></p>
+                      <ol style={{ paddingLeft: '15px', marginTop: '5px' }}>
+                        <li>Busca a <strong>@BotFather</strong> en Telegram y pulsa "Iniciar".</li>
+                        <li>Envía el comando <code>/newbot</code>.</li>
+                        <li>Elige un nombre para tu bot (ej: Patrol Condesa).</li>
+                        <li>Elige un usuario que termine en 'bot' (ej: PatrolCondesaBot).</li>
+                        <li>BotFather te dará un <strong>Token (API Key)</strong>. Cópialo y pégalo aquí debajo.</li>
+                      </ol>
+                    </div>
+                  )}
+
+                  <input
+                    type="text"
+                    placeholder="Pega el Token de Telegram aquí"
+                    value={telegramBotTokenInput}
+                    onChange={(e) => setTelegramBotTokenInput(e.target.value)}
+                    style={{ width: '100%', padding: '10px', borderRadius: '8px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.2)', color: 'white', marginBottom: '8px', fontSize: '0.8rem' }}
+                  />
+                  <button onClick={updateTelegramBotToken} className="invite-btn" style={{ background: '#0088cc', color: 'white' }}>Guardar Token de Bot</button>
+                </div>
               </div>
             )}
           </>

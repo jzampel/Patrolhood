@@ -223,6 +223,27 @@ app.post('/api/community/center', async (req, res) => {
     } catch (error) { res.status(500).json({ success: false }); }
 });
 
+// Update community telegram bot token
+app.post('/api/community/bot-token', async (req, res) => {
+    const { communityName, telegramBotToken, adminId } = req.body;
+    try {
+        const community = await Community.findOne({ name: communityName, adminId });
+        if (!community) return res.status(403).json({ success: false, message: 'No autorizado' });
+
+        community.telegramBotToken = telegramBotToken;
+        await community.save();
+
+        if (telegramBotToken) {
+            startCommunityBot(communityName, telegramBotToken);
+        }
+
+        res.json({ success: true, message: 'Token de Telegram actualizado' });
+    } catch (error) {
+        console.error('Error updating bot token:', error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
 // Database / Core
 app.get('/api/users', async (req, res) => {
     const { communityName } = req.query;
