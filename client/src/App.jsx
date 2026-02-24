@@ -565,6 +565,9 @@ function App() {
   const mapRef = useRef(null)
   const [houses, setHouses] = useState([])
   const [users, setUsers] = useState([])
+  const [communityContacts, setCommunityContacts] = useState([])
+  const [isAddingContact, setIsAddingContact] = useState(false)
+  const [newContact, setNewContact] = useState({ name: '', phone: '', icon: '📞' })
 
   // Register SW and Logic
   async function registerServiceWorker() {
@@ -1243,11 +1246,7 @@ function App() {
                         )}
 
                         <button
-                          onClick={() => {
-                            const map = L.Marker.prototype.getEvents.call({ _map: {} })._map; // This is hacky, I'll use mapRef instead
-                            // Better: use the prop or a central function
-                            onCenterHouse(h.position);
-                          }}
+                          onClick={() => onCenterHouse(h.position)}
                           style={{
                             width: '100%', padding: '8px', background: '#333', color: 'white',
                             border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem',
