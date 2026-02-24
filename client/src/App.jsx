@@ -116,7 +116,7 @@ function AuthOverlay({ onLogin }) {
   const [formData, setFormData] = useState({
     username: '', password: '',
     name: '', surname: '', address: '', phone: '', email: '', confirmPassword: '', inviteCode: '',
-    communityName: '', role: 'user' // Default to member
+    communityName: '', role: 'user', telegramBotToken: '' // Default to member
   })
   const [error, setError] = useState('')
 
@@ -196,6 +196,20 @@ function AuthOverlay({ onLogin }) {
 
             {formData.role === 'user' && (
               <input name="inviteCode" placeholder="Código de Invitación" onChange={handleChange} required />
+            )}
+
+            {formData.role === 'admin' && (
+              <div style={{ marginBottom: '10px' }}>
+                <input
+                  name="telegramBotToken"
+                  placeholder="🤖 Token de Bot Telegram (Opcional)"
+                  onChange={handleChange}
+                  style={{ background: '#1e293b' }}
+                />
+                <small style={{ color: '#888', display: 'block', fontSize: '0.7em', marginTop: '4px' }}>
+                  Pega aquí el token de @BotFather si quieres un bot propio para tu barrio.
+                </small>
+              </div>
             )}
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
@@ -548,6 +562,7 @@ function App() {
   const [notificationsEnabled, setNotificationsEnabled] = useState(false)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [mapFocusPosition, setMapFocusPosition] = useState(null)
+  const mapRef = useRef(null)
   const [houses, setHouses] = useState([])
   const [users, setUsers] = useState([])
 
@@ -685,6 +700,13 @@ function App() {
       .then(res => res.json())
       .then(data => {
         if (data.success) setUsers(data.users)
+      })
+
+    // Fetch dynamic contacts
+    fetch(`${import.meta.env.VITE_API_URL || ''}/api/contacts${communityParam}`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) setCommunityContacts(data.contacts)
       })
 
     // Join community socket room
@@ -888,7 +910,13 @@ function App() {
 
   const onDeleteHouse = async (id) => {
     if (!window.confirm('¿Borrar esta etiqueta?')) return
-    await fetch(`${import.meta.env.VITE_API_URL || ''}/api/houses/${id}`, { method: 'DELETE' })
+    await fetch(`${import.meta.env.VITE_API_URL || ''}/api/houses/${id}?communityName=${user.communityName}`, { method: 'DELETE' })
+  }
+
+  const onCenterHouse = (position) => {
+    if (mapRef.current && position) {
+      mapRef.current.flyTo(position, 18)
+    }
   }
 
   if (!user) return <AuthOverlay onLogin={(userData) => {
@@ -968,22 +996,28 @@ function App() {
         {/* Telegram Connect Button - Only show if NOT connected */}
         {!user.telegramChatId && (
           <div style={{ padding: '10px 20px' }}>
-            <a
-              href={`https://t.me/${import.meta.env.VITE_TELEGRAM_BOT_USERNAME}?start=${user.id}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
-                background: '#0088cc',
-                color: 'white', padding: '10px', borderRadius: '8px',
-                textDecoration: 'none', fontWeight: 'bold', fontSize: '0.9em'
-              }}
-            >
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
-                <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.638z" />
-              </svg>
-              Activar Alertas (Telegram)
-            </a>
+            {user.telegramBotUsername ? (
+              <a
+                href={`https://t.me/${user.telegramBotUsername}?start=${user.id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                  background: '#0088cc',
+                  color: 'white', padding: '10px', borderRadius: '8px',
+                  textDecoration: 'none', fontWeight: 'bold', fontSize: '0.9em'
+                }}
+              >
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                  <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.638z" />
+                </svg>
+                Activar Alertas (Telegram)
+              </a>
+            ) : (
+              <div style={{ background: '#334155', color: '#94a3b8', padding: '10px', borderRadius: '8px', fontSize: '0.8em', textAlign: 'center' }}>
+                🤖 Bot de Telegram no configurado para esta comunidad.
+              </div>
+            )}
             <p style={{ fontSize: '0.7em', color: '#94a3b8', textAlign: 'center', marginTop: '5px' }}>
               Únete al bot para recibir alertas fiables en tu móvil.
             </p>
@@ -1014,16 +1048,91 @@ function App() {
           </div>
         )}
 
-        <div className="contacts-section">
-          <h3>📌 Contactos de interés</h3>
+        <div className="contacts-section" style={{ position: 'relative' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+            <h3 style={{ margin: 0 }}>📌 Contactos de interés</h3>
+            {user.role === 'admin' && (
+              <button
+                onClick={() => setIsAddingContact(true)}
+                style={{ background: '#333', color: '#fbbf24', border: '1px solid #fbbf24', borderRadius: '50%', width: '24px', height: '24px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}
+              >
+                +
+              </button>
+            )}
+          </div>
+
           <ul className="contacts-list">
             <li><strong>🚨 Emergencias:</strong> <a href="tel:112">112</a></li>
-            <li><strong>👮 Policía Local:</strong> <a href="tel:606311488">606 311 488</a></li>
-            <li><strong>🛡️ Guardia Civil:</strong> <a href="tel:954170749">954 170 749</a></li>
-            <li><strong>👩‍🚒 Bomberos:</strong> <a href="tel:085">085</a></li>
-            <li><strong>🏥 Salud (Gelves):</strong> <a href="tel:955037381">955 037 381</a></li>
-            <li><strong>🏛️ Ayto. Gelves:</strong> <a href="tel:955760000">955 760 000</a></li>
+            {communityContacts.map(contact => (
+              <li key={contact._id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <strong>{contact.icon} {contact.name}:</strong> <a href={`tel:${contact.phone}`}>{contact.phone}</a>
+                </div>
+                {user.role === 'admin' && (
+                  <button
+                    onClick={() => {
+                      if (window.confirm('¿Borrar contacto?')) {
+                        fetch(`${import.meta.env.VITE_API_URL || ''}/api/contacts/${contact._id}`, { method: 'DELETE' })
+                          .then(res => res.json())
+                          .then(data => {
+                            if (data.success) setCommunityContacts(prev => prev.filter(c => c._id !== contact._id))
+                          })
+                      }
+                    }}
+                    style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '10px' }}
+                  >
+                    ✖
+                  </button>
+                )}
+              </li>
+            ))}
           </ul>
+
+          {isAddingContact && (
+            <div style={{ marginTop: '10px', padding: '10px', background: '#1e293b', borderRadius: '8px', fontSize: '0.85em' }}>
+              <input
+                placeholder="Nombre (ej: Local)"
+                value={newContact.name}
+                onChange={e => setNewContact({ ...newContact, name: e.target.value })}
+                style={{ width: '100%', marginBottom: '5px', background: '#0f172a', color: 'white', border: '1px solid #334155', padding: '4px', borderRadius: '4px' }}
+              />
+              <input
+                placeholder="Teléfono"
+                value={newContact.phone}
+                onChange={e => setNewContact({ ...newContact, phone: e.target.value })}
+                style={{ width: '100%', marginBottom: '5px', background: '#0f172a', color: 'white', border: '1px solid #334155', padding: '4px', borderRadius: '4px' }}
+              />
+              <div style={{ display: 'flex', gap: '5px' }}>
+                <button
+                  onClick={() => setIsAddingContact(false)}
+                  style={{ flex: 1, padding: '5px', background: '#475569', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                >
+                  Cerrar
+                </button>
+                <button
+                  onClick={() => {
+                    if (!newContact.name || !newContact.phone) return;
+                    fetch(`${import.meta.env.VITE_API_URL || ''}/api/contacts`, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ ...newContact, communityName: user.communityName })
+                    })
+                      .then(res => res.json())
+                      .then(data => {
+                        if (data.success) {
+                          setCommunityContacts(prev => [...prev, data.contact])
+                          setNewContact({ name: '', phone: '', icon: '📞' })
+                          setIsAddingContact(false)
+                        }
+                      })
+                  }}
+                  style={{ flex: 1, padding: '5px', background: '#fbbf24', color: '#000', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
+                >
+                  Guardar
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {user.telegramChatId && (
@@ -1074,7 +1183,13 @@ function App() {
       <div className="main-content">
         {activeTab === 'map' ? (
           <div className="map-container">
-            <MapContainer center={[40.4168, -3.7038]} zoom={18} zoomControl={false} style={{ height: '100%', width: '100%', background: '#222' }}>
+            <MapContainer
+              center={[40.4168, -3.7038]}
+              zoom={18}
+              zoomControl={false}
+              style={{ height: '100%', width: '100%', background: '#222' }}
+              ref={mapRef}
+            >
               <TileLayer
                 url="https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}"
                 attribution='&copy; Google'
@@ -1124,8 +1239,24 @@ function App() {
                           <p style={{ fontStyle: 'italic', color: '#888' }}>Sin asignar</p>
                         )}
                         {status === 'sos' && (
-                          <div className="popup-alert">🚨 ¡EMERGENCIA ACTIVA!</div>
+                          <div className="popup-alert" style={{ marginBottom: '10px' }}>🚨 ¡EMERGENCIA ACTIVA!</div>
                         )}
+
+                        <button
+                          onClick={() => {
+                            const map = L.Marker.prototype.getEvents.call({ _map: {} })._map; // This is hacky, I'll use mapRef instead
+                            // Better: use the prop or a central function
+                            onCenterHouse(h.position);
+                          }}
+                          style={{
+                            width: '100%', padding: '8px', background: '#333', color: 'white',
+                            border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px',
+                            marginBottom: '5px'
+                          }}
+                        >
+                          🎯 Centrar sobre esta casa
+                        </button>
 
                         {/* Only Admin can delete houses */}
                         {isUserAdmin && (
