@@ -199,7 +199,15 @@ app.post('/api/register', async (req, res) => {
 
 // Admin
 app.post('/api/admin/invite', async (req, res) => {
-    // ...
+    const { role, communityName } = req.body;
+    const code = Math.random().toString(36).substring(2, 8).toUpperCase();
+    try {
+        await Invite.create({ code, role, communityName });
+        res.json({ success: true, code });
+    } catch (error) {
+        console.error('Error in /api/admin/invite:', error);
+        res.status(500).json({ success: false, message: error.message });
+    }
 });
 
 // Update community map center
