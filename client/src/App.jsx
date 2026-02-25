@@ -1483,30 +1483,30 @@ function App() {
           )}
 
           {/* Show Stop buttons for active alerts I can control */}
-          {activeAlerts.map(alert => {
-            const canStop = user.role === 'admin' || user.id === alert.userId;
+          {activeAlerts.map(sosAlert => {
+            const canStop = user.role === 'admin' || user.id === sosAlert.userId;
             if (!canStop) return null;
             return (
               <button
-                key={alert._id || alert.alertId}
+                key={sosAlert._id || sosAlert.alertId}
                 className="stop-button floating"
                 style={{ fontSize: '0.7em', padding: '10px' }}
                 onClick={async () => {
                   const data = await safeFetch(`${import.meta.env.VITE_API_URL || ''}/api/sos/stop`, {
                     method: 'POST',
                     body: JSON.stringify({
-                      alertId: alert._id || alert.alertId,
+                      alertId: sosAlert._id || sosAlert.alertId,
                       communityId: user.communityId
                     })
                   });
                   if (data.success) {
-                    setActiveAlerts(prev => prev.filter(a => (a._id || a.alertId) !== (alert._id || alert.alertId)));
+                    setActiveAlerts(prev => prev.filter(a => (a._id || a.alertId) !== (sosAlert._id || sosAlert.alertId)));
                   } else {
                     alert('Error al parar la alerta: ' + (data.error || 'Error desconocido'));
                   }
                 }}
               >
-                🔕 PARAR #{alert.houseNumber}
+                🔕 PARAR #{sosAlert.houseNumber}
               </button>
             );
           })}
