@@ -18,7 +18,7 @@ const io = new Server(server, {
 io.adapter(createAdapter(pubClient, subClient));
 connectDB();
 
-const activeAlerts = new Map();
+const activeAlerts = new Map(); // communityId -> Map(alertId -> alertData)
 
 // --- REDIS BRIDGE ---
 // This enables ANY API node to trigger a socket event in ANY Realtime node
@@ -27,8 +27,15 @@ subClient.subscribe('SOCKET_UPDATE', (message) => {
         const { communityId, event, payload } = JSON.parse(message);
 
         // Internal state management for join-time catchup
-        if (event === 'emergency_alert') activeAlerts.set(communityId, payload);
-        if (event === 'stop_alert') activeAlerts.delete(communityId);
+        if (!activeAlerts.has(communityId)) activeAlerts.set(communityId, new Map());
+        const communityAlerts = activeAlerts.get(communityId);
+
+        if (event === 'emergency_alert') {
+            communityAlerts.set(payload.alertId.toString(), payload);
+        }
+        if (event === 'stop_alert') {
+            communityAlerts.delete(payload.alertId.toString());
+        }
 
         // Broadcast to the whole community (across all Socket.io nodes)
         io.to(communityId).emit(event, payload);
@@ -39,7 +46,8 @@ subClient.subscribe('SOCKET_UPDATE', (message) => {
 // Legacy support for API calls (can be removed once API is fully transitioned to Pub/Sub)
 subClient.subscribe('SOS_CREATED', (msg) => {
     const data = JSON.parse(msg);
-    activeAlerts.set(data.communityId, data);
+    if (!activeAlerts.has(data.communityId)) activeAlerts.set(data.communityId, new Map());
+    activeAlerts.get(data.communityId).set(data.alertId || data._id, data);
     io.to(data.communityId).emit('emergency_alert', data);
 });
 
@@ -48,7 +56,10 @@ io.on('connection', (socket) => {
         if (!communityId) return;
         socket.join(communityId);
         if (activeAlerts.has(communityId)) {
-            socket.emit('emergency_alert', activeAlerts.get(communityId));
+            const communityAlerts = activeAlerts.get(communityId);
+            communityAlerts.forEach(alert => {
+                socket.emit('emergency_alert', alert);
+            });
         }
     });
 });

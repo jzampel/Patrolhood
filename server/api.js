@@ -144,6 +144,13 @@ app.post('/api/community/bot-token', authenticate, checkCommunity, async (req, r
 });
 
 // SOS
+app.get('/api/sos/active', authenticate, checkCommunity, async (req, res) => {
+    try {
+        const alerts = await ActiveSOS.find({ communityId: req.query.communityId, isActive: true });
+        res.json({ success: true, alerts });
+    } catch (e) { res.status(500).json({ success: false, message: e.message }); }
+});
+
 app.post('/api/sos', authenticate, checkCommunity, async (req, res) => {
     const { communityId, userId, houseNumber, emergencyTypeLabel } = req.body;
     const dedupeKey = `dedupe:sos:${communityId}:${houseNumber}`;
@@ -160,7 +167,7 @@ app.post('/api/sos', authenticate, checkCommunity, async (req, res) => {
         const alert = await ActiveSOS.create({ ...req.body, status: 'CREATED', expiresAt: new Date(Date.now() + ttlMinutes * 60000) });
         await pubClient.set(dedupeKey, alert._id.toString(), { EX: 120 });
 
-        await emitSocketEvent(communityId, 'emergency_alert', { ...req.body, alertId: alert._id });
+        await emitSocketEvent(communityId, 'emergency_alert', { ...alert.toObject(), alertId: alert._id });
 
         const jobOpts = { attempts: 5, backoff: { type: 'exponential', delay: 10000 }, removeOnComplete: true };
         await sosQueue.add('NOTIFY_FCM', { alertId: alert._id }, { jobId: `fcm:${alert._id}`, ...jobOpts });
@@ -172,10 +179,20 @@ app.post('/api/sos', authenticate, checkCommunity, async (req, res) => {
 });
 
 app.post('/api/sos/stop', authenticate, checkCommunity, async (req, res) => {
-    const { communityId } = req.body;
+    const { communityId, alertId } = req.body;
     try {
-        await ActiveSOS.updateMany({ communityId, isActive: true }, { isActive: false, status: 'RESOLVED', closedAt: new Date() });
-        await emitSocketEvent(communityId, 'stop_alert', {});
+        const query = { communityId, _id: alertId, isActive: true };
+        const alert = await ActiveSOS.findOne(query);
+
+        if (!alert) return res.status(404).json({ success: false, message: 'Alerta no encontrada o ya resuelta' });
+
+        // Permission check: Author OR Admin
+        if (alert.userId !== req.user.id && req.user.role !== 'admin' && req.user.role !== 'global_admin') {
+            return res.status(403).json({ success: false, message: 'No tienes permiso para detener esta alerta' });
+        }
+
+        await ActiveSOS.updateOne({ _id: alertId }, { isActive: false, status: 'RESOLVED', closedAt: new Date() });
+        await emitSocketEvent(communityId, 'stop_alert', { alertId });
         res.json({ success: true });
     } catch (e) { res.status(500).json({ success: false, message: e.message }); }
 });

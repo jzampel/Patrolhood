@@ -37,7 +37,7 @@ function AlertZoom({ sosActive, sosLocation }) {
     if (sosActive && sosLocation) {
       map.flyTo(sosLocation, 19, { animate: true, duration: 2.0 })
     }
-  }, [sosActive, sosLocation, map])
+  }, [sosActive, JSON.stringify(sosLocation), map])
   return null
 }
 
@@ -660,11 +660,7 @@ function App() {
   const [activeTab, setActiveTab] = useState('map') // 'map' or 'forum' or 'users'
 
   const [showEmergencyMenu, setShowEmergencyMenu] = useState(false)
-  const [sosActive, setSosActive] = useState(false)
-  const [sosLocation, setSosLocation] = useState(null)
-  const [sosHouseNumber, setSosHouseNumber] = useState(null) // New: specific house alert
-  const [activeEmergencyType, setActiveEmergencyType] = useState(null)
-  const [sosUserId, setSosUserId] = useState(null) // New: Track who started the alert
+  const [activeAlerts, setActiveAlerts] = useState([]) // Array of alert objects
   const [pendingSOS, setPendingSOS] = useState(null) // New: For double confirmation
   const [generatedInvite, setGeneratedInvite] = useState(null)
   const [notificationsEnabled, setNotificationsEnabled] = useState(false)
@@ -912,6 +908,15 @@ function App() {
         if (data.success) setCommunityContacts(data.contacts)
       })
 
+    // Fetch active SOS alerts
+    fetch(`${import.meta.env.VITE_API_URL || ''}/api/sos/active${communityParam}`, {
+      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) setActiveAlerts(data.alerts)
+      })
+
     // Join community socket room
     if (user?.communityId) {
       socket.emit('join_community', user.communityId)
@@ -1041,24 +1046,21 @@ function App() {
 
   useEffect(() => {
     socket.on('emergency_alert', (data) => {
-      setSosActive(true)
-      setActiveEmergencyType(data.emergencyType)
-      setSosHouseNumber(data.houseNumber) // Save triggering house
-      setSosUserId(data.userId) // Save who triggered it
-      if (data.location) setSosLocation([data.location.lat, data.location.lng])
-      // startSiren() // Siren sound disabled per user request
+      setActiveAlerts(prev => {
+        const exists = prev.find(a => (a._id || a.alertId) === (data._id || data.alertId));
+        if (exists) return prev;
+        return [...prev, data];
+      });
     })
 
-    socket.on('stop_alert', () => {
-      setSosActive(false)
-      setSosLocation(null)
-      setSosHouseNumber(null)
-      setActiveEmergencyType(null)
-      setSosUserId(null)
-      // stopSiren() // Siren sound disabled per user request
+    socket.on('stop_alert', (data) => {
+      setActiveAlerts(prev => prev.filter(a => (a._id || a.alertId) !== (data._id || data.alertId)));
     })
 
-    return () => socket.off('stop_alert')
+    return () => {
+      socket.off('emergency_alert');
+      socket.off('stop_alert');
+    }
   }, [])
 
   // --- OFFLINE SYNC LOGIC ---
@@ -1315,7 +1317,7 @@ function App() {
       )}
 
       {/* Foreground Notification Toast */}
-      {sosActive && activeTab !== 'map' && (
+      {activeAlerts.length > 0 && activeTab !== 'map' && (
         <div
           className="foreground-toast"
           onClick={() => setActiveTab('map')}
@@ -1328,7 +1330,7 @@ function App() {
         >
           <span style={{ fontSize: '1.5em' }}>🚨</span>
           <div style={{ flex: 1 }}>
-            <strong>¡ALERTA SOS ACTIVA!</strong>
+            <strong>¡{activeAlerts.length} ALERTA{activeAlerts.length > 1 ? 'S' : ''} SOS ACTIVA{activeAlerts.length > 1 ? 'S' : ''}!</strong>
             <div style={{ fontSize: '0.9em' }}>Pulsa para ver en el mapa</div>
           </div>
         </div>
@@ -1601,31 +1603,43 @@ function App() {
       </div>
 
       {activeTab === 'map' && (
-        <div className="floating-controls">
-          {!sosActive ? (
+        <div className="floating-controls" style={{ display: 'flex', flexDirection: 'column', gap: '10px', alignItems: 'flex-end' }}>
+          {/* Always allow own SOS if not active */}
+          {!activeAlerts.some(a => a.userId === user.id) && (
             <button className="sos-button floating" onClick={() => setShowEmergencyMenu(true)}>SOS</button>
-          ) : (
-            // Only show STOP button if user is Admin OR if user is the one who started it
-            (user.role === 'admin' || user.id === sosUserId) ? (
+          )}
+
+          {/* Show Stop buttons for active alerts I can control */}
+          {activeAlerts.map(alert => {
+            const canStop = user.role === 'admin' || user.id === alert.userId;
+            if (!canStop) return null;
+            return (
               <button
+                key={alert._id || alert.alertId}
                 className="stop-button floating"
+                style={{ fontSize: '0.7em', padding: '10px' }}
                 onClick={() => {
                   fetch(`${import.meta.env.VITE_API_URL || ''}/api/sos/stop`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {
+                      'Content-Type': 'application/json',
+                      'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    },
                     body: JSON.stringify({
-                      userId: user.id,
-                      role: user.role,
+                      alertId: alert._id || alert.alertId,
                       communityId: user.communityId
                     })
                   })
                 }}
               >
-                🔕 PARAR
+                🔕 PARAR #{alert.houseNumber}
               </button>
-            ) : (
-              <div className="sos-active-banner">🚨 ALERTA ACTIVA</div>
-            )
+            );
+          })}
+
+          {/* Banner for other active alerts I can't control */}
+          {activeAlerts.some(a => a.userId !== user.id && user.role !== 'admin') && (
+            <div className="sos-active-banner">🚨 ALERTA ACTIVA</div>
           )}
         </div>
       )}
@@ -1647,7 +1661,9 @@ function App() {
               />
               <AutoCenter houses={houses} userMapLabel={user.mapLabel} communityCenter={user.communityCenter} />
               <MapFocusController focusLocation={mapFocusPosition} />
-              <AlertZoom sosActive={sosActive} sosLocation={sosLocation} />
+              {activeAlerts.map(a => (
+                <AlertZoom key={a._id || a.alertId} sosActive={true} sosLocation={a.location ? [a.location.lat, a.location.lng] : null} />
+              ))}
               <MapClickHandler onAddHouse={onAddHouse} user={user} />
               {houses.map(h => {
                 const inhabitants = users.filter(u => u.mapLabel === h.number || u.phone === h.owner); // Match by label or legacy owner
@@ -1656,7 +1672,8 @@ function App() {
                 // Determine Status
                 let status = 'empty';
                 const isMine = user.mapLabel === h.number;
-                const isSos = sosActive && sosHouseNumber === h.number;
+                const activeAlert = activeAlerts.find(a => a.houseNumber === h.number);
+                const isSos = !!activeAlert;
 
                 if (isSos) status = 'sos';
                 else if (isMine) status = 'mine';
@@ -1670,7 +1687,7 @@ function App() {
                   <Marker
                     key={h.id}
                     position={h.position}
-                    icon={createHouseIcon(labelText, status, h.emergencyType)}
+                    icon={createHouseIcon(labelText, status, activeAlert?.emergencyType)}
                   >
                     <Popup className="house-popup">
                       <div className="popup-content">
@@ -1732,7 +1749,9 @@ function App() {
                   </Marker>
                 )
               })}
-              {sosLocation && sosActive && <CircleMarker center={sosLocation} radius={50} pathOptions={{ color: 'red', fillColor: 'red' }} className="sos-marker" />}
+              {activeAlerts.map(a => a.location && (
+                <CircleMarker key={a._id || a.alertId} center={[a.location.lat, a.location.lng]} radius={50} pathOptions={{ color: 'red', fillColor: 'red' }} className="sos-marker" />
+              ))}
 
               {/* Users can still mark "Mine" if we keep that feature, or is that strictly admin too?
                             User asked: "users cannot make modifications". I'll hide "Set Mine" too if strict.
