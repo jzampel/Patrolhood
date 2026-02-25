@@ -616,6 +616,18 @@ app.post('/api/sos', authenticate, checkCommunity, async (req, res) => {
     }
 });
 
+// GET /api/sos/active - Fetch all currently active alerts for a community
+app.get('/api/sos/active', authenticate, checkCommunity, async (req, res) => {
+    const { communityId } = req.query;
+    try {
+        const alerts = await ActiveSOS.find({ communityId, isActive: true });
+        res.json({ success: true, alerts });
+    } catch (error) {
+        console.error('Error fetching active SOS:', error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
 // --- BULLMQ WORKER (Only if Redis available) ---
 let sosWorker = null;
 if (isRedisAvailable) {
@@ -777,8 +789,13 @@ async function recoverActiveSOS() {
     try {
         const activeFromDB = await ActiveSOS.find({ isActive: true });
         console.log(`📡 Recovering ${activeFromDB.length} active alerts...`);
+        // Note: activeAlerts Map is legacy and might be redundant if we use DB-only lookups,
+        // but we keep it updated for socket logic that still refers to it.
+        // We ensure it now uses a more robust structure or at least stores the latest per community correctly.
         activeFromDB.forEach(alert => {
             activeAlerts.set(alert.communityId, {
+                alertId: alert._id,
+                _id: alert._id,
                 communityId: alert.communityId,
                 userId: alert.userId,
                 userName: alert.userName,
