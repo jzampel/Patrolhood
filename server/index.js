@@ -6,7 +6,7 @@ const cors = require('cors');
 const path = require('path');
 const jwt = require('jsonwebtoken');
 const mongoose = require('mongoose');
-const admin = require('firebase-admin');
+const TelegramBot = require('node-telegram-bot-api');
 const crypto = require('crypto');
 const { createAdapter } = require('@socket.io/redis-adapter');
 const { createClient } = require('redis');
@@ -47,13 +47,19 @@ app.use((req, res, next) => {
 // Serve static files from the client build
 app.use(express.static(path.join(__dirname, '../client/dist')));
 
-const startRealtime = require('./realtime');
-const { server, io } = startRealtime(app);
-
 // --- SHARED MODULES ---
 const connectDB = require('./shared/db');
 const { pubClient, subClient, queueConnection, acquireLock, releaseLock } = require('./shared/redis');
 const admin = require('./shared/firebase');
+
+const server = http.createServer(app);
+const io = new Server(server, {
+    cors: { origin: "*", methods: ["GET", "POST"] }
+});
+io.adapter(createAdapter(pubClient, subClient));
+
+const activeAlerts = new Map();
+const communityBots = new Map();
 
 connectDB();
 
@@ -742,7 +748,6 @@ async function recoverActiveSOS() {
 recoverActiveSOS();
 
 // --- SOCKETS ---
-const activeAlerts = new Map();
 
 io.on('connection', (socket) => {
     socket.on('join_community', (communityId) => {
