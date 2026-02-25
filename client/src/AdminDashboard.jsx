@@ -23,7 +23,7 @@ function AdminDashboard({ user }) {
 
     return (
         <div className="admin-dashboard" style={{ padding: '20px', color: 'white', maxWidth: '800px', margin: '0 auto' }}>
-            <h2 style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#fbbf24' }}>
+            <h2 style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#fbbf24', paddingLeft: '50px' }}>
                 📊 Panel de Control & Auditoría
             </h2>
             <p style={{ color: '#94a3b8', marginBottom: '20px' }}>Historial de acciones administrativas en {user.communityName}</p>

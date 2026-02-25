@@ -17,6 +17,12 @@ body {
   color: white;
 }
 
+input,
+select,
+textarea {
+  font-size: 16px !important;
+}
+
 .app {
   display: flex;
   height: 100vh;
@@ -301,8 +307,9 @@ body {
 }
 
 .version-info {
-  margin-top: auto;
+  margin-top: 20px;
   padding-top: 20px;
+  padding-bottom: 20px;
   border-top: 1px solid rgba(255, 255, 255, 0.1);
   display: flex;
   flex-direction: column;
