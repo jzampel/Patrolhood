@@ -131,8 +131,6 @@ function AuthOverlay({ onLogin }) {
   const [error, setError] = useState('')
 
   const [loading, setLoading] = useState(false)
-  const [deferredPrompt, setDeferredPrompt] = useState(null)
-  const [showInstallBtn, setShowInstallBtn] = useState(false)
 
   const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value })
 
@@ -178,27 +176,6 @@ function AuthOverlay({ onLogin }) {
         setError(data.message || 'Error desconocido')
       }
     } catch (err) { setError('Error de conexión') }
-  }
-
-  useEffect(() => {
-    const handleBeforeInstall = (e) => {
-      e.preventDefault()
-      setDeferredPrompt(e)
-      setShowInstallBtn(true)
-    }
-    window.addEventListener('beforeinstallprompt', handleBeforeInstall)
-    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstall)
-  }, [])
-
-  const handleInstallClick = async () => {
-    if (!deferredPrompt) return
-    deferredPrompt.prompt()
-    const { outcome } = await deferredPrompt.userChoice
-    if (outcome === 'accepted') {
-      console.log('User accepted the install prompt')
-    }
-    setDeferredPrompt(null)
-    setShowInstallBtn(false)
   }
 
   if (isRegistering) {
@@ -701,6 +678,32 @@ function App() {
   const [newContact, setNewContact] = useState({ name: '', phone: '', icon: '📞' })
   const [isOnline, setIsOnline] = useState(navigator.onLine)
   const [offlineCount, setOfflineCount] = useState(0)
+
+  // PWA Install Logic
+  const [deferredPrompt, setDeferredPrompt] = useState(null)
+  const [showInstallBtn, setShowInstallBtn] = useState(false)
+  const [telegramBotTokenInput, setTelegramBotTokenInput] = useState('')
+
+  const handleInstallClick = async () => {
+    if (!deferredPrompt) return
+    deferredPrompt.prompt()
+    const { outcome } = await deferredPrompt.userChoice
+    if (outcome === 'accepted') {
+      console.log('User accepted the install prompt')
+    }
+    setDeferredPrompt(null)
+    setShowInstallBtn(false)
+  }
+
+  useEffect(() => {
+    const handleBeforeInstall = (e) => {
+      e.preventDefault()
+      setDeferredPrompt(e)
+      setShowInstallBtn(true)
+    }
+    window.addEventListener('beforeinstallprompt', handleBeforeInstall)
+    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstall)
+  }, [])
 
   // Track online/offline status
   useEffect(() => {
