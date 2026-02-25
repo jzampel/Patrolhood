@@ -106,11 +106,16 @@ function startCommunityBot(communityName, token) {
             bot.sendMessage(msg.chat.id, '❌ Usa el botón "Activar Alertas" desde la app para vincular tu cuenta.');
         });
 
+        let consecutiveErrors = 0;
         bot.on('polling_error', (error) => {
-            console.error(`Telegram Polling Error (${communityName}):`, error.code);
-            // If token is invalid (401/404), stop polling to avoid flooding logs
-            if (error.code === 'ETELEGRAM' && (error.message.includes('401') || error.message.includes('404'))) {
-                console.warn(`🛑 Stopping polling for ${communityName} due to invalid token.`);
+            consecutiveErrors++;
+            console.error(`Telegram Polling Error (${communityName}) [Try ${consecutiveErrors}/3]:`, error.code);
+
+            // If token is invalid (401/404) OR we reached the strike limit, stop polling
+            const isInvalidToken = error.code === 'ETELEGRAM' && (error.message.includes('401') || error.message.includes('404'));
+
+            if (isInvalidToken || consecutiveErrors >= 3) {
+                console.warn(`🛑 Stopping polling for ${communityName} after ${consecutiveErrors} errors.`);
                 bot.stopPolling();
             }
         });

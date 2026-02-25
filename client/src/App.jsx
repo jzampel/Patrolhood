@@ -919,11 +919,10 @@ function App() {
         if (data.success) {
           setUser(prev => {
             if (!prev) return data.user
-            // Guard: Only update if there are actual changes to prevent unnecessary re-renders
-            const hasChanges = Object.keys(data.user).some(key => data.user[key] !== prev[key])
-            if (!hasChanges) return prev
-
+            // Robust deep comparison to handle arrays (like communityCenter) and nested objects
             const updated = { ...prev, ...data.user }
+            if (JSON.stringify(prev) === JSON.stringify(updated)) return prev
+
             localStorage.setItem('user', JSON.stringify(updated))
             return updated
           })
