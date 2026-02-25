@@ -49,61 +49,68 @@ app.use(express.static(path.join(__dirname, '../client/dist')));
 
 // --- SHARED MODULES ---
 const connectDB = require('./shared/db');
-const { pubClient, subClient, queueConnection, acquireLock, releaseLock } = require('./shared/redis');
+const { pubClient, subClient, queueConnection, acquireLock, releaseLock, isRedisAvailable } = require('./shared/redis');
 const admin = require('./shared/firebase');
 
 const server = http.createServer(app);
 const io = new Server(server, {
     cors: { origin: "*", methods: ["GET", "POST"] }
 });
-io.adapter(createAdapter(pubClient, subClient));
+
+if (isRedisAvailable) {
+    io.adapter(createAdapter(pubClient, subClient));
+}
 
 const activeAlerts = new Map();
 const communityBots = new Map();
 
 connectDB();
 
-const sosQueue = new Queue('SOS_QUEUE', { connection: queueConnection });
+const sosQueue = isRedisAvailable ? new Queue('SOS_QUEUE', { connection: queueConnection }) : null;
 
 function startCommunityBot(communityName, token) {
     if (!token) return;
-    if (communityBots.has(communityName)) {
-        try { communityBots.get(communityName).stopPolling(); } catch (e) { }
-    }
-
-    const bot = new TelegramBot(token, { polling: true });
-    communityBots.set(communityName, bot);
-    console.log(`🤖 Bot Initialized for community: ${communityName}`);
-
-    // Fetch bot username and store it
-    bot.getMe().then(me => {
-        Community.updateOne({ name: communityName }, { telegramBotUsername: me.username }).exec();
-    }).catch(e => console.error(`Error fetching bot info for ${communityName}:`, e.message));
-
-    bot.onText(/\/start (.+)/, async (msg, match) => {
-        const chatId = msg.chat.id;
-        const userId = match[1];
-        try {
-            const user = await User.findOne({ id: userId, communityName });
-            if (user) {
-                user.telegramChatId = chatId;
-                await user.save();
-                bot.sendMessage(chatId, `✅ ¡Hola ${user.name}! Tu cuenta ha sido vinculada correctamente a la comunidad ${communityName}.`);
-            } else {
-                bot.sendMessage(chatId, '❌ No encontramos tu usuario en esta comunidad.');
-            }
-        } catch (error) {
-            bot.sendMessage(chatId, '❌ Error al vincular cuenta.');
+    try {
+        if (communityBots.has(communityName)) {
+            try { communityBots.get(communityName).stopPolling(); } catch (e) { }
         }
-    });
 
-    bot.onText(/\/start$/, (msg) => {
-        bot.sendMessage(msg.chat.id, '❌ Usa el botón "Activar Alertas" desde la app para vincular tu cuenta.');
-    });
+        const bot = new TelegramBot(token, { polling: true });
+        communityBots.set(communityName, bot);
+        console.log(`🤖 Bot Initialized for community: ${communityName}`);
 
-    bot.on('polling_error', (error) => {
-        console.error(`Telegram Polling Error (${communityName}):`, error.code);
-    });
+        // Fetch bot username and store it
+        bot.getMe().then(me => {
+            Community.updateOne({ name: communityName }, { telegramBotUsername: me.username }).exec();
+        }).catch(e => console.error(`Error fetching bot info for ${communityName}:`, e.message));
+
+        bot.onText(/\/start (.+)/, async (msg, match) => {
+            const chatId = msg.chat.id;
+            const userId = match[1];
+            try {
+                const user = await User.findOne({ id: userId, communityName });
+                if (user) {
+                    user.telegramChatId = chatId;
+                    await user.save();
+                    bot.sendMessage(chatId, `✅ ¡Hola ${user.name}! Tu cuenta ha sido vinculada correctamente a la comunidad ${communityName}.`);
+                } else {
+                    bot.sendMessage(chatId, '❌ No encontramos tu usuario en esta comunidad.');
+                }
+            } catch (error) {
+                bot.sendMessage(chatId, '❌ Error al vincular cuenta.');
+            }
+        });
+
+        bot.onText(/\/start$/, (msg) => {
+            bot.sendMessage(msg.chat.id, '❌ Usa el botón "Activar Alertas" desde la app para vincular tu cuenta.');
+        });
+
+        bot.on('polling_error', (error) => {
+            console.error(`Telegram Polling Error (${communityName}):`, error.code);
+        });
+    } catch (err) {
+        console.error(`❌ CRITICAL: Could not start Telegram Bot for ${communityName}:`, err.message);
+    }
 }
 
 async function sendTelegramAlert(communityName, message) {
@@ -526,7 +533,7 @@ app.post('/api/sos', authenticate, checkCommunity, async (req, res) => {
     // --- ANTI-ABUSE: DEDUPLICATION ---
     const dedupeKey = `dedupe:sos:${communityId}:${houseNumber}`;
     try {
-        const isDuplicate = await pubClient.get(dedupeKey);
+        const isDuplicate = isRedisAvailable ? await pubClient.get(dedupeKey) : null;
         if (isDuplicate) {
             return res.status(429).json({
                 success: false,
@@ -550,7 +557,9 @@ app.post('/api/sos', authenticate, checkCommunity, async (req, res) => {
             expiresAt
         });
 
-        await pubClient.set(dedupeKey, alert._id.toString(), { EX: 120 });
+        if (isRedisAvailable) {
+            await pubClient.set(dedupeKey, alert._id.toString(), { EX: 120 });
+        }
 
         // 2. Add to volatile memory (Legacy backcompat / Sockets)
         activeAlerts.set(communityId, { ...req.body, alertId: alert._id });
@@ -558,21 +567,33 @@ app.post('/api/sos', authenticate, checkCommunity, async (req, res) => {
         // 3. Emit via Sockets (Fast path)
         io.to(communityId).emit('emergency_alert', { ...req.body, alertId: alert._id });
 
-        // 4. DELEGATE Jobs with deterministic JobIDs for IDEMPOTENCY
-        const jobOpts = {
-            attempts: 5,
-            backoff: { type: 'exponential', delay: 10000 },
-            removeOnComplete: true
-        };
+        // 4. DELEGATE Jobs (Only if Redis is available)
+        if (isRedisAvailable && sosQueue) {
+            const jobOpts = {
+                attempts: 5,
+                backoff: { type: 'exponential', delay: 10000 },
+                removeOnComplete: true
+            };
+            await sosQueue.add('NOTIFY_FCM', { alertId: alert._id }, { jobId: `fcm:${alert._id}`, ...jobOpts });
+            await sosQueue.add('NOTIFY_TELEGRAM', { alertId: alert._id }, { jobId: `tg:${alert._id}`, ...jobOpts });
+            await sosQueue.add('STATUS_UPDATE', { alertId: alert._id, nextStatus: 'DISPATCHED' }, { jobId: `status:${alert._id}`, ...jobOpts });
+        } else {
+            // Local fallback for monolithic deployments without Redis
+            console.log('ℹ️ Running notifications in local/monolithic mode');
+            // Update status immediately in DB
+            await ActiveSOS.findByIdAndUpdate(alert._id, { status: 'DISPATCHED' });
 
-        // FCM Notification Job
-        await sosQueue.add('NOTIFY_FCM', { alertId: alert._id }, { jobId: `fcm:${alert._id}`, ...jobOpts });
-
-        // Telegram Notification Job
-        await sosQueue.add('NOTIFY_TELEGRAM', { alertId: alert._id }, { jobId: `tg:${alert._id}`, ...jobOpts });
-
-        // State Update Job
-        await sosQueue.add('STATUS_UPDATE', { alertId: alert._id, nextStatus: 'DISPATCHED' }, { jobId: `status:${alert._id}`, ...jobOpts });
+            // Send Telegram immediately (if bot is available)
+            const community = await Community.findOne({ id: communityId });
+            if (community && community.telegramBotToken) {
+                const sosText = `🚨 *¡ALERTA VECINAL!* 🚨\n\n` +
+                    `🔴 *Tipo:* ${alert.emergencyTypeLabel.toUpperCase()}\n` +
+                    `🏠 *Casa:* #${alert.houseNumber}\n` +
+                    `👤 *Vecino:* ${alert.userName}\n\n` +
+                    `⚠️ _Atención inmediata requerida_`;
+                sendTelegramAlert(community.name, sosText);
+            }
+        }
 
         res.json({ success: true, alertId: alert._id });
     } catch (error) {
@@ -581,123 +602,126 @@ app.post('/api/sos', authenticate, checkCommunity, async (req, res) => {
     }
 });
 
-// --- BULLMQ WORKER (The "Brain" for alerts) ---
-const sosWorker = new Worker('SOS_QUEUE', async job => {
-    const { alertId, nextStatus } = job.data;
-    const alert = await ActiveSOS.findById(alertId);
-    if (!alert) return;
+// --- BULLMQ WORKER (Only if Redis available) ---
+let sosWorker = null;
+if (isRedisAvailable) {
+    sosWorker = new Worker('SOS_QUEUE', async job => {
+        const { alertId, nextStatus } = job.data;
+        const alert = await ActiveSOS.findById(alertId);
+        if (!alert) return;
 
-    console.log(`👷 [Worker] Sub-task ${job.name} for alert ${alertId}`);
+        console.log(`👷 [Worker] Sub-task ${job.name} for alert ${alertId}`);
 
-    if (job.name === 'STATUS_UPDATE') {
-        await ActiveSOS.findByIdAndUpdate(alertId, { status: nextStatus || 'DISPATCHED' });
+        if (job.name === 'STATUS_UPDATE') {
+            await ActiveSOS.findByIdAndUpdate(alertId, { status: nextStatus || 'DISPATCHED' });
 
-        // Final logging to forum (only once when dispatched)
-        if (nextStatus === 'DISPATCHED' || !nextStatus) {
+            // Final logging to forum (only once when dispatched)
+            if (nextStatus === 'DISPATCHED' || !nextStatus) {
+                const community = await Community.findOne({ id: alert.communityId });
+                const alertMsg = await ForumMessage.create({
+                    id: Date.now().toString(),
+                    channel: 'ALERTAS',
+                    communityId: alert.communityId,
+                    communityName: community?.name || 'Unknown',
+                    user: alert.userName || 'SISTEMA',
+                    text: `🚨 ${alert.emergencyTypeLabel.toUpperCase()} en Casa #${alert.houseNumber}`,
+                    type: 'alert'
+                });
+                io.to(alert.communityId).emit('forum_message', alertMsg);
+            }
+        }
+
+        if (job.name === 'NOTIFY_FCM') {
+            if (alert.channels?.fcm?.status === 'SENT') return;
+
             const community = await Community.findOne({ id: alert.communityId });
-            const alertMsg = await ForumMessage.create({
-                id: Date.now().toString(),
-                channel: 'ALERTAS',
-                communityId: alert.communityId,
-                communityName: community?.name || 'Unknown',
-                user: alert.userName || 'SISTEMA',
-                text: `🚨 ${alert.emergencyTypeLabel.toUpperCase()} en Casa #${alert.houseNumber}`,
-                type: 'alert'
+            const subs = await Subscription.find({ communityId: alert.communityId });
+            if (subs.length > 0) {
+                const tokens = subs.map(s => s.token).filter(t => !!t);
+                try {
+                    await admin.messaging().sendEachForMulticast({
+                        tokens,
+                        notification: {
+                            title: `🚨 SOS: ${community?.name || ''}`,
+                            body: `¡Atención! ${alert.emergencyTypeLabel.toUpperCase()} en Casa #${alert.houseNumber}.`
+                        },
+                        data: { type: 'SOS', communityId: alert.communityId, houseNumber: String(alert.houseNumber), click_action: '/' }
+                    });
+                    await ActiveSOS.findByIdAndUpdate(alertId, {
+                        'channels.fcm.status': 'SENT',
+                        'channels.fcm.lastAt': new Date()
+                    });
+                } catch (e) {
+                    console.error('FCM Error in Worker:', e);
+                    await ActiveSOS.findByIdAndUpdate(alertId, {
+                        'channels.fcm.status': 'FAILED',
+                        'channels.fcm.lastError': e.message,
+                        $inc: { 'channels.fcm.attempts': 1 }
+                    });
+                    throw e; // Rethrow for BullMQ retry
+                }
+            }
+        }
+
+        if (job.name === 'NOTIFY_TELEGRAM') {
+            if (alert.channels?.telegram?.status === 'SENT') return;
+
+            const community = await Community.findOne({ id: alert.communityId });
+            if (community) {
+                const sosText = `🚨 *¡ALERTA VECINAL!* 🚨\n\n` +
+                    `🔴 *Tipo:* ${alert.emergencyTypeLabel.toUpperCase()}\n` +
+                    `🏠 *Casa:* #${alert.houseNumber}\n` +
+                    `👤 *Vecino:* ${alert.userName}\n\n` +
+                    `⚠️ _Atención inmediata requerida_`;
+                try {
+                    await sendTelegramAlert(community.name, sosText);
+                    await ActiveSOS.findByIdAndUpdate(alertId, {
+                        'channels.telegram.status': 'SENT',
+                        'channels.telegram.lastAt': new Date()
+                    });
+                } catch (e) {
+                    console.error('Telegram Worker Error:', e);
+                    await ActiveSOS.findByIdAndUpdate(alertId, {
+                        'channels.telegram.status': 'FAILED',
+                        'channels.telegram.lastError': e.message,
+                        $inc: { 'channels.telegram.attempts': 1 }
+                    });
+                }
+            }
+        }
+
+        if (job.name === 'CLEANUP_EXPIRED') {
+            const expiredAlerts = await ActiveSOS.find({
+                status: { $in: ['CREATED', 'DISPATCHED', 'ACKED'] },
+                expiresAt: { $lt: new Date() }
             });
-            io.to(alert.communityId).emit('forum_message', alertMsg);
-        }
-    }
 
-    if (job.name === 'NOTIFY_FCM') {
-        if (alert.channels?.fcm?.status === 'SENT') return;
+            for (const alert of expiredAlerts) {
+                const hasLock = await acquireLock(`community:${alert.communityId}`);
+                if (!hasLock) continue; // Skip and let next run handle it
 
-        const community = await Community.findOne({ id: alert.communityId });
-        const subs = await Subscription.find({ communityId: alert.communityId });
-        if (subs.length > 0) {
-            const tokens = subs.map(s => s.token).filter(t => !!t);
-            try {
-                await admin.messaging().sendEachForMulticast({
-                    tokens,
-                    notification: {
-                        title: `🚨 SOS: ${community?.name || ''}`,
-                        body: `¡Atención! ${alert.emergencyTypeLabel.toUpperCase()} en Casa #${alert.houseNumber}.`
-                    },
-                    data: { type: 'SOS', communityId: alert.communityId, houseNumber: String(alert.houseNumber), click_action: '/' }
-                });
-                await ActiveSOS.findByIdAndUpdate(alertId, {
-                    'channels.fcm.status': 'SENT',
-                    'channels.fcm.lastAt': new Date()
-                });
-            } catch (e) {
-                console.error('FCM Error in Worker:', e);
-                await ActiveSOS.findByIdAndUpdate(alertId, {
-                    'channels.fcm.status': 'FAILED',
-                    'channels.fcm.lastError': e.message,
-                    $inc: { 'channels.fcm.attempts': 1 }
-                });
-                throw e; // Rethrow for BullMQ retry
+                try {
+                    await ActiveSOS.findByIdAndUpdate(alert._id, { status: 'EXPIRED', isActive: false });
+                    activeAlerts.delete(alert.communityId);
+                    const dedupeKey = `dedupe:sos:${alert.communityId}:${alert.houseNumber}`;
+                    if (isRedisAvailable) await pubClient.del(dedupeKey);
+                    io.to(alert.communityId).emit('stop_alert'); // Or emit specific EXPIRED event
+                    console.log(`⏰ [Cleanup] Expired alert ${alert._id}`);
+                } finally {
+                    await releaseLock(`community:${alert.communityId}`);
+                }
             }
         }
-    }
+    }, { connection: queueConnection });
 
-    if (job.name === 'NOTIFY_TELEGRAM') {
-        if (alert.channels?.telegram?.status === 'SENT') return;
+    sosWorker.on('completed', job => {
+        console.log(`✅ Job ${job.id} completed!`);
+    });
 
-        const community = await Community.findOne({ id: alert.communityId });
-        if (community) {
-            const sosText = `🚨 *¡ALERTA VECINAL!* 🚨\n\n` +
-                `🔴 *Tipo:* ${alert.emergencyTypeLabel.toUpperCase()}\n` +
-                `🏠 *Casa:* #${alert.houseNumber}\n` +
-                `👤 *Vecino:* ${alert.userName}\n\n` +
-                `⚠️ _Atención inmediata requerida_`;
-            try {
-                await sendTelegramAlert(community.name, sosText);
-                await ActiveSOS.findByIdAndUpdate(alertId, {
-                    'channels.telegram.status': 'SENT',
-                    'channels.telegram.lastAt': new Date()
-                });
-            } catch (e) {
-                console.error('Telegram Worker Error:', e);
-                await ActiveSOS.findByIdAndUpdate(alertId, {
-                    'channels.telegram.status': 'FAILED',
-                    'channels.telegram.lastError': e.message,
-                    $inc: { 'channels.telegram.attempts': 1 }
-                });
-            }
-        }
-    }
-
-    if (job.name === 'CLEANUP_EXPIRED') {
-        const expiredAlerts = await ActiveSOS.find({
-            status: { $in: ['CREATED', 'DISPATCHED', 'ACKED'] },
-            expiresAt: { $lt: new Date() }
-        });
-
-        for (const alert of expiredAlerts) {
-            const hasLock = await acquireLock(`community:${alert.communityId}`);
-            if (!hasLock) continue; // Skip and let next run handle it
-
-            try {
-                await ActiveSOS.findByIdAndUpdate(alert._id, { status: 'EXPIRED', isActive: false });
-                activeAlerts.delete(alert.communityId);
-                const dedupeKey = `dedupe:sos:${alert.communityId}:${alert.houseNumber}`;
-                await pubClient.del(dedupeKey);
-                io.to(alert.communityId).emit('stop_alert'); // Or emit specific EXPIRED event
-                console.log(`⏰ [Cleanup] Expired alert ${alert._id}`);
-            } finally {
-                await releaseLock(`community:${alert.communityId}`);
-            }
-        }
-    }
-}, { connection: queueConnection });
-
-sosWorker.on('completed', job => {
-    console.log(`✅ Job ${job.id} completed!`);
-});
-
-sosWorker.on('failed', (job, err) => {
-    console.error(`❌ Job ${job.id} failed with error ${err.message}`);
-});
+    sosWorker.on('failed', (job, err) => {
+        console.error(`❌ Job ${job.id} failed with error ${err.message}`);
+    });
+}
 
 app.post('/api/sos/stop', authenticate, checkCommunity, async (req, res) => {
     const { communityId, userId, role } = req.body;
@@ -709,7 +733,7 @@ app.post('/api/sos/stop', authenticate, checkCommunity, async (req, res) => {
 
             // 2. Clear Redis Dedupe Key
             const dedupeKey = `dedupe:sos:${communityId}:${current.houseNumber}`;
-            await pubClient.del(dedupeKey);
+            if (isRedisAvailable) await pubClient.del(dedupeKey);
 
             // 3. Clear memory
             activeAlerts.delete(communityId);
