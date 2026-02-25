@@ -667,9 +667,18 @@ function UserList({ currentUser, houses, users, setUsers, onViewOnMap }) {
 const APP_VERSION = '1.2.6'
 
 function App() {
+  console.log('🚀 PatrolHood App Booting... v' + APP_VERSION)
+
   const [user, setUser] = useState(() => {
-    const saved = localStorage.getItem('user')
-    return saved ? JSON.parse(saved) : null
+    try {
+      const saved = localStorage.getItem('user')
+      if (!saved) return null
+      return JSON.parse(saved)
+    } catch (err) {
+      console.error('❌ Error parsing saved user:', err)
+      localStorage.removeItem('user') // Clear corrupted data
+      return null
+    }
   })
   const [activeTab, setActiveTab] = useState('map') // 'map' or 'forum' or 'users'
 
