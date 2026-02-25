@@ -644,6 +644,7 @@ function App() {
   const [deferredPrompt, setDeferredPrompt] = useState(null)
   const [showInstallBtn, setShowInstallBtn] = useState(false)
   const [telegramBotTokenInput, setTelegramBotTokenInput] = useState('')
+  const [showTelegramHelp, setShowTelegramHelp] = useState(false)
 
   const handleInstallClick = async () => {
     if (!deferredPrompt) return
@@ -1490,18 +1491,19 @@ function App() {
                 key={alert._id || alert.alertId}
                 className="stop-button floating"
                 style={{ fontSize: '0.7em', padding: '10px' }}
-                onClick={() => {
-                  fetch(`${import.meta.env.VITE_API_URL || ''}/api/sos/stop`, {
+                onClick={async () => {
+                  const data = await safeFetch(`${import.meta.env.VITE_API_URL || ''}/api/sos/stop`, {
                     method: 'POST',
-                    headers: {
-                      'Content-Type': 'application/json',
-                      'Authorization': `Bearer ${localStorage.getItem('token')}`
-                    },
                     body: JSON.stringify({
                       alertId: alert._id || alert.alertId,
                       communityId: user.communityId
                     })
-                  })
+                  });
+                  if (data.success) {
+                    setActiveAlerts(prev => prev.filter(a => (a._id || a.alertId) !== (alert._id || alert.alertId)));
+                  } else {
+                    alert('Error al parar la alerta: ' + (data.error || 'Error desconocido'));
+                  }
                 }}
               >
                 🔕 PARAR #{alert.houseNumber}
