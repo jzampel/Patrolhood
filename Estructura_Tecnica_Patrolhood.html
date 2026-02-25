@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Estructura Técnica Detallada - PatrolHood</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Fira+Code:wght@400;500&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1e40af;
+            --secondary: #64748b;
+            --dark: #0f172a;
+            --light: #f1f5f9;
+            --accent: #ef4444;
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --border: #e2e8f0;
+        }
+
+        @media print {
+            body {
+                margin: 0;
+                padding: 20px;
+                font-size: 10pt;
+            }
+
+            .no-print {
+                display: none;
+            }
+
+            .page-break {
+                page-break-after: always;
+            }
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            line-height: 1.6;
+            color: #334155;
+            max-width: 950px;
+            margin: 40px auto;
+            padding: 0 40px;
+            background-color: #ffffff;
+        }
+
+        header {
+            border-bottom: 3px solid var(--primary);
+            margin-bottom: 50px;
+            padding-bottom: 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+        }
+
+        .title-block h1 {
+            color: var(--dark);
+            margin: 0;
+            font-size: 2.8rem;
+            font-weight: 800;
+            letter-spacing: -0.025em;
+        }
+
+        .title-block p {
+            margin: 5px 0 0;
+            color: var(--primary);
+            font-weight: 600;
+            font-size: 1.2rem;
+        }
+
+        .version-badge {
+            background: var(--dark);
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        h2 {
+            color: var(--dark);
+            border-bottom: 2px solid var(--light);
+            padding-bottom: 10px;
+            margin-top: 60px;
+            font-size: 2rem;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        h2::before {
+            content: '';
+            display: inline-block;
+            width: 8px;
+            height: 32px;
+            background: var(--primary);
+            border-radius: 4px;
+        }
+
+        h3 {
+            color: var(--primary-dark);
+            margin-top: 35px;
+            font-size: 1.4rem;
+            font-weight: 700;
+        }
+
+        .tech-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin: 25px 0;
+        }
+
+        .tech-card {
+            background: var(--light);
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+        }
+
+        .tech-card h4 {
+            margin: 0 0 10px 0;
+            color: var(--dark);
+            font-size: 1.1rem;
+        }
+
+        pre {
+            background: var(--dark);
+            color: #e2e8f0;
+            padding: 25px;
+            border-radius: 12px;
+            overflow-x: auto;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.9rem;
+            line-height: 1.5;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+
+        code {
+            font-family: 'Fira Code', monospace;
+            background: #f1f5f9;
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: var(--primary-dark);
+            font-size: 0.9em;
+        }
+
+        .flow-container {
+            background: #f8fafc;
+            border: 2px dashed var(--border);
+            padding: 30px;
+            border-radius: 15px;
+            margin: 20px 0;
+        }
+
+        .step-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .step-item {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+            position: relative;
+        }
+
+        .step-number {
+            background: var(--primary);
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+
+        .step-content strong {
+            display: block;
+            color: var(--dark);
+            margin-bottom: 4px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 25px 0;
+            font-size: 0.95rem;
+        }
+
+        th {
+            background: var(--light);
+            text-align: left;
+            padding: 15px;
+            border-bottom: 2px solid var(--primary);
+            color: var(--dark);
+        }
+
+        td {
+            padding: 15px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .alert-box {
+            background: #fff7ed;
+            border-left: 5px solid var(--warning);
+            padding: 20px;
+            border-radius: 0 8px 8px 0;
+            margin: 30px 0;
+        }
+
+        footer {
+            margin-top: 80px;
+            padding: 40px 0;
+            border-top: 1px solid var(--border);
+            text-align: center;
+            color: var(--secondary);
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <div class="title-block">
+            <h1>Estructura Técnica</h1>
+            <p>Arquitectura Profesional para Seguridad Vecinal Multi-tenant</p>
+        </div>
+        <div class="version-badge">v2.0 Professional Refactor | 2026</div>
+    </header>
+
+    <section>
+        <h2>1. Arquitectura del Sistema</h2>
+        <p>PatrolHood ha evolucionado de un prototipo a una solución profesional escalable, centrada en el aislamiento
+            de datos y la alta disponibilidad.</p>
+
+        <div class="tech-grid">
+            <div class="tech-card">
+                <h4>🚀 Core Engine</h4>
+                <p>Node.js con Express y Socket.io. Implementa autenticación <strong>JWT</strong> y middleware de
+                    aislamiento <strong>Multi-tenant</strong>.</p>
+            </div>
+            <div class="tech-card">
+                <h4>📱 App Web Progresiva (PWA)</h4>
+                <p>React + Vite con soporte <strong>Offline</strong> mediante IndexedDB (Dexie.js). Resiliencia total
+                    ante desconexiones.</p>
+            </div>
+            <div class="tech-card">
+                <h4>🔗 Integraciones Robustas</h4>
+                <p>Telegram Bot Manager dinámico y Firebase Admin SDK integrado para notificaciones masivas.</p>
+            </div>
+        </div>
+    </section>
+
+    <section>
+        <h2>2. Lógica del Sistema SOS (Resiliencia Total)</h2>
+        <div class="flow-container">
+            <ul class="step-list">
+                <li class="step-item">
+                    <div class="step-number">1</div>
+                    <div class="step-content">
+                        <strong>Disparo y Buffer Local</strong>
+                        El cliente valida la integridad del mensaje. Si no hay conexión, la alerta se guarda en
+                        <strong>IndexedDB</strong> y se sincroniza automáticamente al recuperar señal.
+                    </div>
+                </li>
+                <li class="step-item">
+                    <div class="step-number">2</div>
+                    <div class="step-content">
+                        <strong>Persistencia en MongoDB</strong>
+                        La señal SOS se registra en la colección <code>ActiveSOS</code> antes de cualquier otra acción.
+                        Esto garantiza la recuperación de alertas tras reinicios fortuitos del servidor.
+                    </div>
+                </li>
+                <li class="step-item">
+                    <div class="step-number">3</div>
+                    <div class="step-content">
+                        <strong>Distribución Filtrada</strong>
+                        El servidor retransmite la alerta vía Socket.io únicamente a los miembros de la comunidad
+                        destino (validación por <code>communityId</code>).
+                    </div>
+                </li>
+                <li class="step-item">
+                    <div class="step-number">4</div>
+                    <div class="step-content">
+                        <strong>Notificaciones Críticas</strong>
+                        Se ejecutan procesos asíncronos para el canal del foro, Firebase Cloud Messaging y el Bot de
+                        Telegram específico de la comunidad.
+                    </div>
+                </li>
+            </ul>
+        </div>
+    </section>
+
+    <section>
+        <h2>3. Seguridad de Nivel Empresarial</h2>
+        <p>El sistema garantiza el aislamiento total de datos mediante una arquitectura multitenant basada en UUIDs.</p>
+
+        <h3>Capas de Protección</h3>
+        <ul>
+            <li><strong>Autenticación JWT:</strong> Cada petición API requiere un token firmado que certifica la
+                <code>role</code> y el <code>communityId</code> del usuario.</li>
+            <li><strong>Middleware Multi-tenant:</strong> El middleware <code>checkCommunity</code> intercepta todas las
+                peticiones para asegurar que un usuario nunca acceda a recursos de otra comunidad.</li>
+            <li><strong>Aislamiento de Identidad:</strong> Migración completa de nombres a <code>communityId</code>
+                (UUID v4) para evitar colisiones y leaks de datos.</li>
+            <li><strong>Auditoría (Audit Logs):</strong> Se registran todas las acciones administrativas críticas
+                (borrado de mensajes, cambio de tokens, etc.) en una colección dedicada.</li>
+        </ul>
+
+        <div class="alert-box" style="border-left-color: var(--primary);">
+            <strong>🛡️ Moderación Activa:</strong> Los administradores disponen de un Dashboard para visualizar logs de
+            auditoría y la capacidad de borrar mensajes del foro en tiempo real mediante sockets.
+        </div>
+    </section>
+
+    <section>
+        <h2>4. Modelo de Datos (MongoDB)</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Colección</th>
+                    <th>Campos Clave</th>
+                    <th>Propósito</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>User</code></td>
+                    <td>id, role, <strong>communityId</strong>, telegramChatId</td>
+                    <td>Identidad con aislamiento UUID y roles jerárquicos.</td>
+                </tr>
+                <tr>
+                    <td><code>House</code></td>
+                    <td>number, position, <strong>communityId</strong></td>
+                    <td>Representación cartográfica ligada a comunidad única.</td>
+                </tr>
+                <tr>
+                    <td><code>Community</code></td>
+                    <td>id (UUID), telegramBotToken, center</td>
+                    <td>Metadata global del tenant y configuración de bot.</td>
+                </tr>
+                <tr>
+                    <td><code>ActiveSOS</code></td>
+                    <td>userId, communityId, status, timestamp</td>
+                    <td>Persistencia para recuperación de fallos y resiliencia.</td>
+                </tr>
+                <tr>
+                    <td><code>AuditLog</code></td>
+                    <td>adminId, action, communityId, details</td>
+                    <td>Trazabilidad total de acciones administrativas.</td>
+                </tr>
+                <tr>
+                    <td><code>ForumMessage</code></td>
+                    <td>communityId, text, type (text/alert)</td>
+                    <td>Historial de comunicación con filtrado multitenant.</td>
+                </tr>
+            </tbody>
+        </table>
+    </section>
+
+    <section>
+        <h2>5. Estructura de Proyecto Actualizada</h2>
+        <pre>
+/
+├── client/src/
+│   ├── App.jsx           <span style="color: #fbbf24">// Router, Sockets y Orquestación Principal</span>
+│   ├── db.js             <span style="color: #fbbf24">// Configuración IndexedDB (Dexie) para Offline</span>
+│   └── main.jsx          <span style="color: #fbbf24">// PWA Registration & Entry point</span>
+├── server/
+│   ├── index.js          <span style="color: #fbbf24">// Servidor REST + Socket.io + Business Logic</span>
+│   ├── models/           <span style="color: #fbbf24">// Mongoose Schemas (ActiveSOS, AuditLog, etc.)</span>
+│   └── .env              <span style="color: #fbbf24">// Gestión segura de secrets (NO VERSIONADO)</span>
+└── firebase-messaging-sw.js <span style="color: #fbbf24">// Handler para Push Notifications</span>
+        </pre>
+    </section>
+
+    <footer>
+        PatrolHood Excellence | Documentación Profesional Generada por Antigravity AI &copy; 2026
+    </footer>
+</body>
+
+</html>

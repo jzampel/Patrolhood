@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const HouseSchema = new mongoose.Schema({
     id: { type: String, required: true },
     number: { type: String, required: true }, // No longer unique globally, only per community
+    communityId: { type: String, required: true },
     communityName: { type: String, required: true },
     position: {
         type: [Number], // [lat, lng]

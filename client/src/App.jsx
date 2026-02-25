@@ -1,9 +1,11 @@
 import { useState, useEffect, useRef } from 'react'
+import AdminDashboard from './AdminDashboard'
 import io from 'socket.io-client'
 import { MapContainer, TileLayer, CircleMarker, Popup, Marker, useMapEvents } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import './App.css'
+import { db, addPendingSOS, getPendingSOS, markSOSAsSent, getPendingCount } from './db'
 
 const socket = io(import.meta.env.VITE_API_URL || '/')
 
@@ -128,6 +130,9 @@ function AuthOverlay({ onLogin }) {
   })
   const [error, setError] = useState('')
 
+  const [deferredPrompt, setDeferredPrompt] = useState(null)
+  const [showInstallBtn, setShowInstallBtn] = useState(false)
+
   const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value })
 
   const handleLogin = async (e) => {
@@ -139,7 +144,12 @@ function AuthOverlay({ onLogin }) {
         body: JSON.stringify({ username: formData.username, password: formData.password })
       })
       const data = await res.json()
-      if (data.success) onLogin(data.user)
+      if (data.success) {
+        // Save to localStorage specifically including communityId and TOKEN
+        localStorage.setItem('user', JSON.stringify(data.user))
+        localStorage.setItem('token', data.token) // New: JWT Persistence
+        onLogin(data.user)
+      }
       else setError(data.message)
     } catch (err) { setError('Error de conexión') }
   }
@@ -160,6 +170,27 @@ function AuthOverlay({ onLogin }) {
         setError(data.message || 'Error desconocido')
       }
     } catch (err) { setError('Error de conexión') }
+  }
+
+  useEffect(() => {
+    const handleBeforeInstall = (e) => {
+      e.preventDefault()
+      setDeferredPrompt(e)
+      setShowInstallBtn(true)
+    }
+    window.addEventListener('beforeinstallprompt', handleBeforeInstall)
+    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstall)
+  }, [])
+
+  const handleInstallClick = async () => {
+    if (!deferredPrompt) return
+    deferredPrompt.prompt()
+    const { outcome } = await deferredPrompt.userChoice
+    if (outcome === 'accepted') {
+      console.log('User accepted the install prompt')
+    }
+    setDeferredPrompt(null)
+    setShowInstallBtn(false)
   }
 
   if (isRegistering) {
@@ -271,8 +302,10 @@ function Forum({ user }) {
 
   // ... (useEffect for messages - same as before) ...
   useEffect(() => {
-    const communityParam = user?.communityName ? `?communityName=${user.communityName}` : ''
-    fetch(`${import.meta.env.VITE_API_URL || ''}/api/forum/${activeChannel}${communityParam}`)
+    const communityParam = user?.communityId ? `?communityId=${user.communityId}` : ''
+    fetch(`${import.meta.env.VITE_API_URL || ''}/api/forum/${activeChannel}${communityParam}`, {
+      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+    })
       .then(res => res.json())
       .then(data => setMessages(data.messages))
 
@@ -281,8 +314,15 @@ function Forum({ user }) {
         setMessages(prev => [...prev, msg])
       }
     }
+    const handleDelete = (msgId) => {
+      setMessages(prev => prev.filter(m => m._id !== msgId && m.id !== msgId))
+    }
     socket.on('forum_message', handleMsg)
-    return () => socket.off('forum_message', handleMsg)
+    socket.on('forum_message_deleted', handleDelete)
+    return () => {
+      socket.off('forum_message', handleMsg)
+      socket.off('forum_message_deleted', handleDelete)
+    }
   }, [activeChannel])
 
   useEffect(() => {
@@ -306,9 +346,13 @@ function Forum({ user }) {
 
     await fetch(`${import.meta.env.VITE_API_URL || ''}/api/forum`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      },
       body: JSON.stringify({
         channel: activeChannel,
+        communityId: user.communityId,
         communityName: user.communityName,
         user: user.name,
         text: newMessage,
@@ -317,6 +361,34 @@ function Forum({ user }) {
     })
     setNewMessage('')
     setImagePreview(null)
+  }
+
+  const deleteMessage = async (msgId) => {
+    if (!window.confirm('¿Borrar este mensaje para todos?')) return;
+    try {
+      await fetch(`${import.meta.env.VITE_API_URL || ''}/api/forum/${msgId}?communityId=${user.communityId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+      });
+    } catch (err) { console.error('Error deleting message:', err); }
+  }
+
+  const reportMessage = async (msgId) => {
+    if (!window.confirm('¿Reportar este mensaje por contenido inapropiado?')) return;
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/forum/${msgId}/report`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({ communityId: user.communityId })
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert('Mensaje reportado. Gracias por tu colaboración.');
+      }
+    } catch (err) { console.error('Error reporting message:', err); }
   }
 
   const RULES_TEXT = `
@@ -359,7 +431,30 @@ function Forum({ user }) {
               <span className="msg-time">{new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
             </div>
             {msg.image && <img src={msg.image} alt="adjunto" className="msg-image" style={{ maxWidth: '100%', borderRadius: '8px', marginTop: '5px' }} />}
-            <div className="msg-text">{msg.text}</div>
+            {msg.text && <div className="msg-text">{msg.text}</div>}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
+              {(user.role === 'admin' || user.role === 'moderator') && (
+                <button
+                  onClick={() => deleteMessage(msg._id || msg.id)}
+                  style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '0.75em', opacity: 0.7 }}
+                >
+                  🗑️ Borrar
+                </button>
+              )}
+              {msg.user !== user.name && (
+                <button
+                  onClick={() => reportMessage(msg._id || msg.id)}
+                  style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: '0.75em' }}
+                >
+                  🚩 Reportar
+                </button>
+              )}
+              {msg.reports && msg.reports.length > 0 && (user.role === 'admin' || user.role === 'moderator') && (
+                <span style={{ fontSize: '0.7em', color: '#f59e0b', fontWeight: 'bold' }}>
+                  ⚠️ {msg.reports.length} reportes
+                </span>
+              )}
+            </div>
           </div>
         ))}
         <div ref={bottomRef} />
@@ -427,8 +522,11 @@ function UserList({ currentUser, houses, users, setUsers, onViewOnMap }) {
 
     const res = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/users/${editingUser.id}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(editForm)
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      },
+      body: JSON.stringify({ ...editForm, communityId: currentUser.communityId })
     })
     const data = await res.json()
 
@@ -447,8 +545,9 @@ function UserList({ currentUser, houses, users, setUsers, onViewOnMap }) {
     }
 
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/users/${userToDelete.id}`, {
-        method: 'DELETE'
+      const res = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/users/${userToDelete.id}?communityId=${currentUser.communityId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
       })
       const data = await res.json()
 
@@ -490,7 +589,10 @@ function UserList({ currentUser, houses, users, setUsers, onViewOnMap }) {
               )}
 
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '5px' }}>
-                {u.role === 'admin' && <span className="user-role-badge">Admin</span>}
+                <div style={{ display: 'flex', gap: '4px' }}>
+                  {u.role === 'admin' && <span className="user-role-badge">Admin</span>}
+                  {u.role === 'moderator' && <span className="user-role-badge" style={{ background: '#3b82f6' }}>Moderador</span>}
+                </div>
 
                 {currentUser.role === 'admin' && (
                   <div style={{ display: 'flex', gap: '5px' }}>
@@ -576,8 +678,31 @@ function App() {
   const [communityContacts, setCommunityContacts] = useState([])
   const [isAddingContact, setIsAddingContact] = useState(false)
   const [newContact, setNewContact] = useState({ name: '', phone: '', icon: '📞' })
-  const [telegramBotTokenInput, setTelegramBotTokenInput] = useState('')
-  const [showTelegramHelp, setShowTelegramHelp] = useState(false)
+  const [isOnline, setIsOnline] = useState(navigator.onLine)
+  const [offlineCount, setOfflineCount] = useState(0)
+
+  // Track online/offline status
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true)
+    const handleOffline = () => setIsOnline(false)
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
+    return () => {
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('offline', handleOffline)
+    }
+  }, [])
+
+  // Check pending SOS count periodically
+  useEffect(() => {
+    const checkPending = async () => {
+      const count = await getPendingCount()
+      setOfflineCount(count)
+    }
+    checkPending()
+    const interval = setInterval(checkPending, 5000)
+    return () => clearInterval(interval)
+  }, [])
 
   // Register SW and Logic
   async function registerServiceWorker() {
@@ -598,6 +723,7 @@ function App() {
       const { initializeApp } = await import('firebase/app');
       const { getMessaging, getToken, onMessage } = await import('firebase/messaging');
       const { firebaseConfig, vapidKey } = await import('./firebase-config');
+      const token_fcm = localStorage.getItem('token'); // Use a different name for local token
 
       const app = initializeApp(firebaseConfig);
       const messaging = getMessaging(app);
@@ -627,8 +753,11 @@ function App() {
         console.log('✅ FCM Token generated:', token);
         const response = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/subscribe`, {
           method: 'POST',
-          body: JSON.stringify({ token, userId: user.id, role: user.role, communityName: user.communityName }),
-          headers: { 'Content-Type': 'application/json' }
+          body: JSON.stringify({ token, userId: user.id, role: user.role, communityId: user.communityId }),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token_fcm}`
+          }
         });
 
         if (!response.ok) throw new Error('Error al guardar suscripción en el servidor');
@@ -644,6 +773,8 @@ function App() {
       onMessage(messaging, (payload) => {
         console.log('Foreground Message received: ', payload);
         if (payload.notification) {
+          // Add a link or context if possible
+          console.log('Notification data:', payload.data);
           alert(`🔔 NOTIFICACIÓN: ${payload.notification.title}\n\n${payload.notification.body}`);
         }
       });
@@ -680,7 +811,10 @@ function App() {
       // Let's try that one.
       const res = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/users/${user.id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
         body: JSON.stringify({ telegramChatId: null }) // distinct null to clear it
       })
       const data = await res.json()
@@ -701,30 +835,36 @@ function App() {
     registerServiceWorker();
 
     // Fetch houses from server
-    const communityParam = user?.communityName ? `?communityName=${user.communityName}` : ''
-    fetch(`${import.meta.env.VITE_API_URL || ''}/api/houses${communityParam}`)
+    const communityParam = user?.communityId ? `?communityId=${user.communityId}` : ''
+    fetch(`${import.meta.env.VITE_API_URL || ''}/api/houses${communityParam}`, {
+      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+    })
       .then(res => res.json())
       .then(data => {
         if (data.success) setHouses(data.houses)
       })
 
     // Fetch users for map labels
-    fetch(`${import.meta.env.VITE_API_URL || ''}/api/users${communityParam}`)
+    fetch(`${import.meta.env.VITE_API_URL || ''}/api/users${communityParam}`, {
+      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+    })
       .then(res => res.json())
       .then(data => {
         if (data.success) setUsers(data.users)
       })
 
     // Fetch dynamic contacts
-    fetch(`${import.meta.env.VITE_API_URL || ''}/api/contacts${communityParam}`)
+    fetch(`${import.meta.env.VITE_API_URL || ''}/api/contacts${communityParam}`, {
+      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+    })
       .then(res => res.json())
       .then(data => {
         if (data.success) setCommunityContacts(data.contacts)
       })
 
     // Join community socket room
-    if (user?.communityName) {
-      socket.emit('join_community', user.communityName)
+    if (user?.communityId) {
+      socket.emit('join_community', user.communityId)
     }
 
     // Sockets for live updates
@@ -762,7 +902,9 @@ function App() {
 
     const syncUser = async () => {
       try {
-        const res = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/users/${user.id}`)
+        const res = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/users/${user.id}?communityId=${user.communityId}`, {
+          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        })
         const data = await res.json()
         if (data.success) {
           setUser(prev => {
@@ -862,8 +1004,47 @@ function App() {
       // stopSiren() // Siren sound disabled per user request
     })
 
-    return () => stopSiren() // Still stop if playing (legacy) or on cleanup
+    return () => socket.off('stop_alert')
   }, [])
+
+  // --- OFFLINE SYNC LOGIC ---
+  useEffect(() => {
+    const syncOfflineSOS = async () => {
+      if (!user) return;
+      const pending = await getPendingSOS();
+      if (pending.length === 0) return;
+
+      console.log(`🔄 Attempting to sync ${pending.length} offline SOS alerts...`);
+      for (const sos of pending) {
+        try {
+          const res = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/sos`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${localStorage.getItem('token')}`
+            },
+            body: JSON.stringify(sos)
+          });
+          if (res.ok) {
+            await markSOSAsSent(sos.id);
+            console.log(`✅ SOS #${sos.id} synced successfully.`);
+          }
+        } catch (err) {
+          console.error(`❌ Failed to sync SOS #${sos.id}:`, err);
+          break; // Stop if no connection
+        }
+      }
+    };
+
+    const handleOnline = () => syncOfflineSOS();
+    window.addEventListener('online', handleOnline);
+    const interval = setInterval(syncOfflineSOS, 30000); // Check every 30s as fallback
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      clearInterval(interval);
+    };
+  }, [user]);
 
   const triggerSOS = (type) => {
     const info = EMERGENCY_TYPES.find(e => e.id === type)
@@ -877,15 +1058,46 @@ function App() {
     const myHouse = houses.find(h => h.number === user.mapLabel)
     if (!myHouse) { alert('No tienes una casa asignada correctamente en el mapa.'); return; }
 
-    socket.emit('emergency_alert', {
+    const sosData = {
       emergencyType: pendingSOS.id,
       emergencyTypeLabel: pendingSOS.label,
       houseNumber: myHouse.number,
-      communityName: user.communityName, // Crucial for filtering
+      communityId: user.communityId,
+      communityName: user.communityName,
       userId: user.id,
       userName: user.name,
       location: myHouse.position ? { lat: myHouse.position[0], lng: myHouse.position[1] } : null
-    })
+    };
+
+    // Store in IndexedDB first (Buffer)
+    const bufferingToast = async () => {
+      const dbId = await addPendingSOS(sosData);
+      if (!isOnline) {
+        alert('⚠️ Sin conexión. SOS guardado y se enviará automáticamente al reconectar.');
+      }
+
+      try {
+        const res = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/sos`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          },
+          body: JSON.stringify(sosData)
+        })
+        if (res.ok) {
+          await markSOSAsSent(dbId);
+          if (!isOnline) {
+            // This might happen if online event fired just before fetch
+            console.log('✅ Buffered SOS synced immediately.');
+          }
+        }
+      } catch (err) {
+        console.warn('⚠️ Server unreachable. SOS buffered in IndexedDB.');
+      }
+    };
+
+    bufferingToast();
     setPendingSOS(null)
   }
 
@@ -894,8 +1106,11 @@ function App() {
       console.log('Generating invite for role: user community:', user.communityName);
       const res = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/admin/invite`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ role: 'user', communityName: user.communityName })
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({ role: 'user', communityId: user.communityId, communityName: user.communityName })
       })
       const data = await res.json()
       if (data.success) {
@@ -918,8 +1133,11 @@ function App() {
     try {
       const res = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/community/bot-token`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ communityName: user.communityName, telegramBotToken: telegramBotTokenInput, adminId: user.id })
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({ communityId: user.communityId, telegramBotToken: telegramBotTokenInput, adminId: user.id })
       });
       const data = await res.json();
       if (data.success) {
@@ -937,8 +1155,11 @@ function App() {
     try {
       const res = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/houses`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...houseData, communityName: user.communityName })
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({ ...houseData, communityId: user.communityId, communityName: user.communityName })
       })
       const data = await res.json()
       if (data.success) {
@@ -959,14 +1180,20 @@ function App() {
     if (!window.confirm('¿Estás seguro de que quieres borrar TODAS las etiquetas?')) return
     await fetch(`${import.meta.env.VITE_API_URL || ''}/api/houses/clear`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ communityName: user.communityName })
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      },
+      body: JSON.stringify({ communityId: user.communityId })
     })
   }
 
   const onDeleteHouse = async (id) => {
     if (!window.confirm('¿Borrar esta etiqueta?')) return
-    await fetch(`${import.meta.env.VITE_API_URL || ''}/api/houses/${id}?communityName=${user.communityName}`, { method: 'DELETE' })
+    await fetch(`${import.meta.env.VITE_API_URL || ''}/api/houses/${id}?communityId=${user.communityId}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+    })
   }
 
   const onCenterHouse = (position) => {
@@ -980,8 +1207,11 @@ function App() {
     try {
       const res = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/community/center`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ communityName: user.communityName, center: position, adminId: user.id })
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({ communityId: user.communityId, center: position, adminId: user.id })
       })
       const data = await res.json()
       if (data.success) {
@@ -1012,6 +1242,23 @@ function App() {
       <button className="mobile-menu-toggle" onClick={() => setIsSidebarOpen(true)}>
         ☰
       </button>
+
+      {/* Offline / Sync Banner */}
+      {(!isOnline || offlineCount > 0) && (
+        <div className={`status-banner ${!isOnline ? 'offline' : 'syncing'}`} style={{
+          position: 'fixed', top: 0, left: 0, right: 0, zIndex: 10001,
+          background: !isOnline ? '#7f1d1d' : '#1e3a8a', color: 'white',
+          padding: '8px', fontSize: '0.85em', textAlign: 'center',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px',
+          boxShadow: '0 2px 10px rgba(0,0,0,0.3)', fontWeight: 'bold'
+        }}>
+          {!isOnline ? (
+            <><span>📡 MODO OFFLINE</span> <small>(Funciona con buffer local)</small></>
+          ) : (
+            <><span>🔄 Sincronizando...</span> <small>({offlineCount} alertas en cola)</small></>
+          )}
+        </div>
+      )}
 
       {/* Foreground Notification Toast */}
       {sosActive && activeTab !== 'map' && (
@@ -1045,6 +1292,27 @@ function App() {
           <span style={{ fontSize: '0.6em', color: '#94a3b8', fontFamily: 'Roboto', fontWeight: 'normal', letterSpacing: '1px' }}>Bienvenido a</span>
           <span style={{ fontSize: '1.2em', color: '#fbbf24', textShadow: '2px 2px 4px rgba(0,0,0,0.5)', marginBottom: '5px' }}>PATROLHOOD</span>
           <span style={{ fontSize: '0.9em', color: '#e2e8f0', fontFamily: 'serif', fontStyle: 'italic', textDecoration: 'underline' }}>{user.communityName}</span>
+
+          {showInstallBtn && (
+            <div className="install-banner-premium" style={{
+              margin: '20px 0', padding: '15px', background: 'rgba(251, 191, 36, 0.1)',
+              borderRadius: '16px', border: '1px solid #fbbf24', textAlign: 'center'
+            }}>
+              <div style={{ fontSize: '2em', marginBottom: '10px' }}>📲</div>
+              <h4 style={{ margin: '0 0 5px 0', color: '#fbbf24' }}>App Instalable</h4>
+              <p style={{ fontSize: '0.75em', color: '#94a3b8', margin: '0 0 15px 0' }}>Instala PatrolHood para recibir alertas instantáneas y acceso rápido.</p>
+              <button
+                onClick={handleInstallClick}
+                style={{
+                  width: '100%', padding: '12px', background: 'linear-gradient(135deg, #fbbf24 0%, #d97706 100%)',
+                  color: '#000', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer',
+                  boxShadow: '0 4px 15px rgba(251, 191, 36, 0.3)'
+                }}
+              >
+                Instalar Ahora
+              </button>
+            </div>
+          )}
         </h1>
         <button
           className="refresh-btn"
@@ -1058,11 +1326,15 @@ function App() {
           🔄 Refrescar
         </button>
         {user.role === 'admin' && <span className="admin-badge">Admin</span>}
+        {user.role === 'moderator' && <span className="admin-badge" style={{ background: '#3b82f6', color: 'white' }}>Moderador</span>}
 
         <div className="nav-tabs">
           <button className={`nav-btn ${activeTab === 'map' ? 'active' : ''}`} onClick={() => { setActiveTab('map'); setIsSidebarOpen(false); }}>🗺️ Mapa</button>
           <button className={`nav-btn ${activeTab === 'forum' ? 'active' : ''}`} onClick={() => { setActiveTab('forum'); setIsSidebarOpen(false); }}>💬 Foro</button>
           <button className={`nav-btn ${activeTab === 'users' ? 'active' : ''}`} onClick={() => { setActiveTab('users'); setIsSidebarOpen(false); }}>👥 Vecinos</button>
+          {(user.role === 'admin' || user.role === 'moderator') && (
+            <button className={`nav-btn ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => { setActiveTab('dashboard'); setIsSidebarOpen(false); }}>📊 Dashboard</button>
+          )}
         </div>
 
         {/* Telegram Connect Button - Only show if NOT connected */}
@@ -1180,7 +1452,10 @@ function App() {
                   <button
                     onClick={() => {
                       if (window.confirm('¿Borrar contacto?')) {
-                        fetch(`${import.meta.env.VITE_API_URL || ''}/api/contacts/${contact._id}`, { method: 'DELETE' })
+                        fetch(`${import.meta.env.VITE_API_URL || ''}/api/contacts/${contact._id}?communityId=${user.communityId}`, {
+                          method: 'DELETE',
+                          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                        })
                           .then(res => res.json())
                           .then(data => {
                             if (data.success) setCommunityContacts(prev => prev.filter(c => c._id !== contact._id))
@@ -1222,8 +1497,11 @@ function App() {
                     if (!newContact.name || !newContact.phone) return;
                     fetch(`${import.meta.env.VITE_API_URL || ''}/api/contacts`, {
                       method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ ...newContact, communityName: user.communityName })
+                      headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                      },
+                      body: JSON.stringify({ ...newContact, communityId: user.communityId, communityName: user.communityName })
                     })
                       .then(res => res.json())
                       .then(data => {
@@ -1272,12 +1550,17 @@ function App() {
             (user.role === 'admin' || user.id === sosUserId) ? (
               <button
                 className="stop-button floating"
-                onClick={() => socket.emit('stop_alert', {
-                  userId: user.id,
-                  role: user.role,
-                  communityName: user.communityName
-                })
-                }
+                onClick={() => {
+                  fetch(`${import.meta.env.VITE_API_URL || ''}/api/sos/stop`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      userId: user.id,
+                      role: user.role,
+                      communityId: user.communityId
+                    })
+                  })
+                }}
               >
                 🔕 PARAR
               </button>
@@ -1407,10 +1690,12 @@ function App() {
           </div >
         ) : activeTab === 'forum' ? (
           <Forum user={user} />
+        ) : activeTab === 'dashboard' ? (
+          <AdminDashboard user={user} />
         ) : (
           <UserList currentUser={user} houses={houses} users={users} setUsers={setUsers} onViewOnMap={handleViewOnMap} />
         )}
-      </div >
+      </div>
 
       {showEmergencyMenu && (
         <div className="modal-overlay" onClick={() => setShowEmergencyMenu(false)}>
@@ -1456,8 +1741,8 @@ function App() {
           </div>
         </div>
       )}
-    </div >
-  )
+    </div>
+  );
 }
 
-export default App
+export default App;

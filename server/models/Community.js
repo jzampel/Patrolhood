@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 
 const CommunitySchema = new mongoose.Schema({
+    id: { type: String, required: true, unique: true }, // UUID for the community
     name: { type: String, required: true, unique: true },
     telegramBotToken: { type: String }, // Each community can have its own bot
     telegramBotUsername: { type: String }, // Automatically fetched from token
