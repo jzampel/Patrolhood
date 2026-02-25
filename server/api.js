@@ -257,7 +257,17 @@ app.post('/api/forum', authenticate, checkCommunity, async (req, res) => {
 // using the pattern: routes + emitSocketEvent bridge.
 
 app.use(express.static(path.join(__dirname, '../client/dist')));
-app.get('*', (req, res) => res.sendFile(path.join(__dirname, '../client/dist/index.html')));
+// Handle API 404s
+app.use('/api/*', (req, res) => {
+    res.status(404).json({ success: false, message: 'Ruta API no encontrada' });
+});
+
+app.get('*', (req, res) => {
+    if (req.path.startsWith('/api')) {
+        return res.status(404).json({ success: false, message: 'Ruta API no encontrada' });
+    }
+    res.sendFile(path.join(__dirname, '../client/dist/index.html'));
+});
 
 const PORT = process.env.API_PORT || 3001;
 app.listen(PORT, () => console.log(`🚀 API Standalone on port ${PORT}`));

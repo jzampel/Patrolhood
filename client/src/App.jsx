@@ -6,6 +6,7 @@ import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import './App.css'
 import { db, addPendingSOS, getPendingSOS, markSOSAsSent, getPendingCount } from './db'
+import { safeFetch } from './api'
 
 const socket = io(import.meta.env.VITE_API_URL || '/')
 
@@ -138,44 +139,33 @@ function AuthOverlay({ onLogin }) {
     e.preventDefault()
     setLoading(true)
     setError('')
-    try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: formData.username, password: formData.password })
-      })
-      const data = await res.json()
-      if (data.success) {
-        // Save to localStorage specifically including communityId and TOKEN
-        localStorage.setItem('user', JSON.stringify(data.user))
-        localStorage.setItem('token', data.token) // New: JWT Persistence
-        onLogin(data.user)
-      }
-      else setError(data.message || 'Error al iniciar sesión. Comprueba tus datos.')
-    } catch (err) {
-      console.error('Login Fetch Error:', err)
-      setError('Error de conexión con el servidor')
-    } finally {
-      setLoading(false)
+    const data = await safeFetch(`${import.meta.env.VITE_API_URL || ''}/api/login`, {
+      method: 'POST',
+      body: JSON.stringify({ username: formData.username, password: formData.password })
+    })
+
+    if (data.success) {
+      localStorage.setItem('user', JSON.stringify(data.user))
+      localStorage.setItem('token', data.token)
+      onLogin(data.user)
+    } else {
+      setError(data.error || 'Error al iniciar sesión.')
     }
+    setLoading(false)
   }
 
   const handleRegister = async (e) => {
     e.preventDefault()
     if (formData.password !== formData.confirmPassword) { setError('Las contraseñas no coinciden'); return; }
-    try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
-      })
-      const data = await res.json()
-      if (data.success) {
-        alert('Registro exitoso'); setIsRegistering(false); setError('');
-      } else {
-        setError(data.message || 'Error desconocido')
-      }
-    } catch (err) { setError('Error de conexión') }
+    const data = await safeFetch(`${import.meta.env.VITE_API_URL || ''}/api/register`, {
+      method: 'POST',
+      body: JSON.stringify(formData)
+    })
+    if (data.success) {
+      alert('Registro exitoso'); setIsRegistering(false); setError('');
+    } else {
+      setError(data.error || 'Error desconocido')
+    }
   }
 
   if (isRegistering) {
@@ -290,11 +280,11 @@ function Forum({ user }) {
   // ... (useEffect for messages - same as before) ...
   useEffect(() => {
     const communityParam = user?.communityId ? `?communityId=${user.communityId}` : ''
-    fetch(`${import.meta.env.VITE_API_URL || ''}/api/forum/${activeChannel}${communityParam}`, {
-      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-    })
-      .then(res => res.json())
-      .then(data => setMessages(data.messages))
+    safeFetch(`${import.meta.env.VITE_API_URL || ''}/api/forum/${activeChannel}${communityParam}`)
+      .then(data => {
+        if (data.success && data.messages) setMessages(data.messages)
+      })
+      .catch(err => console.error('Forum fetch error:', err))
 
     const handleMsg = (msg) => {
       if (msg.channel === activeChannel) {
@@ -331,12 +321,8 @@ function Forum({ user }) {
     e.preventDefault()
     if (!newMessage.trim() && !imagePreview) return
 
-    await fetch(`${import.meta.env.VITE_API_URL || ''}/api/forum`, {
+    await safeFetch(`${import.meta.env.VITE_API_URL || ''}/api/forum`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('token')}`
-      },
       body: JSON.stringify({
         channel: activeChannel,
         communityId: user.communityId,
@@ -352,30 +338,20 @@ function Forum({ user }) {
 
   const deleteMessage = async (msgId) => {
     if (!window.confirm('¿Borrar este mensaje para todos?')) return;
-    try {
-      await fetch(`${import.meta.env.VITE_API_URL || ''}/api/forum/${msgId}?communityId=${user.communityId}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-      });
-    } catch (err) { console.error('Error deleting message:', err); }
+    await safeFetch(`${import.meta.env.VITE_API_URL || ''}/api/forum/${msgId}?communityId=${user.communityId}`, {
+      method: 'DELETE'
+    });
   }
 
   const reportMessage = async (msgId) => {
     if (!window.confirm('¿Reportar este mensaje por contenido inapropiado?')) return;
-    try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/forum/${msgId}/report`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({ communityId: user.communityId })
-      });
-      const data = await res.json();
-      if (data.success) {
-        alert('Mensaje reportado. Gracias por tu colaboración.');
-      }
-    } catch (err) { console.error('Error reporting message:', err); }
+    const data = await safeFetch(`${import.meta.env.VITE_API_URL || ''}/api/forum/${msgId}/report`, {
+      method: 'POST',
+      body: JSON.stringify({ communityId: user.communityId })
+    });
+    if (data.success) {
+      alert('Mensaje reportado. Gracias por tu colaboración.');
+    }
   }
 
   const RULES_TEXT = `
@@ -507,15 +483,10 @@ function UserList({ currentUser, houses, users, setUsers, onViewOnMap }) {
   const saveEdit = async () => {
     if (!editingUser) return
 
-    const res = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/users/${editingUser.id}`, {
+    const data = await safeFetch(`${import.meta.env.VITE_API_URL || ''}/api/users/${editingUser.id}`, {
       method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('token')}`
-      },
       body: JSON.stringify({ ...editForm, communityId: currentUser.communityId })
     })
-    const data = await res.json()
 
     if (data.success) {
       // Update local list
@@ -531,20 +502,14 @@ function UserList({ currentUser, houses, users, setUsers, onViewOnMap }) {
       return
     }
 
-    try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/users/${userToDelete.id}?communityId=${currentUser.communityId}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-      })
-      const data = await res.json()
+    const data = await safeFetch(`${import.meta.env.VITE_API_URL || ''}/api/users/${userToDelete.id}?communityId=${currentUser.communityId}`, {
+      method: 'DELETE'
+    })
 
-      if (data.success) {
-        setUsers(prev => prev.filter(u => u.id !== userToDelete.id))
-      } else {
-        alert(data.message || 'Error al eliminar usuario')
-      }
-    } catch (err) {
-      alert('Error de conexión al intentar eliminar')
+    if (data.success) {
+      setUsers(prev => prev.filter(u => u.id !== userToDelete.id))
+    } else {
+      alert(data.error || 'Error al eliminar usuario')
     }
   }
 
@@ -771,16 +736,12 @@ function App() {
 
       if (token) {
         console.log('✅ FCM Token generated:', token);
-        const response = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/subscribe`, {
+        const response = await safeFetch(`${import.meta.env.VITE_API_URL || ''}/api/subscribe`, {
           method: 'POST',
-          body: JSON.stringify({ token, userId: user.id, role: user.role, communityId: user.communityId }),
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token_fcm}`
-          }
+          body: JSON.stringify({ token, userId: user.id, role: user.role, communityId: user.communityId })
         });
 
-        if (!response.ok) throw new Error('Error al guardar suscripción en el servidor');
+        if (!response.success) throw new Error(response.error || 'Error al guardar suscripción en el servidor');
 
         console.log('✅ Subscription saved on server');
         alert('✅ Notificaciones Activadas en este dispositivo');
@@ -807,47 +768,32 @@ function App() {
 
   // Check production status
   const checkStatus = async () => {
-    try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/production-status`);
-      const data = await res.json();
+    const data = await safeFetch(`${import.meta.env.VITE_API_URL || ''}/api/production-status`);
+    if (data.success) {
       let msg = `Estado del Servidor:\n`;
       msg += `- Base de Datos: ${data.mongoReady ? '✅ OK' : '❌ Error'}\n`;
       msg += `- Firebase: ${data.firebaseInitialized ? '✅ OK' : '❌ NO INICIALIZADO'}\n`;
       if (data.firebaseError) msg += `- Error Firebase: ${data.firebaseError}\n`;
       msg += `\nEntorno: ${data.nodeEnv}`;
       alert(msg);
-    } catch (err) {
-      alert('Error al conectar con el servidor para verificar estado.');
+    } else {
+      alert('Error al conectar con el servidor para verificar estado: ' + data.error);
     }
   }
 
   const deactivateTelegram = async () => {
     if (!window.confirm('¿Quieres desactivar las alertas por Telegram?')) return
 
-    try {
-      // Assuming we can update the user via the same endpoint or similar. 
-      // Based on previous code, there isn't a direct "update self" endpoint visible in the snippets 
-      // except maybe through the UserList edit functionality which uses PUT /api/users/:id.
-      // Let's try that one.
-      const res = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/users/${user.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({ telegramChatId: null }) // distinct null to clear it
-      })
-      const data = await res.json()
+    const data = await safeFetch(`${import.meta.env.VITE_API_URL || ''}/api/users/${user.id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ telegramChatId: null })
+    })
 
-      if (data.success) {
-        setUser(prev => ({ ...prev, telegramChatId: null }))
-        alert('Alertas desactivadas correctamente.')
-      } else {
-        alert('Error al desactivar alertas.')
-      }
-    } catch (err) {
-      console.error(err)
-      alert('Error de conexión.')
+    if (data.success) {
+      setUser(prev => ({ ...prev, telegramChatId: null }))
+      alert('Alertas desactivadas correctamente.')
+    } else {
+      alert('Error al desactivar alertas: ' + data.error)
     }
   }
 
@@ -882,40 +828,32 @@ function App() {
 
     // Fetch houses from server
     const communityParam = user?.communityId ? `?communityId=${user.communityId}` : ''
-    fetch(`${import.meta.env.VITE_API_URL || ''}/api/houses${communityParam}`, {
-      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-    })
-      .then(res => res.json())
+    safeFetch(`${import.meta.env.VITE_API_URL || ''}/api/houses${communityParam}`)
       .then(data => {
-        if (data.success) setHouses(data.houses)
+        if (data.success && data.houses) setHouses(data.houses)
       })
+      .catch(err => console.error('Error fetching houses:', err))
 
     // Fetch users for map labels
-    fetch(`${import.meta.env.VITE_API_URL || ''}/api/users${communityParam}`, {
-      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-    })
-      .then(res => res.json())
+    safeFetch(`${import.meta.env.VITE_API_URL || ''}/api/users${communityParam}`)
       .then(data => {
-        if (data.success) setUsers(data.users)
+        if (data.success && data.users) setUsers(data.users)
       })
+      .catch(err => console.error('Error fetching users:', err))
 
     // Fetch dynamic contacts
-    fetch(`${import.meta.env.VITE_API_URL || ''}/api/contacts${communityParam}`, {
-      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-    })
-      .then(res => res.json())
+    safeFetch(`${import.meta.env.VITE_API_URL || ''}/api/contacts${communityParam}`)
       .then(data => {
-        if (data.success) setCommunityContacts(data.contacts)
+        if (data.success && data.contacts) setCommunityContacts(data.contacts)
       })
+      .catch(err => console.error('Error fetching contacts:', err))
 
     // Fetch active SOS alerts
-    fetch(`${import.meta.env.VITE_API_URL || ''}/api/sos/active${communityParam}`, {
-      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-    })
-      .then(res => res.json())
+    safeFetch(`${import.meta.env.VITE_API_URL || ''}/api/sos/active${communityParam}`)
       .then(data => {
-        if (data.success) setActiveAlerts(data.alerts)
+        if (data.success && data.alerts) setActiveAlerts(data.alerts)
       })
+      .catch(err => console.error('Error fetching active SOS:', err))
 
     // Join community socket room
     if (user?.communityId) {
@@ -956,24 +894,17 @@ function App() {
     if (!user?.id) return
 
     const syncUser = async () => {
-      try {
-        const res = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/users/${user.id}?communityId=${user.communityId}`, {
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-        })
-        const data = await res.json()
-        if (data.success) {
-          setUser(prev => {
-            if (!prev) return data.user
-            // Robust deep comparison to handle arrays (like communityCenter) and nested objects
-            const updated = { ...prev, ...data.user }
-            if (JSON.stringify(prev) === JSON.stringify(updated)) return prev
+      const data = await safeFetch(`${import.meta.env.VITE_API_URL || ''}/api/users/${user.id}?communityId=${user.communityId}`)
+      if (data.success && data.user) {
+        setUser(prev => {
+          if (!prev) return data.user
+          // Robust deep comparison to handle arrays (like communityCenter) and nested objects
+          const updated = { ...prev, ...data.user }
+          if (JSON.stringify(prev) === JSON.stringify(updated)) return prev
 
-            localStorage.setItem('user', JSON.stringify(updated))
-            return updated
-          })
-        }
-      } catch (err) {
-        console.error('Error syncing user profile:', err)
+          localStorage.setItem('user', JSON.stringify(updated))
+          return updated
+        })
       }
     }
 
@@ -1072,22 +1003,16 @@ function App() {
 
       console.log(`🔄 Attempting to sync ${pending.length} offline SOS alerts...`);
       for (const sos of pending) {
-        try {
-          const res = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/sos`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${localStorage.getItem('token')}`
-            },
-            body: JSON.stringify(sos)
-          });
-          if (res.ok) {
-            await markSOSAsSent(sos.id);
-            console.log(`✅ SOS #${sos.id} synced successfully.`);
-          }
-        } catch (err) {
-          console.error(`❌ Failed to sync SOS #${sos.id}:`, err);
-          break; // Stop if no connection
+        const res = await safeFetch(`${import.meta.env.VITE_API_URL || ''}/api/sos`, {
+          method: 'POST',
+          body: JSON.stringify(sos)
+        });
+        if (res.success) {
+          await markSOSAsSent(sos.id);
+          console.log(`✅ SOS #${sos.id} synced successfully.`);
+        } else {
+          console.error(`❌ Failed to sync SOS #${sos.id}:`, res.error);
+          break; // Stop if error
         }
       }
     };
@@ -1132,24 +1057,18 @@ function App() {
         alert('⚠️ Sin conexión. SOS guardado y se enviará automáticamente al reconectar.');
       }
 
-      try {
-        const res = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/sos`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          },
-          body: JSON.stringify(sosData)
-        })
-        if (res.ok) {
-          await markSOSAsSent(dbId);
-          if (!isOnline) {
-            // This might happen if online event fired just before fetch
-            console.log('✅ Buffered SOS synced immediately.');
-          }
+      const data = await safeFetch(`${import.meta.env.VITE_API_URL || ''}/api/sos`, {
+        method: 'POST',
+        body: JSON.stringify(sosData)
+      })
+      if (data.success) {
+        await markSOSAsSent(dbId);
+        if (!isOnline) {
+          // This might happen if online event fired just before fetch
+          console.log('✅ Buffered SOS synced immediately.');
         }
-      } catch (err) {
-        console.warn('⚠️ Server unreachable. SOS buffered in IndexedDB.');
+      } else {
+        console.warn('⚠️ Server unreachable or error. SOS buffered in IndexedDB.', data.error);
       }
     };
 
@@ -1158,27 +1077,16 @@ function App() {
   }
 
   const generateInvite = async () => {
-    try {
-      console.log('Generating invite for role: user community:', user.communityName);
-      const res = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/admin/invite`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({ role: 'user', communityId: user.communityId, communityName: user.communityName })
-      })
-      const data = await res.json()
-      if (data.success) {
-        console.log('✅ Invitación generada:', data.code);
-        setGeneratedInvite(data.code)
-      } else {
-        console.error('❌ Error del servidor:', data.message);
-        alert('Error al generar invitación: ' + (data.message || 'Error desconocido'));
-      }
-    } catch (err) {
-      console.error('❌ Error de conexión:', err);
-      alert('Error de conexión al generar invitación.');
+    const data = await safeFetch(`${import.meta.env.VITE_API_URL || ''}/api/admin/invite`, {
+      method: 'POST',
+      body: JSON.stringify({ role: 'user', communityId: user.communityId, communityName: user.communityName })
+    })
+    if (data.success) {
+      console.log('✅ Invitación generada:', data.code);
+      setGeneratedInvite(data.code)
+    } else {
+      console.error('❌ Error del servidor:', data.error);
+      alert('Error al generar invitación: ' + (data.error || 'Error desconocido'));
     }
   }
 
@@ -1186,69 +1094,45 @@ function App() {
     if (!telegramBotTokenInput) return alert('Por favor, introduce un token válido.');
     if (!window.confirm('¿Quieres actualizar el Token del bot de Telegram para esta comunidad?')) return;
 
-    try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/community/bot-token`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({ communityId: user.communityId, telegramBotToken: telegramBotTokenInput, adminId: user.id })
-      });
-      const data = await res.json();
-      if (data.success) {
-        alert('✅ Token actualizado correctamente. El bot se está reiniciando.');
-        setTelegramBotTokenInput('');
-      } else {
-        alert('❌ Error al actualizar el token: ' + (data.message || 'Error desconocido'));
-      }
-    } catch (err) {
-      alert('❌ Error de conexión al actualizar el token.');
+    const data = await safeFetch(`${import.meta.env.VITE_API_URL || ''}/api/community/bot-token`, {
+      method: 'POST',
+      body: JSON.stringify({ communityId: user.communityId, telegramBotToken: telegramBotTokenInput, adminId: user.id })
+    });
+    if (data.success) {
+      alert('✅ Token actualizado correctamente. El bot se está reiniciando.');
+      setTelegramBotTokenInput('');
+    } else {
+      alert('❌ Error al actualizar el token: ' + (data.error || 'Error desconocido'));
     }
   }
 
   const onAddHouse = async (houseData) => {
-    try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/houses`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({ ...houseData, communityId: user.communityId, communityName: user.communityName })
-      })
-      const data = await res.json()
-      if (data.success) {
-        console.log('✅ Casa guardada en servidor:', data.house)
-        if (houseData.owner === user.phone) {
-          setUser(prev => ({ ...prev, houseNumber: houseData.number }))
-        }
-      } else {
-        alert('❌ Error al guardar la etiqueta: ' + (data.message || 'Error desconocido'))
+    const data = await safeFetch(`${import.meta.env.VITE_API_URL || ''}/api/houses`, {
+      method: 'POST',
+      body: JSON.stringify({ ...houseData, communityId: user.communityId, communityName: user.communityName })
+    })
+    if (data.success) {
+      console.log('✅ Casa guardada en servidor:', data.house)
+      if (houseData.owner === user.phone) {
+        setUser(prev => ({ ...prev, houseNumber: houseData.number }))
       }
-    } catch (err) {
-      console.error('Error saving house:', err)
-      alert('❌ Error de conexión al guardar la etiqueta.')
+    } else {
+      alert('❌ Error al guardar la etiqueta: ' + (data.error || 'Error desconocido'))
     }
   }
 
   const clearHouses = async () => {
     if (!window.confirm('¿Estás seguro de que quieres borrar TODAS las etiquetas?')) return
-    await fetch(`${import.meta.env.VITE_API_URL || ''}/api/houses/clear`, {
+    await safeFetch(`${import.meta.env.VITE_API_URL || ''}/api/houses/clear`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('token')}`
-      },
       body: JSON.stringify({ communityId: user.communityId })
     })
   }
 
   const onDeleteHouse = async (id) => {
     if (!window.confirm('¿Borrar esta etiqueta?')) return
-    await fetch(`${import.meta.env.VITE_API_URL || ''}/api/houses/${id}?communityId=${user.communityId}`, {
-      method: 'DELETE',
-      headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+    await safeFetch(`${import.meta.env.VITE_API_URL || ''}/api/houses/${id}?communityId=${user.communityId}`, {
+      method: 'DELETE'
     })
   }
 
@@ -1260,21 +1144,16 @@ function App() {
 
   const setAsCommunityCenter = async (position) => {
     if (!window.confirm('¿Establecer esta ubicación como el centro inicial para todos los vecinos?')) return
-    try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/community/center`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({ communityId: user.communityId, center: position, adminId: user.id })
-      })
-      const data = await res.json()
-      if (data.success) {
-        setUser(prev => ({ ...prev, communityCenter: position }))
-        alert('Centro de la comunidad actualizado.')
-      }
-    } catch (err) { alert('Error al actualizar el centro.') }
+    const data = await safeFetch(`${import.meta.env.VITE_API_URL || ''}/api/community/center`, {
+      method: 'POST',
+      body: JSON.stringify({ communityId: user.communityId, center: position, adminId: user.id })
+    })
+    if (data.success) {
+      setUser(prev => ({ ...prev, communityCenter: position }))
+      alert('Centro de la comunidad actualizado.')
+    } else {
+      alert('Error al actualizar el centro: ' + data.error)
+    }
   }
 
   if (!user) return <AuthOverlay onLogin={(userData) => {
@@ -1508,11 +1387,9 @@ function App() {
                   <button
                     onClick={() => {
                       if (window.confirm('¿Borrar contacto?')) {
-                        fetch(`${import.meta.env.VITE_API_URL || ''}/api/contacts/${contact._id}?communityId=${user.communityId}`, {
-                          method: 'DELETE',
-                          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                        safeFetch(`${import.meta.env.VITE_API_URL || ''}/api/contacts/${contact._id}?communityId=${user.communityId}`, {
+                          method: 'DELETE'
                         })
-                          .then(res => res.json())
                           .then(data => {
                             if (data.success) setCommunityContacts(prev => prev.filter(c => c._id !== contact._id))
                           })
@@ -1551,15 +1428,10 @@ function App() {
                 <button
                   onClick={() => {
                     if (!newContact.name || !newContact.phone) return;
-                    fetch(`${import.meta.env.VITE_API_URL || ''}/api/contacts`, {
+                    safeFetch(`${import.meta.env.VITE_API_URL || ''}/api/contacts`, {
                       method: 'POST',
-                      headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${localStorage.getItem('token')}`
-                      },
                       body: JSON.stringify({ ...newContact, communityId: user.communityId, communityName: user.communityName })
                     })
-                      .then(res => res.json())
                       .then(data => {
                         if (data.success) {
                           setCommunityContacts(prev => [...prev, data.contact])

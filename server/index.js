@@ -818,7 +818,17 @@ io.on('connection', (socket) => {
     });
 });
 
+// Handle API 404s
+app.use('/api/*', (req, res) => {
+    res.status(404).json({ success: false, message: 'Ruta API no encontrada' });
+});
+
+// Catch-all for React app
 app.get('*', (req, res) => {
+    // Basic protection: if it looks like an API call but reached here, it's a 404
+    if (req.path.startsWith('/api')) {
+        return res.status(404).json({ success: false, message: 'Ruta API no encontrada' });
+    }
     res.sendFile(path.join(__dirname, '../client/dist/index.html'));
 });
 
