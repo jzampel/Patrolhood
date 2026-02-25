@@ -1,4 +1,5 @@
 require('dotenv').config();
+process.env.JWT_SECRET = process.env.JWT_SECRET || 'f98a2c3d5e7b1a4c6e8f0a2d3c4b5e6f7g8h9i0j1k2l3m4n5o6p7q8r9s0t1u2v3w4x5y6z7';
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
