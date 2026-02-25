@@ -904,7 +904,7 @@ function App() {
       socket.off('houses_cleared')
       socket.off('house_deleted')
     }
-  }, [user?.id]) // Re-run when user logs in/out
+  }, [user?.id, user?.communityId]) // Re-run when user logs in/out or switches community
 
   // Auto-sync user profile (to detect Telegram link etc)
   useEffect(() => {
@@ -918,6 +918,11 @@ function App() {
         const data = await res.json()
         if (data.success) {
           setUser(prev => {
+            if (!prev) return data.user
+            // Guard: Only update if there are actual changes to prevent unnecessary re-renders
+            const hasChanges = Object.keys(data.user).some(key => data.user[key] !== prev[key])
+            if (!hasChanges) return prev
+
             const updated = { ...prev, ...data.user }
             localStorage.setItem('user', JSON.stringify(updated))
             return updated
@@ -1054,7 +1059,7 @@ function App() {
       window.removeEventListener('online', handleOnline);
       clearInterval(interval);
     };
-  }, [user]);
+  }, [user?.id]);
 
   const triggerSOS = (type) => {
     const info = EMERGENCY_TYPES.find(e => e.id === type)

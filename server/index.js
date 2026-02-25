@@ -108,6 +108,11 @@ function startCommunityBot(communityName, token) {
 
         bot.on('polling_error', (error) => {
             console.error(`Telegram Polling Error (${communityName}):`, error.code);
+            // If token is invalid (401/404), stop polling to avoid flooding logs
+            if (error.code === 'ETELEGRAM' && (error.message.includes('401') || error.message.includes('404'))) {
+                console.warn(`🛑 Stopping polling for ${communityName} due to invalid token.`);
+                bot.stopPolling();
+            }
         });
     } catch (err) {
         console.error(`❌ CRITICAL: Could not start Telegram Bot for ${communityName}:`, err.message);
