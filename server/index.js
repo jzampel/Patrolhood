@@ -183,7 +183,7 @@ app.post('/api/login', async (req, res) => {
     try {
         const user = await User.findOne({
             $and: [
-                { $or: [{ phone: username }, { name: username }] },
+                { $or: [{ phone: username }, { name: username }, { email: username }] },
                 { password: password }
             ]
         });
@@ -217,7 +217,10 @@ app.post('/api/login', async (req, res) => {
         } else {
             res.status(401).json({ success: false, message: 'Credenciales incorrectas' });
         }
-    } catch (error) { res.status(500).json({ success: false }); }
+    } catch (error) {
+        console.error('Login Error:', error);
+        res.status(500).json({ success: false, message: 'Error interno del servidor' });
+    }
 });
 
 app.post('/api/register', async (req, res) => {

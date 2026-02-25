@@ -80,13 +80,16 @@ const emitSocketEvent = async (communityId, event, payload) => {
 app.post('/api/login', async (req, res) => {
     const { username, password } = req.body;
     try {
-        const user = await User.findOne({ $and: [{ $or: [{ phone: username }, { name: username }] }, { password }] });
+        const user = await User.findOne({ $and: [{ $or: [{ phone: username }, { name: username }, { email: username }] }, { password }] });
         if (user) {
             const community = await Community.findOne({ name: user.communityName });
             const token = jwt.sign({ id: user.id, role: user.role, communityId: user.communityId }, process.env.JWT_SECRET, { expiresIn: '30d' });
             res.json({ success: true, token, user: { ...user.toObject(), telegramBotUsername: community?.telegramBotUsername, communityCenter: community?.center } });
         } else res.status(401).json({ success: false, message: 'Credenciales incorrectas' });
-    } catch (e) { res.status(500).json({ success: false }); }
+    } catch (e) {
+        console.error('Login Error (Standalone API):', e);
+        res.status(500).json({ success: false, message: 'Error interno del servidor' });
+    }
 });
 
 app.post('/api/register', async (req, res) => {

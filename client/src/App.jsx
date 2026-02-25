@@ -130,6 +130,7 @@ function AuthOverlay({ onLogin }) {
   })
   const [error, setError] = useState('')
 
+  const [loading, setLoading] = useState(false)
   const [deferredPrompt, setDeferredPrompt] = useState(null)
   const [showInstallBtn, setShowInstallBtn] = useState(false)
 
@@ -137,6 +138,8 @@ function AuthOverlay({ onLogin }) {
 
   const handleLogin = async (e) => {
     e.preventDefault()
+    setLoading(true)
+    setError('')
     try {
       const res = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/login`, {
         method: 'POST',
@@ -150,8 +153,13 @@ function AuthOverlay({ onLogin }) {
         localStorage.setItem('token', data.token) // New: JWT Persistence
         onLogin(data.user)
       }
-      else setError(data.message)
-    } catch (err) { setError('Error de conexión') }
+      else setError(data.message || 'Error al iniciar sesión. Comprueba tus datos.')
+    } catch (err) {
+      console.error('Login Fetch Error:', err)
+      setError('Error de conexión con el servidor')
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleRegister = async (e) => {
@@ -284,7 +292,9 @@ function AuthOverlay({ onLogin }) {
         <form onSubmit={handleLogin}>
           <input name="username" placeholder="Teléfono o Nombre" onChange={handleChange} required />
           <input name="password" type="password" placeholder="Contraseña" onChange={handleChange} required />
-          <button type="submit" className="login-btn">Entrar</button>
+          <button type="submit" className="login-btn" disabled={loading}>
+            {loading ? 'Entrando...' : 'Entrar'}
+          </button>
           <button type="button" className="link-btn" onClick={() => setIsRegistering(true)}>Crear cuenta</button>
         </form>
       </div>
