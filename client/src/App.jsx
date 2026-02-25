@@ -664,6 +664,8 @@ function UserList({ currentUser, houses, users, setUsers, onViewOnMap }) {
   )
 }
 
+const APP_VERSION = '1.2.6'
+
 function App() {
   const [user, setUser] = useState(() => {
     const saved = localStorage.getItem('user')
@@ -839,6 +841,32 @@ function App() {
       console.error(err)
       alert('Error de conexión.')
     }
+  }
+
+  const forceHardRefresh = async () => {
+    if (!window.confirm('¿Quieres forzar la limpieza de caché? Se cerrará la sesión y se reiniciará la app para cargar las últimas actualizaciones.')) return
+
+    // Clear all persistent storage
+    localStorage.clear()
+
+    // Unregister all service workers
+    if ('serviceWorker' in navigator) {
+      const registrations = await navigator.serviceWorker.getRegistrations()
+      for (const registration of registrations) {
+        await registration.unregister()
+      }
+    }
+
+    // Clear caches if available
+    if ('caches' in window) {
+      const cacheNames = await caches.keys()
+      for (const name of cacheNames) {
+        await caches.delete(name)
+      }
+    }
+
+    // Force reload bypassing cache
+    window.location.reload(true)
   }
 
   useEffect(() => {
@@ -1553,6 +1581,11 @@ function App() {
           localStorage.removeItem('user')
           setUser(null)
         }}>Salir</button>
+
+        <div className="version-info">
+          <span>v{APP_VERSION}</span>
+          <button onClick={forceHardRefresh} className="hard-refresh-btn">Limpiar Caché (Update)</button>
+        </div>
       </div>
 
       {activeTab === 'map' && (
