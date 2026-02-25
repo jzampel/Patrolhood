@@ -738,27 +738,36 @@ if (isRedisAvailable) {
 }
 
 app.post('/api/sos/stop', authenticate, checkCommunity, async (req, res) => {
-    const { communityId, userId, role } = req.body;
+    const { communityId, alertId } = req.body;
     try {
-        const current = activeAlerts.get(communityId);
-        if (current && (role === 'admin' || userId === current.userId)) {
-            // 1. Update DB (Machine state: RESOLVED)
-            await ActiveSOS.updateMany({ communityId, isActive: true }, { isActive: false, status: 'RESOLVED' });
+        const query = { communityId, _id: alertId, isActive: true };
+        const alert = await ActiveSOS.findOne(query);
 
-            // 2. Clear Redis Dedupe Key
-            const dedupeKey = `dedupe:sos:${communityId}:${current.houseNumber}`;
-            if (isRedisAvailable) await pubClient.del(dedupeKey);
+        if (!alert) return res.status(404).json({ success: false, message: 'Alerta no encontrada o ya resuelta' });
 
-            // 3. Clear memory
-            activeAlerts.delete(communityId);
-
-            // 4. Notify sockets
-            io.to(communityId).emit('stop_alert');
-            res.json({ success: true });
-        } else {
-            res.status(403).json({ success: false, message: 'No tienes permisos para parar esta alerta' });
+        // Permission check: Author OR Admin
+        if (alert.userId !== req.user.id && req.user.role !== 'admin' && req.user.role !== 'global_admin') {
+            return res.status(403).json({ success: false, message: 'No tienes permiso para detener esta alerta' });
         }
+
+        // 1. Update DB (Machine state: RESOLVED)
+        await ActiveSOS.updateOne({ _id: alertId }, { isActive: false, status: 'RESOLVED', closedAt: new Date() });
+
+        // 2. Clear Redis Dedupe Key
+        const dedupeKey = `dedupe:sos:${communityId}:${alert.houseNumber}`;
+        if (isRedisAvailable) await pubClient.del(dedupeKey);
+
+        // 3. Clear memory (Legacy backcompat)
+        const current = activeAlerts.get(communityId);
+        if (current && (current.alertId || current._id)?.toString() === alertId) {
+            activeAlerts.delete(communityId);
+        }
+
+        // 4. Notify sockets with specific alertId
+        io.to(communityId).emit('stop_alert', { alertId });
+        res.json({ success: true });
     } catch (error) {
+        console.error('Error in POST /api/sos/stop:', error);
         res.status(500).json({ success: false, message: error.message });
     }
 });
