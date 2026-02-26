@@ -72,7 +72,13 @@ const logAction = async (communityId, admin, action, details) => {
 };
 
 const emitSocketEvent = async (communityId, event, payload) => {
-    await pubClient.publish('SOCKET_UPDATE', JSON.stringify({ communityId, event, payload }));
+    try {
+        if (isRedisAvailable && pubClient) {
+            await pubClient.publish('SOCKET_UPDATE', JSON.stringify({ communityId, event, payload }));
+        }
+    } catch (e) {
+        console.warn('⚠️ Redis publish failed (emitSocketEvent):', e.message);
+    }
 };
 
 // --- ROUTES ---

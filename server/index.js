@@ -457,21 +457,40 @@ app.get('/api/forum/:channel', authenticate, checkCommunity, async (req, res) =>
 app.post('/api/forum', authenticate, checkCommunity, async (req, res) => {
     const { channel, user, text, type, image, communityId, communityName } = req.body;
     try {
-        const newMessage = await ForumMessage.create({ id: Date.now().toString(), channel, communityName, user, text, type, image, timestamp: new Date() });
-        const count = await ForumMessage.countDocuments({ channel, communityName });
+        const newMessage = await ForumMessage.create({
+            id: Date.now().toString(),
+            channel,
+            communityId, // CRITICAL FIX: Add this
+            communityName,
+            user,
+            text,
+            type,
+            image,
+            timestamp: new Date()
+        });
+
+        const count = await ForumMessage.countDocuments({ channel, communityId });
         if (count > 100) {
             const oldest = await ForumMessage.findOne({ channel, communityId }).sort({ timestamp: 1 });
             if (oldest) await ForumMessage.deleteOne({ _id: oldest._id });
         }
+
+        // Sockets (Local + Redis Bridge)
         io.to(communityId).emit('forum_message', newMessage);
 
+        // Telegram Notification (Async / Resilient)
         if (channel !== 'ALERTAS') {
             const forumMsgText = text ? text : (image ? "📷 [Imagen]" : "");
-            const community = await Community.findOne({ id: communityId });
-            if (community) sendTelegramAlert(community.name, `💬 *Foro [${channel}]:* ${user}: ${forumMsgText}`);
+            Community.findOne({ id: communityId }).then(community => {
+                if (community) sendTelegramAlert(community.name, `💬 *Foro [${channel}]:* ${user}: ${forumMsgText}`);
+            }).catch(e => console.error('Telegram notification error:', e));
         }
+
         res.json({ success: true, message: newMessage });
-    } catch (error) { res.status(500).json({ success: false }); }
+    } catch (error) {
+        console.error('Forum post error:', error);
+        res.status(500).json({ success: false, message: error.message });
+    }
 });
 
 app.delete('/api/forum/:id', authenticate, checkCommunity, async (req, res) => {
@@ -547,7 +566,15 @@ app.post('/api/sos', authenticate, checkCommunity, async (req, res) => {
     // --- ANTI-ABUSE: DEDUPLICATION ---
     const dedupeKey = `dedupe:sos:${communityId}:${houseNumber}`;
     try {
-        const isDuplicate = isRedisAvailable ? await pubClient.get(dedupeKey) : null;
+        let isDuplicate = null;
+        if (isRedisAvailable) {
+            try {
+                isDuplicate = await pubClient.get(dedupeKey);
+            } catch (redisErr) {
+                console.warn('⚠️ Redis GET error (dedupe):', redisErr.message);
+            }
+        }
+
         if (isDuplicate) {
             return res.status(429).json({
                 success: false,
@@ -572,7 +599,11 @@ app.post('/api/sos', authenticate, checkCommunity, async (req, res) => {
         });
 
         if (isRedisAvailable) {
-            await pubClient.set(dedupeKey, alert._id.toString(), { EX: 120 });
+            try {
+                await pubClient.set(dedupeKey, alert._id.toString(), { EX: 120 });
+            } catch (redisErr) {
+                console.warn('⚠️ Redis SET error (dedupe):', redisErr.message);
+            }
         }
 
         // 2. Add to volatile memory (Legacy backcompat / Sockets)
@@ -581,32 +612,48 @@ app.post('/api/sos', authenticate, checkCommunity, async (req, res) => {
         // 3. Emit via Sockets (Fast path)
         io.to(communityId).emit('emergency_alert', { ...req.body, alertId: alert._id });
 
-        // 4. DELEGATE Jobs (Only if Redis is available)
+        // 4. DELEGATE Jobs
         if (isRedisAvailable && sosQueue) {
-            const jobOpts = {
-                attempts: 5,
-                backoff: { type: 'exponential', delay: 10000 },
-                removeOnComplete: true
-            };
-            await sosQueue.add('NOTIFY_FCM', { alertId: alert._id }, { jobId: `fcm:${alert._id}`, ...jobOpts });
-            await sosQueue.add('NOTIFY_TELEGRAM', { alertId: alert._id }, { jobId: `tg:${alert._id}`, ...jobOpts });
-            await sosQueue.add('STATUS_UPDATE', { alertId: alert._id, nextStatus: 'DISPATCHED' }, { jobId: `status:${alert._id}`, ...jobOpts });
-        } else {
-            // Local fallback for monolithic deployments without Redis
-            console.log('ℹ️ Running notifications in local/monolithic mode');
-            // Update status immediately in DB
-            await ActiveSOS.findByIdAndUpdate(alert._id, { status: 'DISPATCHED' });
-
-            // Send Telegram immediately (if bot is available)
-            const community = await Community.findOne({ id: communityId });
-            if (community && community.telegramBotToken) {
-                const sosText = `🚨 *¡ALERTA VECINAL!* 🚨\n\n` +
-                    `🔴 *Tipo:* ${alert.emergencyTypeLabel.toUpperCase()}\n` +
-                    `🏠 *Casa:* #${alert.houseNumber}\n` +
-                    `👤 *Vecino:* ${alert.userName}\n\n` +
-                    `⚠️ _Atención inmediata requerida_`;
-                sendTelegramAlert(community.name, sosText);
+            try {
+                const jobOpts = {
+                    attempts: 5,
+                    backoff: { type: 'exponential', delay: 10000 },
+                    removeOnComplete: true
+                };
+                await sosQueue.add('NOTIFY_FCM', { alertId: alert._id }, { jobId: `fcm:${alert._id}`, ...jobOpts });
+                await sosQueue.add('NOTIFY_TELEGRAM', { alertId: alert._id }, { jobId: `tg:${alert._id}`, ...jobOpts });
+                await sosQueue.add('STATUS_UPDATE', { alertId: alert._id, nextStatus: 'DISPATCHED' }, { jobId: `status:${alert._id}`, ...jobOpts });
+                return res.json({ success: true, alertId: alert._id });
+            } catch (queueErr) {
+                console.error('⚠️ BullMQ Queue Error:', queueErr.message);
+                // Fallback to local mode if queue fails
             }
+        }
+
+        // Local fallback for monolithic deployments or Redis/Queue failures
+        console.log('ℹ️ Running notifications in local/monolithic mode');
+        await ActiveSOS.findByIdAndUpdate(alert._id, { status: 'DISPATCHED' });
+
+        // Final logging to forum (local/fallback)
+        ForumMessage.create({
+            id: Date.now().toString(),
+            channel: 'ALERTAS',
+            communityId: alert.communityId,
+            communityName: user.communityName || 'SISTEMA',
+            user: alert.userName || 'SISTEMA',
+            text: `🚨 ${alert.emergencyTypeLabel.toUpperCase()} en Casa #${alert.houseNumber}`,
+            type: 'alert'
+        }).then(alertMsg => io.to(alert.communityId).emit('forum_message', alertMsg))
+            .catch(e => console.error('Local forum alert error:', e));
+
+        const community = await Community.findOne({ id: communityId });
+        if (community && community.telegramBotToken) {
+            const sosText = `🚨 *¡ALERTA VECINAL!* 🚨\n\n` +
+                `🔴 *Tipo:* ${alert.emergencyTypeLabel.toUpperCase()}\n` +
+                `🏠 *Casa:* #${alert.houseNumber}\n` +
+                `👤 *Vecino:* ${alert.userName}\n\n` +
+                `⚠️ _Atención inmediata requerida_`;
+            sendTelegramAlert(community.name, sosText);
         }
 
         res.json({ success: true, alertId: alert._id });

@@ -130,6 +130,8 @@ function AuthOverlay({ onLogin }) {
     communityName: '', role: 'user', telegramBotToken: '' // Default to member
   })
   const [error, setError] = useState('')
+  const [showLegal, setShowLegal] = useState(false)
+  const [acceptedTerms, setAcceptedTerms] = useState(false)
 
   const [loading, setLoading] = useState(false)
 
@@ -156,6 +158,7 @@ function AuthOverlay({ onLogin }) {
 
   const handleRegister = async (e) => {
     e.preventDefault()
+    if (!acceptedTerms) { setError('Debes aceptar los términos y condiciones para registrarte'); return; }
     if (formData.password !== formData.confirmPassword) { setError('Las contraseñas no coinciden'); return; }
     const data = await safeFetch(`${import.meta.env.VITE_API_URL || ''}/api/register`, {
       method: 'POST',
@@ -231,14 +234,49 @@ function AuthOverlay({ onLogin }) {
               <input name="confirmPassword" type="password" placeholder="Confirmar" onChange={handleChange} required />
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', marginTop: '10px', fontSize: '0.8em', color: '#ccc' }}>
-              <input type="checkbox" required style={{ width: '20px', marginTop: '3px' }} />
-              <span>
-                Autorizo que mis datos sean visibles para otros vecinos registrados en mi comunidad con fines de seguridad.
-              </span>
+            <div style={{ padding: '10px', background: 'rgba(251, 191, 36, 0.05)', borderRadius: '8px', marginTop: '15px', border: '1px solid rgba(251, 191, 36, 0.2)' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', fontSize: '0.85em', color: '#cbd5e1' }}>
+                <input
+                  type="checkbox"
+                  id="terms"
+                  checked={acceptedTerms}
+                  onChange={(e) => setAcceptedTerms(e.target.checked)}
+                  style={{ width: '18px', height: '18px', marginTop: '2px', cursor: 'pointer' }}
+                />
+                <label htmlFor="terms" style={{ cursor: 'pointer', lineHeight: '1.4' }}>
+                  He leído y acepto los <button type="button" onClick={() => setShowLegal(true)} style={{ background: 'none', border: 'none', color: '#fbbf24', textDecoration: 'underline', padding: 0, cursor: 'pointer', fontSize: 'inherit', fontWeight: 'bold' }}>Términos y Condiciones de Uso y Política de Privacidad</button>.
+                </label>
+              </div>
             </div>
 
-            <button type="submit" className="login-btn">
+            {showLegal && (
+              <div className="legal-modal-overlay" onClick={() => setShowLegal(false)}>
+                <div className="legal-modal-content" onClick={e => e.stopPropagation()}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '10px' }}>
+                    <h3 style={{ margin: 0, color: '#fbbf24' }}>📜 Términos y Condiciones</h3>
+                    <button onClick={() => setShowLegal(false)} style={{ background: 'none', border: 'none', color: 'white', fontSize: '1.5rem', cursor: 'pointer' }}>✕</button>
+                  </div>
+                  <div className="legal-text-scroll">
+                    <h4>1. Gestión de la Comunidad</h4>
+                    <p>La gestión será llevada por un único administrador, encargado de invitaciones, moderación y gestión completa. El administrador puede detener alarmas, eliminar mensajes o expulsar usuarios por conducta inapropiada.</p>
+
+                    <h4>2. Protección de Datos (RGPD)</h4>
+                    <p>Los vecinos podrán ver su nombre, apellidos, dirección y teléfono para fines de seguridad. En alertas SOS se compartirá la ubicación exacta. Los datos NO se usarán con fines propagandísticos ni de lucro con terceros.</p>
+
+                    <h4>3. Naturaleza de la App</h4>
+                    <p>Esta es una app de NOTIFICACIÓN Y ALERTA. NO sustituye a los servicios oficiales (112). NO obliga al usuario a actuar ante una emergencia.</p>
+
+                    <h4>4. Exención de Responsabilidad</h4>
+                    <p>La aplicación y sus creadores no se responsabilizan de un uso inadecuado o daños derivados de una actuación indebida. Toda actuación será bajo responsabilidad exclusiva del usuario.</p>
+
+                    <p style={{ marginTop: '20px', fontSize: '0.9em', color: '#94a3b8' }}>* Al marcar la casilla de aceptación, confirmas que has leído y comprendido estos términos en su totalidad.</p>
+                  </div>
+                  <button onClick={() => { setAcceptedTerms(true); setShowLegal(false); }} className="login-btn" style={{ marginTop: '20px' }}>Entendido y Aceptar</button>
+                </div>
+              </div>
+            )}
+
+            <button type="submit" className="login-btn" disabled={!acceptedTerms} style={{ opacity: acceptedTerms ? 1 : 0.5, cursor: acceptedTerms ? 'pointer' : 'not-allowed' }}>
               {formData.role === 'admin' ? 'Crear Comunidad' : 'Unirse a Comunidad'}
             </button>
             <button type="button" className="link-btn" onClick={() => setIsRegistering(false)}>Volver a Login</button>
@@ -364,7 +402,7 @@ function Forum({ user }) {
 
   return (
     <div className="forum-container">
-      <div className="forum-header" style={{ display: 'flex', justifyContent: 'center', padding: '10px' }}>
+      <div className="forum-header" style={{ display: 'flex', justifyContent: 'center', padding: '10px', paddingLeft: '60px' }}>
         <div className="forum-tabs">
           {FORUM_CHANNELS.map(ch => (
             <button
