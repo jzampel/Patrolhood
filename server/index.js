@@ -64,6 +64,7 @@ if (isRedisAvailable) {
 
 const activeAlerts = new Map();
 const communityBots = new Map();
+const localDedupeCache = new Map();
 
 connectDB();
 
@@ -573,6 +574,8 @@ app.post('/api/sos', authenticate, checkCommunity, async (req, res) => {
             } catch (redisErr) {
                 console.warn('⚠️ Redis GET error (dedupe):', redisErr.message);
             }
+        } else {
+            isDuplicate = localDedupeCache.get(dedupeKey);
         }
 
         if (isDuplicate) {
@@ -604,6 +607,10 @@ app.post('/api/sos', authenticate, checkCommunity, async (req, res) => {
             } catch (redisErr) {
                 console.warn('⚠️ Redis SET error (dedupe):', redisErr.message);
             }
+        } else {
+            localDedupeCache.set(dedupeKey, alert._id.toString());
+            // Clear local cache after 2 minutes (120s) to match EX: 120
+            setTimeout(() => localDedupeCache.delete(dedupeKey), 120000);
         }
 
         // 2. Add to volatile memory (Legacy backcompat / Sockets)
@@ -814,7 +821,11 @@ app.post('/api/sos/stop', authenticate, checkCommunity, async (req, res) => {
 
         // 2. Clear Redis Dedupe Key
         const dedupeKey = `dedupe:sos:${communityId}:${alert.houseNumber}`;
-        if (isRedisAvailable) await pubClient.del(dedupeKey);
+        if (isRedisAvailable) {
+            await pubClient.del(dedupeKey);
+        } else {
+            localDedupeCache.delete(dedupeKey);
+        }
 
         // 3. Clear memory (Legacy backcompat)
         const current = activeAlerts.get(communityId);
