@@ -552,8 +552,8 @@ function UserList({ currentUser, houses, users, setUsers, onViewOnMap }) {
   }
 
   return (
-    <div className="user-list-container">
-      <h2>👥 Vecinos Registrados</h2>
+    <div className="user-list-container" style={{ padding: '20px' }}>
+      <h2 style={{ paddingLeft: '50px', display: 'flex', alignItems: 'center', gap: '10px' }}>👥 Vecinos Registrados</h2>
       <div className="user-grid">
         {users.map(u => (
           <div key={u.id} className="user-card">
