@@ -560,7 +560,7 @@ app.post('/api/subscribe', authenticate, checkCommunity, async (req, res) => {
 
 // --- SOS REST API (Robust Flow) ---
 app.post('/api/sos', authenticate, checkCommunity, async (req, res) => {
-    const { communityId, userId, userName, houseNumber, emergencyType, emergencyTypeLabel, location } = req.body;
+    const { communityId, userId, userName, houseNumber, emergencyType, emergencyTypeLabel, location, communityName } = req.body;
     if (!communityId || !userId) return res.status(400).json({ success: false, message: 'Missing data' });
 
     // --- ANTI-ABUSE: DEDUPLICATION ---
@@ -639,7 +639,7 @@ app.post('/api/sos', authenticate, checkCommunity, async (req, res) => {
             id: Date.now().toString(),
             channel: 'ALERTAS',
             communityId: alert.communityId,
-            communityName: user.communityName || 'SISTEMA',
+            communityName: communityName || 'SISTEMA',
             user: alert.userName || 'SISTEMA',
             text: `🚨 ${alert.emergencyTypeLabel.toUpperCase()} en Casa #${alert.houseNumber}`,
             type: 'alert'

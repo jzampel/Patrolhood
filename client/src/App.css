@@ -26,6 +26,7 @@ textarea {
 .app {
   display: flex;
   height: 100vh;
+  height: 100dvh;
 }
 
 .logo-img {
@@ -516,6 +517,7 @@ textarea {
   flex: 1;
   position: relative;
   height: 100vh;
+  height: 100dvh;
   /* Force full viewport height */
   width: 100%;
   background: #e2e8f0;
@@ -526,21 +528,39 @@ textarea {
   flex: 1;
   position: relative;
   background: #0f172a;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
 }
 
 /* FORUM STYLES */
 .forum-container {
   display: flex;
   flex-direction: column;
-  height: 100vh;
-  /* Full height */
+  height: 100%;
+  width: 100%;
   overflow: hidden;
+}
+
+.forum-header {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 15px 10px;
+  background: rgba(15, 23, 42, 0.8);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  position: relative;
+  z-index: 10;
+  min-height: 65px;
 }
 
 .forum-tabs {
   display: flex;
   background: rgba(0, 0, 0, 0.3);
-  padding: 10px 20px;
+  padding: 5px 15px;
+  border-radius: 20px;
   gap: 10px;
   overflow-x: auto;
   scrollbar-width: none;
@@ -617,11 +637,15 @@ textarea {
 
 .forum-input {
   padding: 15px;
+  padding-bottom: calc(15px + env(safe-area-inset-bottom, 0px));
   background: rgba(15, 23, 42, 0.9);
   border-top: 1px solid rgba(255, 255, 255, 0.1);
   display: flex;
   gap: 10px;
   backdrop-filter: blur(10px);
+  position: relative;
+  z-index: 10;
+  flex-shrink: 0;
 }
 
 .forum-input input {
@@ -850,10 +874,19 @@ textarea {
   }
 
   /* Forum adjustments */
+  .forum-header {
+    padding-left: 70px;
+    /* Space for the mobile menu toggle */
+    justify-content: flex-start;
+  }
+
   .forum-tabs {
     flex-wrap: nowrap;
     overflow-x: auto;
-    padding: 10px;
+    padding: 5px 0;
+    width: 100%;
+    border-radius: 0;
+    background: transparent;
   }
 
   .message-bubble {

@@ -402,7 +402,7 @@ function Forum({ user }) {
 
   return (
     <div className="forum-container">
-      <div className="forum-header" style={{ display: 'flex', justifyContent: 'center', padding: '10px', paddingLeft: '60px' }}>
+      <div className="forum-header">
         <div className="forum-tabs">
           {FORUM_CHANNELS.map(ch => (
             <button
@@ -1046,12 +1046,13 @@ function App() {
           method: 'POST',
           body: JSON.stringify(sos)
         });
-        if (res.success) {
+
+        if (res.success || res.status === 429) {
           await markSOSAsSent(sos.id);
-          console.log(`✅ SOS #${sos.id} synced successfully.`);
+          console.log(`✅ SOS #${sos.id} handled successfully (or duplicate cleared).`);
         } else {
           console.error(`❌ Failed to sync SOS #${sos.id}:`, res.error);
-          break; // Stop if error
+          break; // Stop if error (e.g., actually offline or server 500)
         }
       }
     };
