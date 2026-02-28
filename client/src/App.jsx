@@ -174,7 +174,17 @@ function AuthOverlay({ onLogin }) {
   if (isRegistering) {
     return (
       <div className="auth-overlay">
-        <div className="auth-box" style={{ maxWidth: '450px' }}>
+        <div className="auth-box" style={{ maxWidth: '450px', position: 'relative' }}>
+          <button
+            onClick={() => setIsRegistering(false)}
+            style={{
+              position: 'absolute', top: '15px', right: '15px',
+              background: 'none', border: 'none', color: '#94a3b8',
+              fontSize: '1.5rem', cursor: 'pointer', lineHeight: '1'
+            }}
+          >
+            ✕
+          </button>
           <h2>📝 Registro</h2>
           {error && <p className="error-msg">{error}</p>}
 
@@ -234,17 +244,17 @@ function AuthOverlay({ onLogin }) {
               <input name="confirmPassword" type="password" placeholder="Confirmar" onChange={handleChange} required />
             </div>
 
-            <div style={{ padding: '10px', background: 'rgba(251, 191, 36, 0.05)', borderRadius: '8px', marginTop: '15px', border: '1px solid rgba(251, 191, 36, 0.2)' }}>
+            <div style={{ padding: '10px', background: 'rgba(251, 191, 36, 0.05)', borderRadius: '8px', marginTop: '15px', border: '1px solid rgba(251, 191, 36, 0.2)', maxWidth: 'fit-content' }}>
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', fontSize: '0.85em', color: '#cbd5e1' }}>
                 <input
                   type="checkbox"
                   id="terms"
                   checked={acceptedTerms}
                   onChange={(e) => setAcceptedTerms(e.target.checked)}
-                  style={{ width: '18px', height: '18px', marginTop: '2px', cursor: 'pointer' }}
+                  style={{ width: '18px', height: '18px', marginTop: '2px', cursor: 'pointer', flexShrink: 0 }}
                 />
                 <label htmlFor="terms" style={{ cursor: 'pointer', lineHeight: '1.4' }}>
-                  He leído y acepto los <button type="button" onClick={() => setShowLegal(true)} style={{ background: 'none', border: 'none', color: '#fbbf24', textDecoration: 'underline', padding: 0, cursor: 'pointer', fontSize: 'inherit', fontWeight: 'bold' }}>Términos y Condiciones de Uso y Política de Privacidad</button>.
+                  He leído y acepto los <button type="button" onClick={() => setShowLegal(true)} style={{ background: 'none', border: 'none', color: '#fbbf24', textDecoration: 'underline', padding: 0, cursor: 'pointer', fontSize: 'inherit', fontWeight: 'bold' }}>Términos y Condiciones y Política de Privacidad</button>
                 </label>
               </div>
             </div>
@@ -555,6 +565,11 @@ function UserList({ currentUser, houses, users, setUsers, onViewOnMap }) {
   // users state is now passed from parent
   const [editingUser, setEditingUser] = useState(null)
   const [editForm, setEditForm] = useState({ name: '', surname: '', phone: '', address: '', houseNumber: '' })
+  const [visiblePhones, setVisiblePhones] = useState({}) // { userId: boolean }
+
+  const togglePhone = (userId) => {
+    setVisiblePhones(prev => ({ ...prev, [userId]: !prev[userId] }))
+  }
 
   // Internal fetch removed, relies on props
 
@@ -614,7 +629,16 @@ function UserList({ currentUser, houses, users, setUsers, onViewOnMap }) {
             <div className="user-info">
               <h3>{u.name} {u.surname}</h3>
               <p className="user-address">🏠 Dirección: {u.address}</p>
-              <p className="user-phone">📞 Teléfono: {u.phone}</p>
+              <p className="user-phone" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                📞 Teléfono: {visiblePhones[u.id] ? u.phone : (u.phone ? `${u.phone.substring(0, 3)} *** ***` : 'N/A')}
+                <button
+                  onClick={() => togglePhone(u.id)}
+                  style={{ background: 'none', border: 'none', color: '#fbbf24', cursor: 'pointer', fontSize: '1.1em', padding: 0, display: 'flex', alignItems: 'center' }}
+                  title={visiblePhones[u.id] ? "Ocultar" : "Mostrar teléfono"}
+                >
+                  {visiblePhones[u.id] ? '👁️‍🗨️' : '👁️'}
+                </button>
+              </p>
               <p className="user-tag" style={{ fontSize: '0.8rem', color: '#aaa' }}>
                 🏷️ Etiqueta Casa: {u.mapLabel ? `#${u.mapLabel}` : 'Sin asignar'}
               </p>
