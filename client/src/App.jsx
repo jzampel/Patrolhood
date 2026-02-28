@@ -257,18 +257,31 @@ function AuthOverlay({ onLogin }) {
                     <button onClick={() => setShowLegal(false)} style={{ background: 'none', border: 'none', color: 'white', fontSize: '1.5rem', cursor: 'pointer' }}>✕</button>
                   </div>
                   <div className="legal-text-scroll">
-                    <h4>1. Gestión y Naturaleza de la App</h4>
-                    <p>La gestión de cada comunidad recae en su administrador. Esta es una app de NOTIFICACIÓN VECINAL. En NINGÚN CASO sustituye a los servicios de emergencia oficiales (112, Policía, Bomberos). NO obliga al usuario a actuar ante una emergencia.</p>
+                    <h4>1. Naturaleza y Limitación del Servicio (LSSI-CE)</h4>
+                    <p>De conformidad con la Ley 34/2002 (LSSI-CE), PatrolHood es una plataforma técnica de intermediación social. **USTED RECONOCE QUE ESTA APP NO ES UN SERVICIO DE EMERGENCIA HOMOLOGADO**. El uso de la aplicación no exime de la obligación de contactar con el **112, Policía o Bomberos** a través de sus canales oficiales. Los administradores y desarrolladores no son responsables de la seguridad ciudadana ni de la coordinación de auxilio.</p>
 
-                    <h4>2. Exención de Responsabilidad Técnica y Actuación</h4>
-                    <p>No garantizamos una disponibilidad del 100% libre de fallos técnicos, de red o de notificaciones push. La aplicación y sus desarrolladores declinan toda responsabilidad sobre fallos en el envío de una alerta, así como por los daños derivados de la actuación (o falta de ella) de los vecinos. Toda intervención corre bajo el propio riesgo y responsabilidad del usuario.</p>
+                    <h4>2. Protección de Datos y Privacidad (RGPD y LOPDGDD)</h4>
+                    <p>En cumplimiento del Reglamento (UE) 2016/679 (RGPD) y la LO 3/2018 (LOPDGDD):</p>
+                    <ul style={{ paddingLeft: '15px', color: '#cbd5e1', fontSize: '0.9em' }}>
+                      <li><strong>Responsable:</strong> El Administrador de su comunidad es el Corresponsable del Tratamiento de los datos de su círculo vecinal.</li>
+                      <li><strong>Legitimación (Art. 6.1.a):</strong> Consentimiento explícito del interesado al marcar la casilla de aceptación.</li>
+                      <li><strong>Finalidad:</strong> Gestión de alertas de seguridad vecinal y comunicación interna.</li>
+                      <li><strong>Derechos (Arts. 15-22):</strong> Usted tiene derecho de acceso, rectificación, supresión ("derecho al olvido"), limitación y portabilidad. Puede ejercerlo eliminando su cuenta desde el perfil o contactando con su administrador.</li>
+                    </ul>
 
-                    <h4>3. Privacidad de Datos y Almacenamiento (RGPD)</h4>
-                    <p>Al registrarse, los vecinos podrán ver su nombre, dirección y teléfono para identificar correctamente las alertas. En un SOS, se compartirá su ubicación exacta. Sus datos JAMÁS serán vendidos a terceros. Utilizamos almacenamiento local (Local Storage) en su dispositivo por motivos técnicos y de seguridad para mantener su sesión abierta. Usted tiene derecho a abandonar la aplicación y solicitar al administrador el borrado de sus datos en cualquier momento.</p>
+                    <h4>3. Exención de Responsabilidad Técnica y Civil</h4>
+                    <p>Al amparo del Art. 1101 del Código Civil, los prestadores del servicio no responderán por daños y perjuicios derivados de: (a) Fallos de red, latencia en notificaciones push o indisponibilidad del servidor; (b) Acciones u omisiones de los vecinos ante una alerta; (c) Falta de veracidad en el contenido publicado por usuarios. La app se entrega "tal cual" sin garantía implícita de intervención externa.</p>
 
-                    <h4>4. Uso Adecuado, Contenido y Retención de Datos (Foro)</h4>
-                    <p>El falseo intencionado de alertas SOS, las "bromas", o la publicación de contenido ofensivo, difamatorio o ilegal en el foro será motivo de expulsión inmediata y bloqueo de la cuenta. El usuario es el único responsable ético y legal de los textos y fotografías que publique en la plataforma.</p>
-                    <p style={{ background: 'rgba(251,191,36,0.08)', padding: '8px', borderRadius: '6px', marginTop: '8px', fontSize: '0.9em', borderLeft: '3px solid #fbbf24' }}>⏱️ <strong>Retención de mensajes:</strong> Los mensajes del foro y las imágenes adjuntas son eliminados automáticamente a los <strong>30 días</strong> desde su publicación. Las alertas SOS se conservan 30 días por motivos de seguridad y trazabilidad.</p>
+                    <h4>4. Responsabilidad Penal por Mal Uso (Art. 561 CP)</h4>
+                    <p>El uso del botón SOS para emitir falsas alarmas que movilicen innecesariamente servicios de emergencia pública es un delito tipificado en el **Artículo 561 del Código Penal**, con penas de prisión y multa. PatrolHood colaborará con las autoridades facilitando logs de auditoría ante requerimientos judiciales por uso malintencionado.</p>
+
+                    <h4>5. Retención de Datos y Derecho al Olvido (Art. 5.1.e RGPD)</h4>
+                    <p style={{ background: 'rgba(251,191,36,0.08)', padding: '8px', borderRadius: '6px', borderLeft: '3px solid #fbbf24' }}>
+                      ⏱️ **Conservación Limitada:** Los mensajes y multimedia se eliminan de forma irreversible a los **30 días** para minimizar riesgos de privacidad. Las alertas SOS se conservan 30 días para trazabilidad de seguridad. Al eliminar su cuenta, sus datos identificativos son borrados de inmediato de los servidores activos.
+                    </p>
+
+                    <h4>6. Geolocalización</h4>
+                    <p>La compartición de su ubicación exacta ocurre **únicamente** cuando usted presiona voluntariamente el botón SOS, con el fin legítimo de facilitar su auxilio por parte de la comunidad (Art. 6.1.d RGPD - Interés vital).</p>
 
                     <p style={{ marginTop: '20px', fontSize: '0.9em', color: '#94a3b8' }}>* Al marcar la casilla de aceptación, confirmas que has leído y comprendido estos términos en su totalidad.</p>
                   </div>
