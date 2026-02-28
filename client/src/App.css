@@ -71,30 +71,30 @@ textarea {
   flex-direction: column;
   align-items: center;
   text-align: center;
-  margin-bottom: 25px;
+  margin-bottom: 20px;
   width: 100%;
 }
 
 .welcome-label {
   font-family: 'Cinzel', serif;
-  font-size: 0.65rem;
-  letter-spacing: 4px;
+  font-size: 0.6rem;
+  letter-spacing: 2px;
   color: var(--gold-text);
   text-transform: uppercase;
-  margin-bottom: 10px;
+  margin-bottom: 5px;
   opacity: 0.8;
 }
 
 .user-display-name {
   font-family: 'Cinzel', serif;
-  font-size: 1.8rem;
+  font-size: 1.6rem;
   font-weight: 700;
   background: var(--gold-gradient);
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
   text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
-  margin-bottom: 15px;
+  margin-bottom: 10px;
   letter-spacing: 1px;
 }
 
@@ -120,11 +120,12 @@ textarea {
 
 .brand-label {
   font-family: 'Cinzel', serif;
-  font-size: 1.5rem;
+  font-size: 1.9rem;
   font-weight: 900;
   color: white;
-  letter-spacing: 3px;
+  letter-spacing: 2px;
   margin-top: 5px;
+  line-height: 1;
 }
 
 .community-name-label {

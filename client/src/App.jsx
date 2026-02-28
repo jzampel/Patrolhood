@@ -1373,11 +1373,11 @@ function App() {
         <button className="close-sidebar-btn" onClick={() => setIsSidebarOpen(false)}>✕</button>
 
         <div className="premium-header">
-          <img src="/logo_bull.png" alt="Logo" style={{ height: '80px', width: 'auto', marginBottom: '10px' }} className="logo-img" />
+          <img src="/logo_bull.png" alt="Logo" style={{ height: '120px', width: 'auto', marginBottom: '15px' }} className="logo-img" />
           <span className="welcome-label">BIENVENIDO</span>
           <h2 className="user-display-name">{user.name.toUpperCase()}</h2>
           <div className="premium-divider"></div>
-          <span className="brand-label" style={{ fontSize: '1.1rem' }}>PATROLHOOD</span>
+          <span className="brand-label">PATROLHOOD</span>
           <span className="community-name-label">{user.communityName}</span>
         </div>
 
