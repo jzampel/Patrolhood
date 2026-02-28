@@ -36,7 +36,7 @@ function AdminDashboard({ user }) {
     const [reportedLoading, setReportedLoading] = useState(false);
 
     const fetchReported = async () => {
-        setReportedLoading(true);
+        reportedLoading || setReportedLoading(true);
         const res = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/admin/reported-messages?communityId=${user.communityId}`,
             { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } });
         const data = await res.json();
@@ -106,98 +106,100 @@ function AdminDashboard({ user }) {
     };
 
     return (
-        <div style={{ padding: '20px', color: 'white', maxWidth: '840px', margin: '0 auto' }}>
-            <h2 style={{ color: '#fbbf24', paddingLeft: '50px', marginBottom: '6px' }}>🛡️ Panel de Administración</h2>
-            <p style={{ color: '#64748b', marginBottom: '20px' }}>{user.communityName}</p>
+        <div className="admin-dashboard-container">
+            <div className="section-header">
+                <h2 style={{ color: '#fbbf24', margin: 0, fontFamily: 'Cinzel, serif', letterSpacing: '1px' }}>🛡️ PANEL DE ADMINISTRACIÓN</h2>
+                <p style={{ color: '#64748b', fontSize: '0.8rem', margin: '4px 0 10px 0' }}>{user.communityName}</p>
 
-            {/* Tabs */}
-            <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
-                {TABS.map((t, i) => (
-                    <button key={i} onClick={() => setActiveTab(i)}
-                        style={{
-                            padding: '8px 16px', borderRadius: '8px', border: 'none', cursor: 'pointer',
-                            background: activeTab === i ? '#fbbf24' : '#1e293b',
-                            color: activeTab === i ? '#000' : '#94a3b8', fontWeight: activeTab === i ? 'bold' : 'normal'
-                        }}>
-                        {t}
-                    </button>
-                ))}
+                {/* Tabs */}
+                <div className="dashboard-tabs">
+                    {TABS.map((t, i) => (
+                        <button key={i} onClick={() => setActiveTab(i)}
+                            className={`dashboard-tab ${activeTab === i ? 'active' : ''}`}>
+                            {t}
+                        </button>
+                    ))}
+                </div>
             </div>
 
-            {/* === AUDIT LOGS === */}
-            {activeTab === 0 && (
-                logsLoading ? <p>Cargando...</p> :
-                    <div>
-                        {logs.length === 0 ? <p style={{ color: '#64748b' }}>Sin actividad registrada.</p> :
-                            logs.map(log => (
-                                <div key={log._id} style={{ ...styles.card, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                                    <div>
-                                        <div style={{ fontWeight: 'bold' }}>{log.action.replace(/_/g, ' ')}</div>
-                                        <div style={{ fontSize: '0.85em', color: '#94a3b8' }}>Por: <strong>{log.adminName}</strong></div>
-                                        {log.details && <div style={{ fontSize: '0.78em', background: '#0f172a', padding: '6px', borderRadius: '4px', marginTop: '6px', color: '#cbd5e1' }}>{JSON.stringify(log.details)}</div>}
-                                    </div>
-                                    <div style={{ fontSize: '0.75em', color: '#64748b', textAlign: 'right', whiteSpace: 'nowrap' }}>{new Date(log.timestamp).toLocaleString()}</div>
-                                </div>
-                            ))
-                        }
-                        {logsHasMore && <button onClick={loadMoreLogs} disabled={logsLoadingMore}
-                            style={{ marginTop: '10px', padding: '12px', width: '100%', background: 'transparent', border: '1px dashed #fbbf24', color: '#fbbf24', borderRadius: '8px', cursor: 'pointer' }}>
-                            {logsLoadingMore ? 'Cargando...' : '📜 Cargar historial más antiguo'}
-                        </button>}
-                    </div>
-            )}
-
-            {/* === REPORTED MESSAGES === */}
-            {activeTab === 1 && (
-                reportedLoading ? <p>Cargando...</p> :
-                    <div>
-                        {reported.length === 0
-                            ? <div style={{ textAlign: 'center', padding: '40px', background: '#1e293b', borderRadius: '12px', color: '#64748b' }}>✅ No hay mensajes reportados.</div>
-                            : reported.map(msg => (
-                                <div key={msg._id} style={styles.card}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                                        <div>
-                                            <span style={{ color: '#fbbf24', fontWeight: 'bold' }}>{msg.user}</span>
-                                            <span style={{ color: '#64748b', fontSize: '0.8em', marginLeft: '8px' }}>#{msg.channel}</span>
-                                            <span style={{ color: '#ef4444', fontSize: '0.8em', marginLeft: '8px' }}>⚠️ {msg.reports.length} reportes</span>
+            <div className="dashboard-content-scroll">
+                <div className="dashboard-content">
+                    {/* === AUDIT LOGS === */}
+                    {activeTab === 0 && (
+                        logsLoading ? <p>Cargando...</p> :
+                            <div>
+                                {logs.length === 0 ? <p style={{ color: '#64748b' }}>Sin actividad registrada.</p> :
+                                    logs.map(log => (
+                                        <div key={log._id} style={{ ...styles.card, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                            <div>
+                                                <div style={{ fontWeight: 'bold' }}>{log.action.replace(/_/g, ' ')}</div>
+                                                <div style={{ fontSize: '0.85em', color: '#94a3b8' }}>Por: <strong>{log.adminName}</strong></div>
+                                                {log.details && <div style={{ fontSize: '0.78em', background: '#0f172a', padding: '6px', borderRadius: '4px', marginTop: '6px', color: '#cbd5e1' }}>{JSON.stringify(log.details)}</div>}
+                                            </div>
+                                            <div style={{ fontSize: '0.75em', color: '#64748b', textAlign: 'right', whiteSpace: 'nowrap' }}>{new Date(log.timestamp).toLocaleString()}</div>
                                         </div>
-                                        <div>
-                                            <button style={styles.btn('#ef4444')} onClick={() => deleteReported(msg._id)}>🗑️ Borrar</button>
-                                            <button style={styles.ghost} onClick={() => clearReports(msg._id)}>✅ Indultar</button>
-                                        </div>
-                                    </div>
-                                    {msg.text && <p style={{ marginTop: '8px', color: '#e2e8f0' }}>{msg.text}</p>}
-                                    {msg.image && <img src={msg.image} alt="adjunto" style={{ maxHeight: '80px', borderRadius: '6px', marginTop: '6px' }} />}
-                                </div>
-                            ))
-                        }
-                    </div>
-            )}
-
-            {/* === MEMBERS === */}
-            {activeTab === 2 && (
-                membersLoading ? <p>Cargando...</p> :
-                    <div>
-                        {members.filter(m => m.id !== user.id).map(m => (
-                            <div key={m.id} style={{ ...styles.card, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <div>
-                                    <div style={{ fontWeight: 'bold' }}>{m.name} {m.surname}
-                                        {m.banned && <span style={{ marginLeft: '8px', fontSize: '0.75em', background: '#ef4444', color: 'white', padding: '2px 6px', borderRadius: '4px' }}>SUSPENDIDO</span>}
-                                        {m.role === 'admin' && <span style={{ marginLeft: '8px', fontSize: '0.75em', background: '#fbbf24', color: '#000', padding: '2px 6px', borderRadius: '4px' }}>ADMIN</span>}
-                                    </div>
-                                    <div style={{ fontSize: '0.82em', color: '#94a3b8' }}>{m.phone} · {m.address}</div>
-                                    {m.bannedUntil && <div style={{ fontSize: '0.78em', color: '#f87171' }}>Hasta: {new Date(m.bannedUntil).toLocaleDateString('es-ES')}{m.banReason ? ` · ${m.banReason}` : ''}</div>}
-                                </div>
-                                <div>
-                                    {m.banned
-                                        ? <button style={styles.btn('#22c55e')} onClick={() => unbanUser(m.id)}>✅ Desbanear</button>
-                                        : <button style={styles.btn('#ef4444')} onClick={() => setBanModal({ userId: m.id, name: `${m.name} ${m.surname}` })}>🔨 Banear</button>
-                                    }
-                                </div>
+                                    ))
+                                }
+                                {logsHasMore && <button onClick={loadMoreLogs} disabled={logsLoadingMore}
+                                    style={{ marginTop: '10px', padding: '12px', width: '100%', background: 'transparent', border: '1px dashed #fbbf24', color: '#fbbf24', borderRadius: '8px', cursor: 'pointer' }}>
+                                    {logsLoadingMore ? 'Cargando...' : '📜 Cargar historial más antiguo'}
+                                </button>}
                             </div>
-                        ))}
-                    </div>
-            )}
+                    )}
+
+                    {/* === REPORTED MESSAGES === */}
+                    {activeTab === 1 && (
+                        reportedLoading ? <p>Cargando...</p> :
+                            <div>
+                                {reported.length === 0
+                                    ? <div style={{ textAlign: 'center', padding: '40px', background: '#1e293b', borderRadius: '12px', color: '#64748b' }}>✅ No hay mensajes reportados.</div>
+                                    : reported.map(msg => (
+                                        <div key={msg._id} style={styles.card}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                                <div>
+                                                    <span style={{ color: '#fbbf24', fontWeight: 'bold' }}>{msg.user}</span>
+                                                    <span style={{ color: '#64748b', fontSize: '0.8em', marginLeft: '8px' }}>#{msg.channel}</span>
+                                                    <span style={{ color: '#ef4444', fontSize: '0.8em', marginLeft: '8px' }}>⚠️ {msg.reports.length} reportes</span>
+                                                </div>
+                                                <div>
+                                                    <button style={styles.btn('#ef4444')} onClick={() => deleteReported(msg._id)}>🗑️ Borrar</button>
+                                                    <button style={styles.ghost} onClick={() => clearReports(msg._id)}>✅ Indultar</button>
+                                                </div>
+                                            </div>
+                                            {msg.text && <p style={{ marginTop: '8px', color: '#e2e8f0' }}>{msg.text}</p>}
+                                            {msg.image && <img src={msg.image} alt="adjunto" style={{ maxHeight: '80px', borderRadius: '6px', marginTop: '6px' }} />}
+                                        </div>
+                                    ))
+                                }
+                            </div>
+                    )}
+
+                    {/* === MEMBERS === */}
+                    {activeTab === 2 && (
+                        membersLoading ? <p>Cargando...</p> :
+                            <div>
+                                {members.filter(m => m.id !== user.id).map(m => (
+                                    <div key={m.id} style={{ ...styles.card, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <div>
+                                            <div style={{ fontWeight: 'bold' }}>{m.name} {m.surname}
+                                                {m.banned && <span style={{ marginLeft: '8px', fontSize: '0.75em', background: '#ef4444', color: 'white', padding: '2px 6px', borderRadius: '4px' }}>SUSPENDIDO</span>}
+                                                {m.role === 'admin' && <span style={{ marginLeft: '8px', fontSize: '0.75em', background: '#fbbf24', color: '#000', padding: '2px 6px', borderRadius: '4px' }}>ADMIN</span>}
+                                            </div>
+                                            <div style={{ fontSize: '0.82em', color: '#94a3b8' }}>{m.phone} · {m.address}</div>
+                                            {m.bannedUntil && <div style={{ fontSize: '0.78em', color: '#f87171' }}>Hasta: {new Date(m.bannedUntil).toLocaleDateString('es-ES')}{m.banReason ? ` · ${m.banReason}` : ''}</div>}
+                                        </div>
+                                        <div>
+                                            {m.banned
+                                                ? <button style={styles.btn('#22c55e')} onClick={() => unbanUser(m.id)}>✅ Desbanear</button>
+                                                : <button style={styles.btn('#ef4444')} onClick={() => setBanModal({ userId: m.id, name: `${m.name} ${m.surname}` })}>🔨 Banear</button>
+                                            }
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                    )}
+                </div>
+            </div>
 
             {/* BAN MODAL */}
             {banModal && (

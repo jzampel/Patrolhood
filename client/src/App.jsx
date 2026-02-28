@@ -576,8 +576,6 @@ function UserList({ currentUser, houses, users, setUsers, onViewOnMap }) {
   const [editingUser, setEditingUser] = useState(null)
   const [editForm, setEditForm] = useState({ name: '', surname: '', phone: '', address: '', houseNumber: '' })
 
-  // Internal fetch removed, relies on props
-
   const startEdit = (user) => {
     setEditingUser(user)
     // Find current assigned house based on mapLabel (preferred) or owner phone (legacy)
@@ -625,66 +623,70 @@ function UserList({ currentUser, houses, users, setUsers, onViewOnMap }) {
   }
 
   return (
-    <div className="user-list-container" style={{ padding: '20px' }}>
-      <h2 style={{ paddingLeft: '50px', display: 'flex', alignItems: 'center', gap: '10px' }}>👥 Vecinos Registrados</h2>
-      <div className="user-grid">
-        {users.map(u => (
-          <div key={u.id} className="user-card">
-            <div className="user-avatar">{u.name.charAt(0).toUpperCase()}</div>
-            <div className="user-info">
-              <h3>{u.name} {u.surname}</h3>
-              <p className="user-address">🏠 Dirección: {u.address}</p>
-              <p className="user-phone" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                📞 Teléfono: {
-                  (u.publicPhone || currentUser.role === 'admin' || u.id === currentUser.id)
-                    ? u.phone
-                    : (u.phone ? `${u.phone.substring(0, 3)} *** ***` : 'N/A')
-                }
-              </p>
-              <p className="user-tag" style={{ fontSize: '0.8rem', color: '#aaa' }}>
-                🏷️ Etiqueta Casa: {u.mapLabel ? `#${u.mapLabel}` : 'Sin asignar'}
-              </p>
-              {u.mapLabel && (
-                <button
-                  onClick={() => onViewOnMap(u.mapLabel)}
-                  style={{
-                    background: 'none', border: 'none', color: '#3b82f6',
-                    cursor: 'pointer', fontSize: '0.85em', textDecoration: 'underline',
-                    marginTop: '2px', padding: 0
-                  }}
-                >
-                  📍 Ver en el mapa
-                </button>
-              )}
-
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '5px' }}>
-                <div style={{ display: 'flex', gap: '4px' }}>
-                  {u.role === 'admin' && <span className="user-role-badge">Admin</span>}
-                  {u.role === 'moderator' && <span className="user-role-badge" style={{ background: '#3b82f6' }}>Moderador</span>}
-                </div>
-
-                {currentUser.role === 'admin' && (
-                  <div style={{ display: 'flex', gap: '5px' }}>
-                    <button
-                      onClick={() => startEdit(u)}
-                      style={{ background: '#3b82f6', border: 'none', color: 'white', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8em' }}
-                    >
-                      ✏️ Editar
-                    </button>
-                    {u.id !== currentUser.id && ( // Don't let admin delete themselves easily from here
-                      <button
-                        onClick={() => deleteUser(u)}
-                        style={{ background: '#ef4444', border: 'none', color: 'white', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8em' }}
-                      >
-                        🗑️ Eliminar
-                      </button>
-                    )}
-                  </div>
+    <div className="user-list-container">
+      <div className="section-header">
+        <h2 style={{ color: '#fbbf24', margin: 0, fontFamily: 'Cinzel, serif', letterSpacing: '1px' }}>👥 VECINOS REGISTRADOS</h2>
+      </div>
+      <div className="user-grid-scroll">
+        <div className="user-grid">
+          {users.map(u => (
+            <div key={u.id} className="user-card">
+              <div className="user-avatar">{u.name.charAt(0).toUpperCase()}</div>
+              <div className="user-info">
+                <h3>{u.name} {u.surname}</h3>
+                <p className="user-address">🏠 Dirección: {u.address}</p>
+                <p className="user-phone" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  📞 Teléfono: {
+                    (u.publicPhone || currentUser.role === 'admin' || u.id === currentUser.id)
+                      ? u.phone
+                      : (u.phone ? `${u.phone.substring(0, 3)} *** ***` : 'N/A')
+                  }
+                </p>
+                <p className="user-tag" style={{ fontSize: '0.8rem', color: '#aaa' }}>
+                  🏷️ Etiqueta Casa: {u.mapLabel ? `#${u.mapLabel}` : 'Sin asignar'}
+                </p>
+                {u.mapLabel && (
+                  <button
+                    onClick={() => onViewOnMap(u.mapLabel)}
+                    style={{
+                      background: 'none', border: 'none', color: '#3b82f6',
+                      cursor: 'pointer', fontSize: '0.85em', textDecoration: 'underline',
+                      marginTop: '2px', padding: 0
+                    }}
+                  >
+                    📍 Ver en el mapa
+                  </button>
                 )}
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '5px' }}>
+                  <div style={{ display: 'flex', gap: '4px' }}>
+                    {u.role === 'admin' && <span className="user-role-badge">Admin</span>}
+                    {u.role === 'moderator' && <span className="user-role-badge" style={{ background: '#3b82f6' }}>Moderador</span>}
+                  </div>
+
+                  {currentUser.role === 'admin' && (
+                    <div style={{ display: 'flex', gap: '5px' }}>
+                      <button
+                        onClick={() => startEdit(u)}
+                        style={{ background: '#3b82f6', border: 'none', color: 'white', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8em' }}
+                      >
+                        ✏️ Editar
+                      </button>
+                      {u.id !== currentUser.id && ( // Don't let admin delete themselves easily from here
+                        <button
+                          onClick={() => deleteUser(u)}
+                          style={{ background: '#ef4444', border: 'none', color: 'white', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8em' }}
+                        >
+                          🗑️ Eliminar
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
 
       {editingUser && (
@@ -1373,7 +1375,7 @@ function App() {
         <button className="close-sidebar-btn" onClick={() => setIsSidebarOpen(false)}>✕</button>
 
         <div className="premium-header">
-          <img src="/logo_bull.png" alt="Logo" style={{ height: '120px', width: 'auto', marginBottom: '15px' }} className="logo-img" />
+          <img src="/logo_bull.png" alt="Logo" style={{ height: '160px', width: 'auto', marginBottom: '15px' }} className="logo-img" />
           <span className="welcome-label">BIENVENIDO</span>
           <h2 className="user-display-name">{user.name.toUpperCase()}</h2>
           <div className="premium-divider"></div>
