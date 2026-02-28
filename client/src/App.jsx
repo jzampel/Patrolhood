@@ -266,8 +266,9 @@ function AuthOverlay({ onLogin }) {
                     <h4>3. Privacidad de Datos y Almacenamiento (RGPD)</h4>
                     <p>Al registrarse, los vecinos podrán ver su nombre, dirección y teléfono para identificar correctamente las alertas. En un SOS, se compartirá su ubicación exacta. Sus datos JAMÁS serán vendidos a terceros. Utilizamos almacenamiento local (Local Storage) en su dispositivo por motivos técnicos y de seguridad para mantener su sesión abierta. Usted tiene derecho a abandonar la aplicación y solicitar al administrador el borrado de sus datos en cualquier momento.</p>
 
-                    <h4>4. Uso Adecuado y Contenido (Foro)</h4>
+                    <h4>4. Uso Adecuado, Contenido y Retención de Datos (Foro)</h4>
                     <p>El falseo intencionado de alertas SOS, las "bromas", o la publicación de contenido ofensivo, difamatorio o ilegal en el foro será motivo de expulsión inmediata y bloqueo de la cuenta. El usuario es el único responsable ético y legal de los textos y fotografías que publique en la plataforma.</p>
+                    <p style={{ background: 'rgba(251,191,36,0.08)', padding: '8px', borderRadius: '6px', marginTop: '8px', fontSize: '0.9em', borderLeft: '3px solid #fbbf24' }}>⏱️ <strong>Retención de mensajes:</strong> Los mensajes del foro y las imágenes adjuntas son eliminados automáticamente a los <strong>30 días</strong> desde su publicación. Las alertas SOS se conservan 30 días por motivos de seguridad y trazabilidad.</p>
 
                     <p style={{ marginTop: '20px', fontSize: '0.9em', color: '#94a3b8' }}>* Al marcar la casilla de aceptación, confirmas que has leído y comprendido estos términos en su totalidad.</p>
                   </div>
@@ -1382,6 +1383,67 @@ function App() {
           </div>
         )}
 
+
+        {/* Quiet Hours */}
+        <div style={{ padding: '10px 20px', borderTop: '1px solid rgba(255,255,255,0.07)', marginTop: '10px' }}>
+          <h4 style={{ color: '#fbbf24', fontSize: '0.85rem', marginBottom: '10px' }}>🌙 Zona de Silencio</h4>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+            <span style={{ fontSize: '0.82em', color: '#cbd5e1' }}>Silenciar notificaciones del foro</span>
+            <label style={{ position: 'relative', display: 'inline-block', width: '42px', height: '24px', cursor: 'pointer' }}>
+              <input type="checkbox"
+                checked={user.quietHours?.enabled || false}
+                onChange={async (e) => {
+                  const updated = { ...user, quietHours: { ...(user.quietHours || { from: '23:00', to: '07:00' }), enabled: e.target.checked } };
+                  setUser(updated);
+                  localStorage.setItem('user', JSON.stringify(updated));
+                  await safeFetch(`${import.meta.env.VITE_API_URL || ''}/api/users/${user.id}`, {
+                    method: 'PUT', body: JSON.stringify({ communityId: user.communityId, quietHours: updated.quietHours })
+                  });
+                }}
+                style={{ opacity: 0, width: 0, height: 0 }}
+              />
+              <span style={{
+                position: 'absolute', inset: 0, background: user.quietHours?.enabled ? '#fbbf24' : '#334155',
+                borderRadius: '24px', transition: '0.3s'
+              }} />
+              <span style={{
+                position: 'absolute', top: '2px', left: user.quietHours?.enabled ? '20px' : '2px',
+                width: '20px', height: '20px', background: 'white', borderRadius: '50%', transition: '0.3s'
+              }} />
+            </label>
+          </div>
+          {user.quietHours?.enabled && (
+            <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+              <div style={{ flex: 1 }}>
+                <label style={{ fontSize: '0.75em', color: '#94a3b8', display: 'block', marginBottom: '2px' }}>Desde</label>
+                <input type="time" defaultValue={user.quietHours?.from || '23:00'}
+                  onBlur={async (e) => {
+                    const updated = { ...user, quietHours: { ...(user.quietHours), from: e.target.value } };
+                    setUser(updated); localStorage.setItem('user', JSON.stringify(updated));
+                    await safeFetch(`${import.meta.env.VITE_API_URL || ''}/api/users/${user.id}`, {
+                      method: 'PUT', body: JSON.stringify({ communityId: user.communityId, quietHours: updated.quietHours })
+                    });
+                  }}
+                  style={{ background: '#1e293b', color: 'white', border: '1px solid #334155', borderRadius: '6px', padding: '6px', width: '100%' }}
+                />
+              </div>
+              <div style={{ flex: 1 }}>
+                <label style={{ fontSize: '0.75em', color: '#94a3b8', display: 'block', marginBottom: '2px' }}>Hasta</label>
+                <input type="time" defaultValue={user.quietHours?.to || '07:00'}
+                  onBlur={async (e) => {
+                    const updated = { ...user, quietHours: { ...(user.quietHours), to: e.target.value } };
+                    setUser(updated); localStorage.setItem('user', JSON.stringify(updated));
+                    await safeFetch(`${import.meta.env.VITE_API_URL || ''}/api/users/${user.id}`, {
+                      method: 'PUT', body: JSON.stringify({ communityId: user.communityId, quietHours: updated.quietHours })
+                    });
+                  }}
+                  style={{ background: '#1e293b', color: 'white', border: '1px solid #334155', borderRadius: '6px', padding: '6px', width: '100%' }}
+                />
+              </div>
+            </div>
+          )}
+          <p style={{ fontSize: '0.72em', color: '#64748b', marginTop: '6px' }}>⚠️ Las alertas SOS <strong>siempre</strong> llegarán aunque tengas el silencio activado.</p>
+        </div>
 
         {activeTab === 'map' && (
           <>

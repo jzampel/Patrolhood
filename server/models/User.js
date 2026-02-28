@@ -13,7 +13,17 @@ const UserSchema = new mongoose.Schema({
     communityName: { type: String, required: true }, // Keep for legacy/display
     mapLabel: { type: String }, // House Number linked to map
     avatar: { type: String }, // For future use
-    telegramChatId: { type: String } // Telegram Chat ID for notifications
+    telegramChatId: { type: String }, // Telegram Chat ID for notifications
+    // Moderation
+    banned: { type: Boolean, default: false },
+    bannedUntil: { type: Date, default: null },
+    banReason: { type: String, default: null },
+    // Smart Notifications
+    quietHours: {
+        enabled: { type: Boolean, default: false },
+        from: { type: String, default: '23:00' }, // HH:MM format
+        to: { type: String, default: '07:00' }     // HH:MM format
+    }
 });
 
 // Indexes for performant querying

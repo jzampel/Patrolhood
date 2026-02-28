@@ -10,7 +10,8 @@ const ForumMessageSchema = new mongoose.Schema({
     image: { type: String },
     type: { type: String, default: 'text' }, // 'text', 'alert'
     reports: [{ type: String }], // Array of user IDs who reported the message
-    timestamp: { type: Date, default: Date.now }
+    timestamp: { type: Date, default: Date.now },
+    createdAt: { type: Date, default: Date.now, index: { expires: '30d' } } // Auto-delete after 30 days
 });
 
 // Index for performant querying and pagination

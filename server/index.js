@@ -91,6 +91,20 @@ const activeAlerts = new Map();
 const communityBots = new Map();
 const localDedupeCache = new Map();
 
+// Helper: Check if a time (HH:MM) is within a range [from, to]
+function isInQuietHours(quietHours) {
+    if (!quietHours?.enabled) return false;
+    const now = new Date();
+    const cur = now.getHours() * 60 + now.getMinutes();
+    const [fh, fm] = (quietHours.from || '23:00').split(':').map(Number);
+    const [th, tm] = (quietHours.to || '07:00').split(':').map(Number);
+    const from = fh * 60 + fm;
+    const to = th * 60 + tm;
+    // Handles overnight ranges (e.g. 23:00 -> 07:00)
+    if (from > to) return cur >= from || cur < to;
+    return cur >= from && cur < to;
+}
+
 connectDB();
 
 const sosQueue = isRedisAvailable ? new Queue('SOS_QUEUE', { connection: queueConnection }) : null;
@@ -225,6 +239,17 @@ app.post('/api/login', loginLimiter, async (req, res) => {
             ]
         });
         if (user) {
+            // Check if user is banned
+            const now = new Date();
+            if (user.banned && (!user.bannedUntil || user.bannedUntil > now)) {
+                const until = user.bannedUntil ? ` hasta el ${user.bannedUntil.toLocaleDateString('es-ES')}` : ' permanentemente';
+                return res.status(403).json({ success: false, message: `Tu cuenta ha sido suspendida${until}. Motivo: ${user.banReason || 'Incumplimiento de normas.'}` });
+            }
+            // Auto-unban if expired
+            if (user.banned && user.bannedUntil && user.bannedUntil <= now) {
+                user.banned = false; user.bannedUntil = null; user.banReason = null;
+                await user.save();
+            }
             const community = await Community.findOne({ name: user.communityName });
             const tokenPayload = {
                 id: user.id,
@@ -393,7 +418,7 @@ app.get('/api/users/:id', authenticate, checkCommunity, async (req, res) => {
 });
 
 app.put('/api/users/:id', authenticate, checkCommunity, async (req, res) => {
-    const { name, surname, phone, email, address, houseNumber, telegramChatId } = req.body;
+    const { name, surname, phone, email, address, houseNumber, telegramChatId, quietHours } = req.body;
     try {
         const user = await User.findOne({ id: req.params.id });
         if (!user) return res.status(404).json({ success: false });
@@ -404,6 +429,7 @@ app.put('/api/users/:id', authenticate, checkCommunity, async (req, res) => {
         if (address) user.address = address;
         if (telegramChatId !== undefined) user.telegramChatId = telegramChatId;
         if (houseNumber !== undefined) user.mapLabel = houseNumber;
+        if (quietHours !== undefined) user.quietHours = quietHours;
         await user.save();
 
         if (houseNumber) {
@@ -455,6 +481,17 @@ app.post('/api/houses', authenticate, checkCommunity, async (req, res) => {
     }
 });
 
+app.delete('/api/users/:id', authenticate, checkCommunity, async (req, res) => {
+    const { communityId } = req.query;
+    try {
+        const result = await House.deleteOne({ id: req.params.id, communityId });
+        if (result.deletedCount > 0) {
+            io.to(communityId).emit('house_deleted', req.params.id);
+            res.json({ success: true });
+        } else res.status(404).json({ success: false });
+    } catch (error) { res.status(500).json({ success: false }); }
+});
+
 app.delete('/api/houses/:id', authenticate, checkCommunity, async (req, res) => {
     const { communityId } = req.query;
     try {
@@ -491,6 +528,11 @@ app.get('/api/forum/:channel', authenticate, checkCommunity, async (req, res) =>
 app.post('/api/forum', authenticate, checkCommunity, async (req, res) => {
     const { channel, user, text, type, image, communityId, communityName } = req.body;
     try {
+        // Check if posting user is banned
+        const poster = await User.findOne({ id: req.user.id });
+        if (poster?.banned && (!poster.bannedUntil || poster.bannedUntil > new Date())) {
+            return res.status(403).json({ success: false, message: 'Tu cuenta está suspendida. No puedes publicar mensajes.' });
+        }
         const newMessage = await ForumMessage.create({
             id: Date.now().toString(),
             channel,
@@ -740,11 +782,19 @@ if (isRedisAvailable) {
 
         if (job.name === 'NOTIFY_FCM') {
             if (alert.channels?.fcm?.status === 'SENT') return;
+            const isSOS = true; // Worker only runs for SOS alerts
 
             const community = await Community.findOne({ id: alert.communityId });
             const subs = await Subscription.find({ communityId: alert.communityId });
             if (subs.length > 0) {
-                const tokens = subs.map(s => s.token).filter(t => !!t);
+                // Respect quietHours – SOS always bypasses them
+                const users = await User.find({ communityId: alert.communityId }, 'id quietHours');
+                const quietUserIds = new Set(
+                    users.filter(u => !isSOS && isInQuietHours(u.quietHours)).map(u => u.id)
+                );
+                const tokens = subs
+                    .filter(s => !quietUserIds.has(s.userId))
+                    .map(s => s.token).filter(t => !!t);
                 try {
                     await admin.messaging().sendEachForMulticast({
                         tokens,
