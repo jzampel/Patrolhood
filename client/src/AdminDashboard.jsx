@@ -3,14 +3,23 @@ import React, { useState, useEffect } from 'react';
 function AdminDashboard({ user }) {
     const [logs, setLogs] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [isLoadingMore, setIsLoadingMore] = useState(false);
+    const [hasMore, setHasMore] = useState(true);
+
+    const fetchLogs = (before = null) => {
+        const url = `${import.meta.env.VITE_API_URL || ''}/api/admin/audit-logs?communityId=${user.communityId}${before ? `&before=${before}` : ''}`;
+        return fetch(url, {
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        }).then(res => res.json());
+    }
 
     useEffect(() => {
-        fetch(`${import.meta.env.VITE_API_URL || ''}/api/admin/audit-logs?communityId=${user.communityId}`, {
-            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-        })
-            .then(res => res.json())
+        fetchLogs()
             .then(data => {
-                if (data.success) setLogs(data.logs);
+                if (data.success) {
+                    setLogs(data.logs);
+                    if (data.logs.length < 50) setHasMore(false);
+                }
                 setLoading(false);
             })
             .catch(err => {
@@ -18,6 +27,22 @@ function AdminDashboard({ user }) {
                 setLoading(false);
             });
     }, [user.communityId]);
+
+    const loadMore = async () => {
+        if (isLoadingMore || !hasMore || logs.length === 0) return;
+        setIsLoadingMore(true);
+        try {
+            const oldestTimestamp = logs[logs.length - 1].timestamp;
+            const data = await fetchLogs(oldestTimestamp);
+            if (data.success) {
+                if (data.logs.length < 50) setHasMore(false);
+                setLogs(prev => [...prev, ...data.logs]);
+            }
+        } catch (e) {
+            console.error(e);
+        }
+        setIsLoadingMore(false);
+    }
 
     if (loading) return <div style={{ padding: '20px', color: 'white' }}>Cargando auditoría...</div>;
 
@@ -34,29 +59,43 @@ function AdminDashboard({ user }) {
                         No hay actividades registradas todavía.
                     </div>
                 ) : (
-                    logs.map(log => (
-                        <div key={log._id} style={{
-                            background: '#1e293b', padding: '15px', borderRadius: '10px',
-                            borderLeft: '4px solid #fbbf24', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start'
-                        }}>
-                            <div>
-                                <div style={{ fontWeight: 'bold', fontSize: '1.1em' }}>
-                                    {log.action.replace(/_/g, ' ')}
-                                </div>
-                                <div style={{ fontSize: '0.85em', color: '#94a3b8', marginTop: '4px' }}>
-                                    Por: <strong>{log.adminName}</strong>
-                                </div>
-                                {log.details && (
-                                    <div style={{ fontSize: '0.8em', background: '#0f172a', padding: '8px', borderRadius: '6px', marginTop: '8px', color: '#cbd5e1' }}>
-                                        {JSON.stringify(log.details, null, 2)}
+                    <>
+                        {logs.map(log => (
+                            <div key={log._id} style={{
+                                background: '#1e293b', padding: '15px', borderRadius: '10px',
+                                borderLeft: '4px solid #fbbf24', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start'
+                            }}>
+                                <div>
+                                    <div style={{ fontWeight: 'bold', fontSize: '1.1em' }}>
+                                        {log.action.replace(/_/g, ' ')}
                                     </div>
-                                )}
+                                    <div style={{ fontSize: '0.85em', color: '#94a3b8', marginTop: '4px' }}>
+                                        Por: <strong>{log.adminName}</strong>
+                                    </div>
+                                    {log.details && (
+                                        <div style={{ fontSize: '0.8em', background: '#0f172a', padding: '8px', borderRadius: '6px', marginTop: '8px', color: '#cbd5e1' }}>
+                                            {JSON.stringify(log.details, null, 2)}
+                                        </div>
+                                    )}
+                                </div>
+                                <div style={{ fontSize: '0.75em', color: '#64748b', textAlign: 'right' }}>
+                                    {new Date(log.timestamp).toLocaleString()}
+                                </div>
                             </div>
-                            <div style={{ fontSize: '0.75em', color: '#64748b', textAlign: 'right' }}>
-                                {new Date(log.timestamp).toLocaleString()}
-                            </div>
-                        </div>
-                    ))
+                        ))}
+                        {hasMore && (
+                            <button
+                                onClick={loadMore}
+                                disabled={isLoadingMore}
+                                style={{
+                                    marginTop: '10px', padding: '12px', background: 'transparent',
+                                    border: '1px dashed #fbbf24', color: '#fbbf24', borderRadius: '8px', cursor: 'pointer'
+                                }}
+                            >
+                                {isLoadingMore ? 'Cargando más...' : 'Cargar historial más antiguo'}
+                            </button>
+                        )}
+                    </>
                 )}
             </div>
         </div>

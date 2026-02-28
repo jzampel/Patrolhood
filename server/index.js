@@ -13,6 +13,28 @@ const { createAdapter } = require('@socket.io/redis-adapter');
 const { createClient } = require('redis');
 const { Queue, Worker } = require('bullmq');
 const Redis = require('ioredis');
+const rateLimit = require('express-rate-limit');
+
+// --- RATE LIMITERS ---
+const apiLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100, // Limit each IP to 100 requests per windowMs
+    standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+    legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+    message: { success: false, message: 'Demasiadas peticiones. Por favor, inténtalo de nuevo más tarde.' }
+});
+
+const loginLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 10, // Limit login/register to 10 attempts per 15 mins
+    message: { success: false, message: 'Demasiados intentos de acceso. Por favor, espera 15 minutos.' }
+});
+
+const sosLimiter = rateLimit({
+    windowMs: 10 * 60 * 1000,
+    max: 3, // Limit SOS to 3 per 10 mins per IP
+    message: { success: false, message: 'Has lanzado demasiadas alertas SOS en poco tiempo.' }
+});
 
 // Models
 const User = require('./models/User');
@@ -28,6 +50,9 @@ const AuditLog = require('./models/AuditLog');
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
+
+// Apply global rate limit to all /api routes
+app.use('/api/', apiLimiter);
 
 // --- OBSERVABILITY MIDDLEWARE ---
 app.use((req, res, next) => {
@@ -190,7 +215,7 @@ const logAction = async (communityId, admin, action, details) => {
 // --- ROUTES ---
 
 // Auth
-app.post('/api/login', async (req, res) => {
+app.post('/api/login', loginLimiter, async (req, res) => {
     const { username, password } = req.body;
     try {
         const user = await User.findOne({
@@ -235,7 +260,7 @@ app.post('/api/login', async (req, res) => {
     }
 });
 
-app.post('/api/register', async (req, res) => {
+app.post('/api/register', loginLimiter, async (req, res) => {
     const { name, surname, address, phone, email, password, communityName, inviteCode, role, telegramBotToken } = req.body;
     try {
         const existingUser = await User.findOne({ $or: [{ phone }, { email }] });
@@ -335,11 +360,15 @@ app.post('/api/community/bot-token', authenticate, checkCommunity, async (req, r
 });
 
 app.get('/api/admin/audit-logs', authenticate, checkCommunity, async (req, res) => {
-    const { communityId } = req.query;
+    const { communityId, before } = req.query;
     if (req.user.role !== 'admin') return res.status(403).json({ success: false });
 
     try {
-        const logs = await AuditLog.find({ communityId }).sort({ timestamp: -1 }).limit(100);
+        let query = { communityId };
+        if (before) {
+            query.timestamp = { $lt: new Date(before) };
+        }
+        const logs = await AuditLog.find(query).sort({ timestamp: -1 }).limit(50);
         res.json({ success: true, logs });
     } catch (error) { res.status(500).json({ success: false }); }
 });
@@ -558,7 +587,7 @@ app.post('/api/subscribe', authenticate, checkCommunity, async (req, res) => {
 });
 
 // --- SOS REST API (Robust Flow) ---
-app.post('/api/sos', authenticate, checkCommunity, async (req, res) => {
+app.post('/api/sos', authenticate, checkCommunity, sosLimiter, async (req, res) => {
     const { communityId, userId, userName, houseNumber, emergencyType, emergencyTypeLabel, location, communityName } = req.body;
     if (!communityId || !userId) return res.status(400).json({ success: false, message: 'Missing data' });
 

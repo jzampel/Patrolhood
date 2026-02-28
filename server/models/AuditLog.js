@@ -9,4 +9,7 @@ const AuditLogSchema = new mongoose.Schema({
     timestamp: { type: Date, default: Date.now }
 });
 
+// Index for performant querying by community and date
+AuditLogSchema.index({ communityId: 1, timestamp: -1 });
+
 module.exports = mongoose.model('AuditLog', AuditLogSchema);
