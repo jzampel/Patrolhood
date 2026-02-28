@@ -122,7 +122,7 @@ function AutoCenter({ houses, userMapLabel, communityCenter }) {
   return null
 }
 
-function AuthOverlay({ onLogin }) {
+function AuthOverlay({ onLogin, deletedMsg }) {
   const [isRegistering, setIsRegistering] = useState(false)
   const [formData, setFormData] = useState({
     username: '', password: '',
@@ -185,7 +185,11 @@ function AuthOverlay({ onLogin }) {
           >
             ✕
           </button>
-          <h2>📝 Registro</h2>
+          <div className="premium-header">
+            <span className="welcome-label" style={{ marginBottom: '5px' }}>SOLICITUD DE</span>
+            <h2 className="user-display-name" style={{ fontSize: '2rem', marginBottom: '5px' }}>REGISTRO</h2>
+            <div className="premium-divider"></div>
+          </div>
           {error && <p className="error-msg">{error}</p>}
 
           <div className="role-selector" style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
@@ -313,10 +317,16 @@ function AuthOverlay({ onLogin }) {
   return (
     <div className="auth-overlay">
       <div className="auth-box">
-        <img src="/logo_bull.png" alt="PatrolHood Logo" className="logo-img" style={{ maxWidth: '180px' }} />
-        <h2 style={{ color: '#fbbf24', fontSize: '2.5rem', margin: '10px 0' }}>PATROLHOOD</h2>
-        <p style={{ textAlign: 'center', marginBottom: '30px', color: '#94a3b8', fontStyle: 'italic' }}>Seguridad Vecinal Inteligente</p>
+        <img src="/logo_bull.png" alt="PatrolHood Logo" className="logo-img" style={{ maxWidth: '160px', marginBottom: '10px' }} />
 
+        <div className="premium-header">
+          <span className="welcome-label">BIENVENIDO</span>
+          <h1 className="brand-label" style={{ fontSize: '2.5rem', margin: '0 0 5px 0', background: 'var(--gold-gradient)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>PATROLHOOD</h1>
+          <p style={{ textAlign: 'center', marginBottom: '10px', color: '#94a3b8', fontStyle: 'italic', fontFamily: 'Lora, serif' }}>Seguridad Vecinal Inteligente</p>
+          <div className="premium-divider"></div>
+        </div>
+
+        {deletedMsg && <div className="error-msg" style={{ background: 'rgba(239, 68, 68, 0.2)', color: '#f87171', border: '1px solid #ef4444', marginBottom: '20px', padding: '10px', borderRadius: '8px' }}>⚠️ Usuario eliminado definitivamente</div>}
         {error && <p className="error-msg">{error}</p>}
         <form onSubmit={handleLogin}>
           <input name="username" placeholder="Teléfono o Nombre" onChange={handleChange} required />
@@ -729,6 +739,7 @@ function App() {
       return null
     }
   })
+  const [deletedMsg, setDeletedMsg] = useState(false)
   const [activeTab, setActiveTab] = useState('map') // 'map' or 'forum' or 'users'
 
   const [showEmergencyMenu, setShowEmergencyMenu] = useState(false)
@@ -1013,6 +1024,13 @@ function App() {
           localStorage.setItem('user', JSON.stringify(updated))
           return updated
         })
+      } else if (data.status === 404 || (data.success === false && data.error?.includes('not found'))) {
+        // User was deleted by admin
+        localStorage.removeItem('user')
+        localStorage.removeItem('token')
+        setUser(null)
+        setDeletedMsg(true)
+        setTimeout(() => setDeletedMsg(false), 8000)
       }
     }
 
@@ -1232,6 +1250,8 @@ function App() {
         for (const reg of regs) await reg.unregister();
       }
       setUser(null);
+      setDeletedMsg(true);
+      setTimeout(() => setDeletedMsg(false), 8000);
     } else {
       alert('Error: ' + (res.message || res.error || 'Error desconocido'));
     }
@@ -1287,9 +1307,10 @@ function App() {
     }
   }
 
-  if (!user) return <AuthOverlay onLogin={(userData) => {
+  if (!user) return <AuthOverlay deletedMsg={deletedMsg} onLogin={(userData) => {
     localStorage.setItem('user', JSON.stringify(userData))
     setUser(userData)
+    setDeletedMsg(false)
   }} />
 
   const handleViewOnMap = (mapLabel) => {
@@ -1350,36 +1371,36 @@ function App() {
 
       <div className={`sidebar ${isSidebarOpen ? 'open' : ''}`}>
         <button className="close-sidebar-btn" onClick={() => setIsSidebarOpen(false)}>✕</button>
-        <h1 style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <img src="/logo_bull.png" alt="Logo" style={{ height: '100px', width: 'auto' }} className="logo-img" />
-            <span>Hola {user.name}</span>
-          </div>
-          <span style={{ fontSize: '0.6em', color: '#94a3b8', fontFamily: 'Roboto', fontWeight: 'normal', letterSpacing: '1px' }}>Bienvenido a</span>
-          <span style={{ fontSize: '1.2em', color: '#fbbf24', textShadow: '2px 2px 4px rgba(0,0,0,0.5)', marginBottom: '5px' }}>PATROLHOOD</span>
-          <span style={{ fontSize: '0.9em', color: '#e2e8f0', fontFamily: 'serif', fontStyle: 'italic', textDecoration: 'underline' }}>{user.communityName}</span>
 
-          {showInstallBtn && (
-            <div className="install-banner-premium" style={{
-              margin: '20px 0', padding: '15px', background: 'rgba(251, 191, 36, 0.1)',
-              borderRadius: '16px', border: '1px solid #fbbf24', textAlign: 'center'
-            }}>
-              <div style={{ fontSize: '2em', marginBottom: '10px' }}>📲</div>
-              <h4 style={{ margin: '0 0 5px 0', color: '#fbbf24' }}>App Instalable</h4>
-              <p style={{ fontSize: '0.75em', color: '#94a3b8', margin: '0 0 15px 0' }}>Instala PatrolHood para recibir alertas instantáneas y acceso rápido.</p>
-              <button
-                onClick={handleInstallClick}
-                style={{
-                  width: '100%', padding: '12px', background: 'linear-gradient(135deg, #fbbf24 0%, #d97706 100%)',
-                  color: '#000', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer',
-                  boxShadow: '0 4px 15px rgba(251, 191, 36, 0.3)'
-                }}
-              >
-                Instalar Ahora
-              </button>
-            </div>
-          )}
-        </h1>
+        <div className="premium-header">
+          <img src="/logo_bull.png" alt="Logo" style={{ height: '80px', width: 'auto', marginBottom: '10px' }} className="logo-img" />
+          <span className="welcome-label">BIENVENIDO</span>
+          <h2 className="user-display-name">{user.name.toUpperCase()}</h2>
+          <div className="premium-divider"></div>
+          <span className="brand-label" style={{ fontSize: '1.1rem' }}>PATROLHOOD</span>
+          <span className="community-name-label">{user.communityName}</span>
+        </div>
+
+        {showInstallBtn && (
+          <div className="install-banner-premium" style={{
+            margin: '20px 0', padding: '15px', background: 'rgba(251, 191, 36, 0.1)',
+            borderRadius: '16px', border: '1px solid #fbbf24', textAlign: 'center'
+          }}>
+            <div style={{ fontSize: '2em', marginBottom: '10px' }}>📲</div>
+            <h4 style={{ margin: '0 0 5px 0', color: '#fbbf24' }}>App Instalable</h4>
+            <p style={{ fontSize: '0.75em', color: '#94a3b8', margin: '0 0 15px 0' }}>Instala PatrolHood para recibir alertas instantáneas y acceso rápido.</p>
+            <button
+              onClick={handleInstallClick}
+              style={{
+                width: '100%', padding: '12px', background: 'linear-gradient(135deg, #fbbf24 0%, #d97706 100%)',
+                color: '#000', border: 'none', borderRadius: '10px', fontWeight: 'bold', cursor: 'pointer',
+                boxShadow: '0 4px 15px rgba(251, 191, 36, 0.3)'
+              }}
+            >
+              Instalar Ahora
+            </button>
+          </div>
+        )}
         <button
           className="refresh-btn"
           onClick={() => window.location.reload()}
@@ -1524,7 +1545,7 @@ function App() {
               }} />
             </label>
           </div>
-          <p style={{ fontSize: '0.7em', color: '#64748b', marginTop: '6px' }}>Si desactivas esto, los vecinos normales verán tu número oculto. Los administradores siempre verán tu número por seguridad.</p>
+          <p style={{ fontSize: '0.7em', color: '#64748b', marginTop: '6px' }}>Si activas este botón, los vecinos podrán ver tu numero de telefono (actualmente oculto). El administrador siempre verá tu numero por segurida.</p>
         </div>
 
         {activeTab === 'map' && (
@@ -1600,7 +1621,11 @@ function App() {
           </div>
 
           <ul className="contacts-list">
-            <li><strong>🚨 Emergencias:</strong> <a href="tel:112">112</a></li>
+            <li><strong>🚨 Emergencia General:</strong> <a href="tel:112">112</a></li>
+            <li><strong>👮 Policía Nacional:</strong> <a href="tel:091">091</a></li>
+            <li><strong>🚔 Guardia Civil:</strong> <a href="tel:062">062</a></li>
+            <li><strong>🚒 Bomberos:</strong> <a href="tel:080">080</a></li>
+            <li><strong>🚓 Policía Local:</strong> <a href="tel:092">092</a></li>
             {communityContacts.map(contact => (
               <li key={contact._id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
@@ -1706,7 +1731,6 @@ function App() {
         </button>
 
         <div className="version-info">
-          <span>v{APP_VERSION}</span>
           <button onClick={forceHardRefresh} className="hard-refresh-btn">Limpiar Caché (Update)</button>
         </div>
       </div>
