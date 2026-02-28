@@ -1372,7 +1372,6 @@ function App() {
       {isSidebarOpen && <div className="sidebar-overlay active" onClick={() => setIsSidebarOpen(false)}></div>}
 
       <div className={`sidebar ${isSidebarOpen ? 'open' : ''}`}>
-        <button className="close-sidebar-btn" onClick={() => setIsSidebarOpen(false)}>✕</button>
 
         <div className="premium-header">
           <img src="/logo_bull.png" alt="Logo" style={{ height: '160px', width: 'auto', marginBottom: '15px' }} className="logo-img" />
@@ -1403,19 +1402,20 @@ function App() {
             </button>
           </div>
         )}
+        {user.role === 'admin' && <span className="admin-badge">Admin</span>}
+        {user.role === 'moderator' && <span className="admin-badge" style={{ background: '#3b82f6', color: 'white' }}>Moderador</span>}
+
         <button
           className="refresh-btn"
           onClick={() => window.location.reload()}
           style={{
             background: 'transparent', border: '1px solid #fbbf24', color: '#fbbf24',
-            padding: '5px 10px', borderRadius: '5px', cursor: 'pointer', marginTop: '10px',
+            padding: '5px 10px', borderRadius: '5px', cursor: 'pointer', marginTop: '10px', marginBottom: '10px',
             fontSize: '0.9em', display: 'flex', alignItems: 'center', gap: '5px', alignSelf: 'center'
           }}
         >
           🔄 Refrescar
         </button>
-        {user.role === 'admin' && <span className="admin-badge">Admin</span>}
-        {user.role === 'moderator' && <span className="admin-badge" style={{ background: '#3b82f6', color: 'white' }}>Moderador</span>}
 
         <div className="nav-tabs">
           <button className={`nav-btn ${activeTab === 'map' ? 'active' : ''}`} onClick={() => { setActiveTab('map'); setIsSidebarOpen(false); }}>🗺️ Mapa</button>
