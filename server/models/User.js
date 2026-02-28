@@ -23,7 +23,8 @@ const UserSchema = new mongoose.Schema({
         enabled: { type: Boolean, default: false },
         from: { type: String, default: '23:00' }, // HH:MM format
         to: { type: String, default: '07:00' }     // HH:MM format
-    }
+    },
+    publicPhone: { type: Boolean, default: false } // Owner decides if phone is visible to others
 });
 
 // Indexes for performant querying

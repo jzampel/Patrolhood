@@ -565,11 +565,6 @@ function UserList({ currentUser, houses, users, setUsers, onViewOnMap }) {
   // users state is now passed from parent
   const [editingUser, setEditingUser] = useState(null)
   const [editForm, setEditForm] = useState({ name: '', surname: '', phone: '', address: '', houseNumber: '' })
-  const [visiblePhones, setVisiblePhones] = useState({}) // { userId: boolean }
-
-  const togglePhone = (userId) => {
-    setVisiblePhones(prev => ({ ...prev, [userId]: !prev[userId] }))
-  }
 
   // Internal fetch removed, relies on props
 
@@ -630,14 +625,11 @@ function UserList({ currentUser, houses, users, setUsers, onViewOnMap }) {
               <h3>{u.name} {u.surname}</h3>
               <p className="user-address">🏠 Dirección: {u.address}</p>
               <p className="user-phone" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                📞 Teléfono: {visiblePhones[u.id] ? u.phone : (u.phone ? `${u.phone.substring(0, 3)} *** ***` : 'N/A')}
-                <button
-                  onClick={() => togglePhone(u.id)}
-                  style={{ background: 'none', border: 'none', color: '#fbbf24', cursor: 'pointer', fontSize: '1.1em', padding: 0, display: 'flex', alignItems: 'center' }}
-                  title={visiblePhones[u.id] ? "Ocultar" : "Mostrar teléfono"}
-                >
-                  {visiblePhones[u.id] ? '👁️‍🗨️' : '👁️'}
-                </button>
+                📞 Teléfono: {
+                  (u.publicPhone || currentUser.role === 'admin' || u.id === currentUser.id)
+                    ? u.phone
+                    : (u.phone ? `${u.phone.substring(0, 3)} *** ***` : 'N/A')
+                }
               </p>
               <p className="user-tag" style={{ fontSize: '0.8rem', color: '#aaa' }}>
                 🏷️ Etiqueta Casa: {u.mapLabel ? `#${u.mapLabel}` : 'Sin asignar'}
@@ -1502,6 +1494,37 @@ function App() {
             </div>
           )}
           <p style={{ fontSize: '0.72em', color: '#64748b', marginTop: '6px' }}>⚠️ Las alertas SOS <strong>siempre</strong> llegarán aunque tengas el silencio activado.</p>
+        </div>
+
+        {/* Public Phone Privacy Toggle */}
+        <div style={{ padding: '10px 20px', borderTop: '1px solid rgba(255,255,255,0.07)' }}>
+          <h4 style={{ color: '#fbbf24', fontSize: '0.85rem', marginBottom: '10px' }}>🔒 Privacidad de Datos</h4>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: '0.82em', color: '#cbd5e1' }}>Mostrar mi teléfono a otros vecinos</span>
+            <label style={{ position: 'relative', display: 'inline-block', width: '42px', height: '24px', cursor: 'pointer' }}>
+              <input type="checkbox"
+                checked={user.publicPhone || false}
+                onChange={async (e) => {
+                  const updated = { ...user, publicPhone: e.target.checked };
+                  setUser(updated);
+                  localStorage.setItem('user', JSON.stringify(updated));
+                  await safeFetch(`${import.meta.env.VITE_API_URL || ''}/api/users/${user.id}`, {
+                    method: 'PUT', body: JSON.stringify({ communityId: user.communityId, publicPhone: e.target.checked })
+                  });
+                }}
+                style={{ opacity: 0, width: 0, height: 0 }}
+              />
+              <span style={{
+                position: 'absolute', inset: 0, background: user.publicPhone ? '#fbbf24' : '#334155',
+                borderRadius: '24px', transition: '0.3s'
+              }} />
+              <span style={{
+                position: 'absolute', top: '2px', left: user.publicPhone ? '20px' : '2px',
+                width: '20px', height: '20px', background: 'white', borderRadius: '50%', transition: '0.3s'
+              }} />
+            </label>
+          </div>
+          <p style={{ fontSize: '0.7em', color: '#64748b', marginTop: '6px' }}>Si desactivas esto, los vecinos normales verán tu número oculto. Los administradores siempre verán tu número por seguridad.</p>
         </div>
 
         {activeTab === 'map' && (

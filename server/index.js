@@ -402,14 +402,14 @@ app.get('/api/admin/audit-logs', authenticate, checkCommunity, async (req, res) 
 app.get('/api/users', authenticate, checkCommunity, async (req, res) => {
     const { communityId } = req.query;
     try {
-        const users = await User.find({ communityId }, 'id name surname address phone role mapLabel');
+        const users = await User.find({ communityId }, 'id name surname address phone role mapLabel publicPhone');
         res.json({ success: true, users });
     } catch (error) { res.status(500).json({ success: false }); }
 });
 
 app.get('/api/users/:id', authenticate, checkCommunity, async (req, res) => {
     try {
-        const user = await User.findOne({ id: req.params.id }, 'id name surname address phone role mapLabel telegramChatId communityId communityName');
+        const user = await User.findOne({ id: req.params.id }, 'id name surname address phone role mapLabel telegramChatId communityId communityName publicPhone quietHours');
         if (user) {
             const community = await Community.findOne({ id: user.communityId });
             res.json({ success: true, user: { ...user.toObject(), telegramBotUsername: community?.telegramBotUsername, communityCenter: community?.center } });
@@ -418,7 +418,7 @@ app.get('/api/users/:id', authenticate, checkCommunity, async (req, res) => {
 });
 
 app.put('/api/users/:id', authenticate, checkCommunity, async (req, res) => {
-    const { name, surname, phone, email, address, houseNumber, telegramChatId, quietHours } = req.body;
+    const { name, surname, phone, email, address, houseNumber, telegramChatId, quietHours, publicPhone } = req.body;
     try {
         const user = await User.findOne({ id: req.params.id });
         if (!user) return res.status(404).json({ success: false });
@@ -430,6 +430,7 @@ app.put('/api/users/:id', authenticate, checkCommunity, async (req, res) => {
         if (telegramChatId !== undefined) user.telegramChatId = telegramChatId;
         if (houseNumber !== undefined) user.mapLabel = houseNumber;
         if (quietHours !== undefined) user.quietHours = quietHours;
+        if (publicPhone !== undefined) user.publicPhone = publicPhone;
         await user.save();
 
         if (houseNumber) {
