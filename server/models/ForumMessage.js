@@ -13,4 +13,7 @@ const ForumMessageSchema = new mongoose.Schema({
     timestamp: { type: Date, default: Date.now }
 });
 
+// Index for performant querying and pagination
+ForumMessageSchema.index({ communityId: 1, channel: 1, timestamp: -1 });
+
 module.exports = mongoose.model('ForumMessage', ForumMessageSchema);

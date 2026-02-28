@@ -36,4 +36,7 @@ const ActiveSOSSchema = new mongoose.Schema({
     isActive: { type: Boolean, default: true }
 });
 
+// Index for finding active alerts efficiently per community
+ActiveSOSSchema.index({ communityId: 1, isActive: 1 });
+
 module.exports = mongoose.model('ActiveSOS', ActiveSOSSchema);

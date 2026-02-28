@@ -448,10 +448,14 @@ app.post('/api/houses/clear', authenticate, checkCommunity, async (req, res) => 
 
 // Forum
 app.get('/api/forum/:channel', authenticate, checkCommunity, async (req, res) => {
-    const { communityId } = req.query;
+    const { communityId, before } = req.query;
     try {
-        const messages = await ForumMessage.find({ channel: req.params.channel, communityId }).sort({ timestamp: 1 }).limit(100);
-        res.json({ success: true, messages });
+        let query = { channel: req.params.channel, communityId };
+        if (before) {
+            query.timestamp = { $lt: new Date(before) };
+        }
+        const messages = await ForumMessage.find(query).sort({ timestamp: -1 }).limit(30);
+        res.json({ success: true, messages: messages.reverse() });
     } catch (error) { res.status(500).json({ success: false }); }
 });
 
@@ -469,12 +473,6 @@ app.post('/api/forum', authenticate, checkCommunity, async (req, res) => {
             image,
             timestamp: new Date()
         });
-
-        const count = await ForumMessage.countDocuments({ channel, communityId });
-        if (count > 100) {
-            const oldest = await ForumMessage.findOne({ channel, communityId }).sort({ timestamp: 1 });
-            if (oldest) await ForumMessage.deleteOne({ _id: oldest._id });
-        }
 
         // Sockets (Local + Redis Bridge)
         io.to(communityId).emit('forum_message', newMessage);

@@ -257,17 +257,17 @@ function AuthOverlay({ onLogin }) {
                     <button onClick={() => setShowLegal(false)} style={{ background: 'none', border: 'none', color: 'white', fontSize: '1.5rem', cursor: 'pointer' }}>✕</button>
                   </div>
                   <div className="legal-text-scroll">
-                    <h4>1. Gestión de la Comunidad</h4>
-                    <p>La gestión será llevada por un único administrador, encargado de invitaciones, moderación y gestión completa. El administrador puede detener alarmas, eliminar mensajes o expulsar usuarios por conducta inapropiada.</p>
+                    <h4>1. Gestión y Naturaleza de la App</h4>
+                    <p>La gestión de cada comunidad recae en su administrador. Esta es una app de NOTIFICACIÓN VECINAL. En NINGÚN CASO sustituye a los servicios de emergencia oficiales (112, Policía, Bomberos). NO obliga al usuario a actuar ante una emergencia.</p>
 
-                    <h4>2. Protección de Datos (RGPD)</h4>
-                    <p>Los vecinos podrán ver su nombre, apellidos, dirección y teléfono para fines de seguridad. En alertas SOS se compartirá la ubicación exacta. Los datos NO se usarán con fines propagandísticos ni de lucro con terceros.</p>
+                    <h4>2. Exención de Responsabilidad Técnica y Actuación</h4>
+                    <p>No garantizamos una disponibilidad del 100% libre de fallos técnicos, de red o de notificaciones push. La aplicación y sus desarrolladores declinan toda responsabilidad sobre fallos en el envío de una alerta, así como por los daños derivados de la actuación (o falta de ella) de los vecinos. Toda intervención corre bajo el propio riesgo y responsabilidad del usuario.</p>
 
-                    <h4>3. Naturaleza de la App</h4>
-                    <p>Esta es una app de NOTIFICACIÓN Y ALERTA. NO sustituye a los servicios oficiales (112). NO obliga al usuario a actuar ante una emergencia.</p>
+                    <h4>3. Privacidad de Datos y Almacenamiento (RGPD)</h4>
+                    <p>Al registrarse, los vecinos podrán ver su nombre, dirección y teléfono para identificar correctamente las alertas. En un SOS, se compartirá su ubicación exacta. Sus datos JAMÁS serán vendidos a terceros. Utilizamos almacenamiento local (Local Storage) en su dispositivo por motivos técnicos y de seguridad para mantener su sesión abierta. Usted tiene derecho a abandonar la aplicación y solicitar al administrador el borrado de sus datos en cualquier momento.</p>
 
-                    <h4>4. Exención de Responsabilidad</h4>
-                    <p>La aplicación y sus creadores no se responsabilizan de un uso inadecuado o daños derivados de una actuación indebida. Toda actuación será bajo responsabilidad exclusiva del usuario.</p>
+                    <h4>4. Uso Adecuado y Contenido (Foro)</h4>
+                    <p>El falseo intencionado de alertas SOS, las "bromas", o la publicación de contenido ofensivo, difamatorio o ilegal en el foro será motivo de expulsión inmediata y bloqueo de la cuenta. El usuario es el único responsable ético y legal de los textos y fotografías que publique en la plataforma.</p>
 
                     <p style={{ marginTop: '20px', fontSize: '0.9em', color: '#94a3b8' }}>* Al marcar la casilla de aceptación, confirmas que has leído y comprendido estos términos en su totalidad.</p>
                   </div>
@@ -313,19 +313,29 @@ function Forum({ user }) {
   const [newMessage, setNewMessage] = useState('')
   const [imagePreview, setImagePreview] = useState(null)
   const [showRules, setShowRules] = useState(false)
+  const [isLoadingMore, setIsLoadingMore] = useState(false)
+  const [hasMore, setHasMore] = useState(true)
+  const [shouldAutoScroll, setShouldAutoScroll] = useState(true)
   const bottomRef = useRef(null)
 
   // ... (useEffect for messages - same as before) ...
   useEffect(() => {
+    setMessages([])
+    setHasMore(true)
+    setShouldAutoScroll(true)
     const communityParam = user?.communityId ? `?communityId=${user.communityId}` : ''
     safeFetch(`${import.meta.env.VITE_API_URL || ''}/api/forum/${activeChannel}${communityParam}`)
       .then(data => {
-        if (data.success && data.messages) setMessages(data.messages)
+        if (data.success && data.messages) {
+          setMessages(data.messages)
+          if (data.messages.length < 30) setHasMore(false)
+        }
       })
       .catch(err => console.error('Forum fetch error:', err))
 
     const handleMsg = (msg) => {
       if (msg.channel === activeChannel) {
+        setShouldAutoScroll(true)
         setMessages(prev => [...prev, msg])
       }
     }
@@ -341,8 +351,28 @@ function Forum({ user }) {
   }, [activeChannel])
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages])
+    if (shouldAutoScroll) {
+      bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+    }
+  }, [messages, shouldAutoScroll])
+
+  const loadMoreMessages = async () => {
+    if (!messages.length || isLoadingMore || !hasMore) return
+    setIsLoadingMore(true)
+    setShouldAutoScroll(false)
+    const oldestTimestamp = messages[0].timestamp
+    const communityParam = user?.communityId ? `communityId=${user.communityId}&` : ''
+    try {
+      const data = await safeFetch(`${import.meta.env.VITE_API_URL || ''}/api/forum/${activeChannel}?${communityParam}before=${oldestTimestamp}`)
+      if (data.success && data.messages) {
+        if (data.messages.length < 30) setHasMore(false)
+        setMessages(prev => [...data.messages, ...prev])
+      }
+    } catch (e) {
+      console.error(e)
+    }
+    setIsLoadingMore(false)
+  }
 
   const handleImageSelect = (e) => {
     const file = e.target.files[0]
@@ -417,6 +447,15 @@ function Forum({ user }) {
       </div>
 
       <div className="forum-messages">
+        {hasMore && messages.length > 0 && (
+          <button
+            onClick={loadMoreMessages}
+            disabled={isLoadingMore}
+            style={{ width: '100%', padding: '10px', background: 'transparent', border: 'none', color: '#fbbf24', cursor: 'pointer', textDecoration: 'underline' }}
+          >
+            {isLoadingMore ? 'Cargando...' : 'Cargar mensajes antiguos'}
+          </button>
+        )}
         {activeChannel === 'General' && (
           <div className="message-bubble" style={{ background: '#334155', border: '1px solid #fbbf24', color: '#e2e8f0' }}>
             <div className="msg-header">
