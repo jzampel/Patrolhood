@@ -1186,6 +1186,28 @@ function App() {
     }
   }
 
+  const selfDeleteAccount = async (password) => {
+    if (!password) return;
+    const res = await safeFetch(`${import.meta.env.VITE_API_URL || ''}/api/users/me/delete`, {
+      method: 'DELETE',
+      body: JSON.stringify({ password })
+    });
+
+    if (res.success) {
+      alert('Tu cuenta y todos tus datos han sido eliminados de forma definitiva. Lamentamos verte partir.');
+      localStorage.removeItem('user');
+      localStorage.removeItem('token');
+      // Clean up FCM if possible
+      if ('serviceWorker' in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        for (const reg of regs) await reg.unregister();
+      }
+      setUser(null);
+    } else {
+      alert('Error: ' + (res.message || res.error || 'Error desconocido'));
+    }
+  };
+
   const onAddHouse = async (houseData) => {
     const data = await safeFetch(`${import.meta.env.VITE_API_URL || ''}/api/houses`, {
       method: 'POST',
@@ -1609,54 +1631,70 @@ function App() {
           setUser(null)
         }}>Salir</button>
 
+        <button
+          onClick={() => {
+            const pass = prompt('⚠️ ATENCIÓN: Esta acción es irreversible.\nSe borrará tu cuenta, tus mensajes y se liberará tu casa en el mapa.\n\nPor seguridad, introduce tu contraseña para confirmar:');
+            if (pass) selfDeleteAccount(pass);
+          }}
+          style={{
+            background: 'none', border: 'none', color: '#f87171',
+            fontSize: '0.7em', textDecoration: 'underline', cursor: 'pointer',
+            marginTop: '20px', opacity: 0.6, width: '100%', textAlign: 'center', marginBottom: '15px'
+          }}
+        >
+          Eliminar mi cuenta definitivamente (RGPD)
+        </button>
+
         <div className="version-info">
           <span>v{APP_VERSION}</span>
           <button onClick={forceHardRefresh} className="hard-refresh-btn">Limpiar Caché (Update)</button>
         </div>
       </div>
 
-      {activeTab === 'map' && (
-        <div className="floating-controls" style={{ display: 'flex', flexDirection: 'column', gap: '10px', alignItems: 'flex-end' }}>
-          {/* Always allow own SOS if not active */}
-          {!activeAlerts.some(a => a.userId === user.id) && (
-            <button className="sos-button floating" onClick={() => setShowEmergencyMenu(true)}>SOS</button>
-          )}
+      {
+        activeTab === 'map' && (
+          <div className="floating-controls" style={{ display: 'flex', flexDirection: 'column', gap: '10px', alignItems: 'flex-end' }}>
+            {/* Always allow own SOS if not active */}
+            {!activeAlerts.some(a => a.userId === user.id) && (
+              <button className="sos-button floating" onClick={() => setShowEmergencyMenu(true)}>SOS</button>
+            )}
 
-          {/* Show Stop buttons for active alerts I can control */}
-          {activeAlerts.map(sosAlert => {
-            const canStop = user.role === 'admin' || user.id === sosAlert.userId;
-            if (!canStop) return null;
-            return (
-              <button
-                key={sosAlert._id || sosAlert.alertId}
-                className="stop-button floating"
-                style={{ fontSize: '0.7em', padding: '10px' }}
-                onClick={async () => {
-                  const data = await safeFetch(`${import.meta.env.VITE_API_URL || ''}/api/sos/stop`, {
-                    method: 'POST',
-                    body: JSON.stringify({
-                      alertId: sosAlert._id || sosAlert.alertId,
-                      communityId: user.communityId
-                    })
-                  });
-                  if (data.success) {
-                    setActiveAlerts(prev => prev.filter(a => (a._id || a.alertId) !== (sosAlert._id || sosAlert.alertId)));
-                  } else {
-                    alert('Error al parar la alerta: ' + (data.error || 'Error desconocido'));
-                  }
-                }}
-              >
-                🔕 PARAR #{sosAlert.houseNumber}
-              </button>
-            );
-          })}
+            {/* Show Stop buttons for active alerts I can control */}
+            {activeAlerts.map(sosAlert => {
+              const canStop = user.role === 'admin' || user.id === sosAlert.userId;
+              if (!canStop) return null;
+              return (
+                <button
+                  key={sosAlert._id || sosAlert.alertId}
+                  className="stop-button floating"
+                  style={{ fontSize: '0.7em', padding: '10px' }}
+                  onClick={async () => {
+                    const data = await safeFetch(`${import.meta.env.VITE_API_URL || ''}/api/sos/stop`, {
+                      method: 'POST',
+                      body: JSON.stringify({
+                        alertId: sosAlert._id || sosAlert.alertId,
+                        communityId: user.communityId
+                      })
+                    });
+                    if (data.success) {
+                      setActiveAlerts(prev => prev.filter(a => (a._id || a.alertId) !== (sosAlert._id || sosAlert.alertId)));
+                    } else {
+                      alert('Error al parar la alerta: ' + (data.error || 'Error desconocido'));
+                    }
+                  }}
+                >
+                  🔕 PARAR #{sosAlert.houseNumber}
+                </button>
+              );
+            })}
 
-          {/* Banner for other active alerts I can't control */}
-          {activeAlerts.some(a => a.userId !== user.id && user.role !== 'admin') && (
-            <div className="sos-active-banner">🚨 ALERTA ACTIVA</div>
-          )}
-        </div>
-      )}
+            {/* Banner for other active alerts I can't control */}
+            {activeAlerts.some(a => a.userId !== user.id && user.role !== 'admin') && (
+              <div className="sos-active-banner">🚨 ALERTA ACTIVA</div>
+            )}
+          </div>
+        )
+      }
 
       <div className="main-content">
         {activeTab === 'map' ? (
@@ -1789,51 +1827,55 @@ function App() {
         )}
       </div>
 
-      {showEmergencyMenu && (
-        <div className="modal-overlay" onClick={() => setShowEmergencyMenu(false)}>
-          <div className="emergency-menu" onClick={e => e.stopPropagation()}>
-            <h2>EMERGENCIA</h2>
-            <div className="emergency-grid">
-              {EMERGENCY_TYPES.map(e => (
-                <button key={e.id} className="emergency-option" onClick={() => triggerSOS(e.id)}>
-                  <span className="emergency-emoji">{e.emoji}</span>
-                  <span>{e.label}</span>
-                </button>
-              ))}
+      {
+        showEmergencyMenu && (
+          <div className="modal-overlay" onClick={() => setShowEmergencyMenu(false)}>
+            <div className="emergency-menu" onClick={e => e.stopPropagation()}>
+              <h2>EMERGENCIA</h2>
+              <div className="emergency-grid">
+                {EMERGENCY_TYPES.map(e => (
+                  <button key={e.id} className="emergency-option" onClick={() => triggerSOS(e.id)}>
+                    <span className="emergency-emoji">{e.emoji}</span>
+                    <span>{e.label}</span>
+                  </button>
+                ))}
+              </div>
+              <button className="cancel-btn" onClick={() => setShowEmergencyMenu(false)}>Cancelar</button>
             </div>
-            <button className="cancel-btn" onClick={() => setShowEmergencyMenu(false)}>Cancelar</button>
           </div>
-        </div>
-      )}
+        )
+      }
 
-      {pendingSOS && (
-        <div className="modal-overlay" onClick={() => setPendingSOS(null)}>
-          <div className="auth-box confirmation-modal" onClick={e => e.stopPropagation()} style={{ textAlign: 'center', borderColor: '#ef4444' }}>
-            <h2 style={{ color: '#ef4444' }}>⚠️ ¿CONFIRMAR ALERTA?</h2>
-            <div style={{ fontSize: '1.2em', margin: '20px 0' }}>
-              Has seleccionado:<br />
-              <strong style={{ fontSize: '1.5em' }}>{pendingSOS.emoji} {pendingSOS.label.toUpperCase()}</strong>
-            </div>
-            <p style={{ color: '#94a3b8', marginBottom: '20px' }}>Esta acción notificará a todos tus vecinos de inmediato.</p>
-            <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
-              <button
-                onClick={() => setPendingSOS(null)}
-                style={{ background: '#475569', border: 'none', padding: '15px 25px', borderRadius: '8px', cursor: 'pointer', color: 'white', fontWeight: 'bold' }}
-              >
-                CANCELAR
-              </button>
-              <button
-                onClick={confirmSOS}
-                className="sos-button"
-                style={{ width: 'auto', padding: '15px 25px', fontSize: '1em', marginTop: 0 }}
-              >
-                🚨 CONFIRMAR
-              </button>
+      {
+        pendingSOS && (
+          <div className="modal-overlay" onClick={() => setPendingSOS(null)}>
+            <div className="auth-box confirmation-modal" onClick={e => e.stopPropagation()} style={{ textAlign: 'center', borderColor: '#ef4444' }}>
+              <h2 style={{ color: '#ef4444' }}>⚠️ ¿CONFIRMAR ALERTA?</h2>
+              <div style={{ fontSize: '1.2em', margin: '20px 0' }}>
+                Has seleccionado:<br />
+                <strong style={{ fontSize: '1.5em' }}>{pendingSOS.emoji} {pendingSOS.label.toUpperCase()}</strong>
+              </div>
+              <p style={{ color: '#94a3b8', marginBottom: '20px' }}>Esta acción notificará a todos tus vecinos de inmediato.</p>
+              <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
+                <button
+                  onClick={() => setPendingSOS(null)}
+                  style={{ background: '#475569', border: 'none', padding: '15px 25px', borderRadius: '8px', cursor: 'pointer', color: 'white', fontWeight: 'bold' }}
+                >
+                  CANCELAR
+                </button>
+                <button
+                  onClick={confirmSOS}
+                  className="sos-button"
+                  style={{ width: 'auto', padding: '15px 25px', fontSize: '1em', marginTop: 0 }}
+                >
+                  🚨 CONFIRMAR
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
-    </div>
+        )
+      }
+    </div >
   );
 }
 

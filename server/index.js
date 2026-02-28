@@ -483,13 +483,58 @@ app.post('/api/houses', authenticate, checkCommunity, async (req, res) => {
 
 app.delete('/api/users/:id', authenticate, checkCommunity, async (req, res) => {
     const { communityId } = req.query;
+    if (req.user.role !== 'admin') return res.status(403).json({ success: false, message: 'Solo admins' });
     try {
-        const result = await House.deleteOne({ id: req.params.id, communityId });
-        if (result.deletedCount > 0) {
-            io.to(communityId).emit('house_deleted', req.params.id);
-            res.json({ success: true });
-        } else res.status(404).json({ success: false });
+        const target = await User.findOne({ id: req.params.id, communityId });
+        if (!target) return res.status(404).json({ success: false });
+        await Promise.all([
+            User.deleteOne({ id: req.params.id }),
+            ForumMessage.updateMany({ communityId, user: target.name }, { user: '[Vecino eliminado]' }),
+            Subscription.deleteMany({ userId: req.params.id }),
+            House.updateOne({ communityId, owner: target.phone }, { $unset: { owner: '' } })
+        ]);
+        await logAction(communityId, req.user, 'DELETE_USER', { userId: req.params.id, name: target.name });
+        res.json({ success: true });
     } catch (error) { res.status(500).json({ success: false }); }
+});
+
+// Self-delete: user deletes their own account (RGPD - Right to Erasure)
+app.delete('/api/users/me/delete', authenticate, async (req, res) => {
+    const { password } = req.body;
+    try {
+        const user = await User.findOne({ id: req.user.id });
+        if (!user) return res.status(404).json({ success: false, message: 'Usuario no encontrado' });
+
+        // Require password confirmation for security
+        if (user.password !== password) {
+            return res.status(401).json({ success: false, message: 'Contraseña incorrecta. Confirma tu contraseña para eliminar la cuenta.' });
+        }
+
+        // Check if this user is the admin of a community with other members
+        if (user.role === 'admin') {
+            const membersCount = await User.countDocuments({ communityId: user.communityId, role: { $ne: 'admin' } });
+            if (membersCount > 0) {
+                return res.status(400).json({ success: false, message: `No puedes eliminar tu cuenta de administrador mientras hay ${membersCount} vecinos en la comunidad. Elimina o transfiere la comunidad primero.` });
+            }
+        }
+
+        const communityId = user.communityId;
+        const userName = user.name;
+
+        // Cascade delete all user data
+        await Promise.all([
+            User.deleteOne({ id: user.id }),
+            ForumMessage.updateMany({ communityId, user: userName }, { user: '[Vecino eliminado]' }),
+            Subscription.deleteMany({ userId: user.id }),
+            House.updateOne({ communityId, owner: user.phone }, { $unset: { owner: '' }, $set: { owner: null } })
+        ]);
+
+        console.log(`✅ User ${user.id} (${userName}) self-deleted their account.`);
+        res.json({ success: true, message: 'Tu cuenta y todos tus datos han sido eliminados permanentemente.' });
+    } catch (error) {
+        console.error('Error in DELETE /api/users/me/delete:', error);
+        res.status(500).json({ success: false, message: error.message });
+    }
 });
 
 app.delete('/api/houses/:id', authenticate, checkCommunity, async (req, res) => {
