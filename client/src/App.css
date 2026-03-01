@@ -1132,13 +1132,23 @@ textarea {
 
 /* MOBILE CENTERED HEADERS - FORCING SYMMETRY AND POSITION */
 @media (max-width: 1024px) {
+
+  /* Specific tweaks for Vecinos (must be high up) */
+  .user-list-container .section-header {
+    padding: 2px 20px !important;
+  }
+
+  /* Specific tweaks for Admin (restore to what was "perfect") */
+  .admin-dashboard-container .section-header {
+    padding: 10px 20px 5px 20px !important;
+  }
+
   .section-header {
     display: flex !important;
     flex-direction: column !important;
     align-items: center !important;
     justify-content: flex-start !important;
     text-align: center !important;
-    padding: 2px 20px !important;
     min-height: auto !important;
     position: relative !important;
   }
@@ -1152,7 +1162,7 @@ textarea {
   }
 
   .section-header p {
-    margin: 5px 0 0 0 !important;
+    margin: 2px 0 0 0 !important;
     width: 100% !important;
   }
 }
