@@ -29,6 +29,5 @@ const UserSchema = new mongoose.Schema({
 
 // Indexes for performant querying
 UserSchema.index({ communityId: 1 });
-UserSchema.index({ phone: 1 });
 
 module.exports = mongoose.model('User', UserSchema);

@@ -965,12 +965,27 @@ textarea {
     grid-template-columns: 1fr;
   }
 
-  /* Forum and List Headers adjustments */
-  .forum-header,
-  .section-header {
-    padding-left: 110px;
-    /* Space for the mobile menu toggle */
+  /* Forum Header - Return to almost original (less padding to fit burger) */
+  .forum-header {
+    padding-left: 60px;
     justify-content: flex-start;
+  }
+
+  /* Section Headers (Vecinos, Admin) - Centered as requested */
+  .section-header {
+    padding: 15px 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    justify-content: center;
+    position: relative;
+  }
+
+  .section-header h2 {
+    width: 100%;
+    padding: 0 40px;
+    /* Space for the hamburger on the left */
   }
 
   .forum-tabs {
