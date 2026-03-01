@@ -462,6 +462,7 @@ function Forum({ user }) {
   3. **No Spam**: Queda prohibida la publicidad no solicitada o el envío masivo de mensajes irrelevantes.
   4. **Veracidad**: Intenta verificar la información antes de lanzar una alerta para no generar pánico innecesario.
   5. **Privacidad**: No compartas datos sensibles de otros vecinos sin su consentimiento explícito.
+  6. **Limpieza Automática**: Los mensajes y archivos multimedia del foro se eliminan automáticamente a los **30 días** por privacidad y optimización.
   `
 
   return (
