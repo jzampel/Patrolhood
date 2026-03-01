@@ -109,7 +109,7 @@ function AdminDashboard({ user }) {
         <div className="admin-dashboard-container">
             <div className="section-header">
                 <h2 style={{ color: '#fbbf24', margin: 0, fontFamily: 'Cinzel, serif', letterSpacing: '1px' }}>🛡️ PANEL DE ADMINISTRACIÓN</h2>
-                <p style={{ color: '#64748b', fontSize: '0.8rem', margin: '4px 0 0 0' }}>{user.communityName}</p>
+                <p style={{ color: '#64748b', fontSize: '0.8rem', margin: '4px 0 10px 0' }}>{user.communityName}</p>
 
                 {/* Tabs */}
                 <div className="dashboard-tabs">

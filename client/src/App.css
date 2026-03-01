@@ -965,27 +965,12 @@ textarea {
     grid-template-columns: 1fr;
   }
 
-  /* Forum Header - Return to almost original (less padding to fit burger) */
-  .forum-header {
-    padding-left: 60px;
-    justify-content: flex-start;
-  }
-
-  /* Section Headers (Vecinos, Admin) - Centered as requested */
+  /* Forum and List Headers adjustments */
+  .forum-header,
   .section-header {
-    padding: 5px 20px 15px 20px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
+    padding-left: 85px;
+    /* Space for the mobile menu toggle */
     justify-content: flex-start;
-    position: relative;
-  }
-
-  .section-header h2 {
-    width: 100%;
-    padding: 0 40px;
-    /* Space for the hamburger on the left */
   }
 
   .forum-tabs {
@@ -1139,27 +1124,4 @@ textarea {
 .legal-text-scroll::-webkit-scrollbar-thumb {
   background: #fbbf24;
   border-radius: 10px;
-}
-
-/* MOBILE HEADER OVERRIDES - MUST BE AT THE BOTTOM */
-@media (max-width: 1024px) {
-  .section-header {
-    padding: 2px 20px 10px 20px !important;
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: center !important;
-    text-align: center !important;
-    justify-content: flex-start !important;
-    position: relative !important;
-  }
-
-  .section-header h2 {
-    width: 100% !important;
-    padding: 0 40px !important;
-    margin-top: 0 !important;
-  }
-
-  .section-header p {
-    margin: 2px 0 0 0 !important;
-  }
 }
