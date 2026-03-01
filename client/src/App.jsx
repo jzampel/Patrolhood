@@ -627,6 +627,7 @@ function UserList({ currentUser, houses, users, setUsers, onViewOnMap }) {
     <div className="user-list-container">
       <div className="section-header">
         <h2 style={{ color: '#fbbf24', margin: 0, fontFamily: 'Cinzel, serif', letterSpacing: '1px' }}>👥 VECINOS REGISTRADOS</h2>
+        <p style={{ color: '#64748b', fontSize: '0.8rem', margin: '4px 0 0 0' }}>{currentUser.communityName}</p>
       </div>
       <div className="user-grid-scroll">
         <div className="user-grid">
