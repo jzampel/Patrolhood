@@ -1138,13 +1138,13 @@ textarea {
     align-items: center !important;
     justify-content: flex-start !important;
     text-align: center !important;
-    padding: 10px 20px !important;
+    padding: 2px 20px !important;
     min-height: auto !important;
     position: relative !important;
   }
 
   .section-header h2 {
-    margin: 5px 0 0 0 !important;
+    margin: 0 !important;
     padding: 0 45px !important;
     width: 100% !important;
     font-size: 1.15rem !important;
