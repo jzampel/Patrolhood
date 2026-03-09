@@ -712,7 +712,9 @@ app.post('/api/sos', authenticate, checkCommunity, sosLimiter, async (req, res) 
 
         // 1. Persist to DB
         const alert = await ActiveSOS.create({
-            communityId, userId, userName, houseNumber, emergencyType, emergencyTypeLabel, location,
+            communityId,
+            userId: req.user.id, // Use ID from token for security and matching
+            userName, houseNumber, emergencyType, emergencyTypeLabel, location,
             status: 'CREATED',
             expiresAt,
             ...(petInfo && { petInfo })
@@ -937,7 +939,10 @@ app.post('/api/sos/stop', authenticate, checkCommunity, async (req, res) => {
         if (!alert) return res.status(404).json({ success: false, message: 'Alerta no encontrada o ya resuelta' });
 
         // Permission check: Author OR Admin
-        if (alert.userId !== req.user.id && req.user.role !== 'admin' && req.user.role !== 'global_admin') {
+        const isAuthor = String(alert.userId) === String(req.user.id);
+        const isAdmin = req.user.role === 'admin' || req.user.role === 'global_admin';
+
+        if (!isAuthor && !isAdmin) {
             return res.status(403).json({ success: false, message: 'No tienes permiso para detener esta alerta' });
         }
 
