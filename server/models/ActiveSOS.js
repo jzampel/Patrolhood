@@ -33,7 +33,13 @@ const ActiveSOSSchema = new mongoose.Schema({
     timestamp: { type: Date, default: Date.now, index: { expires: '30d' } }, // Physical deletion after 30 days
     expiresAt: { type: Date, index: true },
     closedAt: { type: Date },
-    isActive: { type: Boolean, default: true }
+    isActive: { type: Boolean, default: true },
+    petInfo: {
+        name: String,
+        breed: String,
+        traits: String,
+        photo: String  // base64 data URL
+    }
 });
 
 // Index for finding active alerts efficiently per community

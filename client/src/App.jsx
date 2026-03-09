@@ -21,6 +21,7 @@ const EMERGENCY_TYPES = [
   { id: 'smoke', label: '🌫️ Humo', emoji: '🌫️' },
   { id: 'suspicious', label: '👁️ Actividad Sospechosa', emoji: '👁️' },
   { id: 'violence', label: '⚠️ Violencia', emoji: '⚠️' },
+  { id: 'lost_pet', label: '🐾 Mascota Perdida', emoji: '🐾', isPetAlert: true },
   { id: 'other', label: '📢 Otra Emergencia', emoji: '📢' }
 ]
 
@@ -78,18 +79,24 @@ function MapClickHandler({ onAddHouse, user }) {
 function createHouseIcon(labelText, status, emergencyType) {
   // Status priority: 'sos' > 'mine' > 'inhabited' > 'empty'
   let className = 'house-marker'
-  if (status === 'sos') className += ' sos-active'
+  if (status === 'sos') {
+    if (emergencyType === 'lost_pet') className += ' pet-alert'
+    else className += ' sos-active'
+  }
   else if (status === 'mine') className += ' my-house'
   else if (status === 'inhabited') className += ' inhabited'
 
   const emergencyEmoji = status === 'sos' && emergencyType ?
     EMERGENCY_TYPES.find(e => e.id === emergencyType)?.emoji || '' : ''
 
+  // For pet alerts we use a different visual
+  const markerIcon = (status === 'sos' && emergencyType === 'lost_pet') ? '⚠️' : (emergencyEmoji || '')
+
   return L.divIcon({
     className: className,
     html: `<div class="house-label">
       ${labelText}
-      ${emergencyEmoji ? `<span class="emergency-icon">${emergencyEmoji}</span>` : ''}
+      ${markerIcon ? `<span class="emergency-icon">${markerIcon}</span>` : ''}
     </div>`,
     iconSize: status === 'sos' ? [60, 60] : (status === 'mine' || status === 'inhabited' ? [50, 50] : [40, 40]),
     iconAnchor: status === 'sos' ? [30, 30] : (status === 'mine' || status === 'inhabited' ? [25, 25] : [20, 20])
@@ -751,6 +758,8 @@ function App() {
   const [generatedInvite, setGeneratedInvite] = useState(null)
   const [notificationsEnabled, setNotificationsEnabled] = useState(false)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+  const [showPetForm, setShowPetForm] = useState(false)
+  const [petFormData, setPetFormData] = useState({ name: '', breed: '', traits: '', photo: null })
   const [mapFocusPosition, setMapFocusPosition] = useState(null)
   const mapRef = useRef(null)
   const [houses, setHouses] = useState([])
@@ -1159,7 +1168,12 @@ function App() {
 
   const triggerSOS = (type) => {
     const info = EMERGENCY_TYPES.find(e => e.id === type)
-    setPendingSOS(info)
+    if (info.isPetAlert) {
+      setPendingSOS(info)
+      setShowPetForm(true)
+    } else {
+      setPendingSOS(info)
+    }
     setShowEmergencyMenu(false)
   }
 
@@ -1177,7 +1191,8 @@ function App() {
       communityName: user.communityName,
       userId: user.id,
       userName: user.name,
-      location: myHouse.position ? { lat: myHouse.position[0], lng: myHouse.position[1] } : null
+      location: myHouse.position ? { lat: myHouse.position[0], lng: myHouse.position[1] } : null,
+      petInfo: pendingSOS.isPetAlert ? petFormData : null
     };
 
     // Store in IndexedDB first (Buffer)
@@ -1204,6 +1219,8 @@ function App() {
 
     bufferingToast();
     setPendingSOS(null)
+    setShowPetForm(false)
+    setPetFormData({ name: '', breed: '', traits: '', photo: null })
   }
 
   const generateInvite = async () => {
@@ -1351,7 +1368,7 @@ function App() {
       )}
 
       {/* Foreground Notification Toast */}
-      {activeAlerts.length > 0 && activeTab !== 'map' && (
+      {activeAlerts.some(a => a.emergencyType !== 'lost_pet') && activeTab !== 'map' && (
         <div
           className="foreground-toast"
           onClick={() => setActiveTab('map')}
@@ -1364,7 +1381,28 @@ function App() {
         >
           <span style={{ fontSize: '1.5em' }}>🚨</span>
           <div style={{ flex: 1 }}>
-            <strong>¡{activeAlerts.length} ALERTA{activeAlerts.length > 1 ? 'S' : ''} SOS ACTIVA{activeAlerts.length > 1 ? 'S' : ''}!</strong>
+            <strong>¡ALERTA SOS ACTIVA!</strong>
+            <div style={{ fontSize: '0.9em' }}>Pulsa para ver en el mapa</div>
+          </div>
+        </div>
+      )}
+
+      {/* Pet Alert Toast */}
+      {activeAlerts.some(a => a.emergencyType === 'lost_pet') && activeTab !== 'map' && (
+        <div
+          className="foreground-toast pet-toast"
+          onClick={() => setActiveTab('map')}
+          style={{
+            position: 'fixed', top: activeAlerts.some(a => a.emergencyType !== 'lost_pet') ? '80px' : '10px',
+            left: '50%', transform: 'translateX(-50%)',
+            background: '#fbbf24', color: '#000', padding: '10px 20px', borderRadius: '20px',
+            zIndex: 9999, boxShadow: '0 4px 12px rgba(0,0,0,0.5)', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', gap: '10px', width: '90%', maxWidth: '400px'
+          }}
+        >
+          <span style={{ fontSize: '1.5em' }}>🐾</span>
+          <div style={{ flex: 1 }}>
+            <strong>¡MASCOTA PERDIDA!</strong>
             <div style={{ fontSize: '0.9em' }}>Pulsa para ver en el mapa</div>
           </div>
         </div>
@@ -1753,7 +1791,7 @@ function App() {
               return (
                 <button
                   key={sosAlert._id || sosAlert.alertId}
-                  className="stop-button floating"
+                  className={sosAlert.emergencyType === 'lost_pet' ? "pet-stop-button floating" : "stop-button floating"}
                   style={{ fontSize: '0.7em', padding: '10px' }}
                   onClick={async () => {
                     const data = await safeFetch(`${import.meta.env.VITE_API_URL || ''}/api/sos/stop`, {
@@ -1770,7 +1808,7 @@ function App() {
                     }
                   }}
                 >
-                  🔕 PARAR #{sosAlert.houseNumber}
+                  {sosAlert.emergencyType === 'lost_pet' ? `🐾 ENCONTRADA #${sosAlert.houseNumber}` : `🔕 PARAR #${sosAlert.houseNumber}`}
                 </button>
               );
             })}
@@ -1845,7 +1883,24 @@ function App() {
                           <p style={{ fontStyle: 'italic', color: '#888' }}>Sin asignar</p>
                         )}
                         {status === 'sos' && (
-                          <div className="popup-alert" style={{ marginBottom: '10px' }}>🚨 ¡EMERGENCIA ACTIVA!</div>
+                          <div className={activeAlert?.emergencyType === 'lost_pet' ? "popup-alert pet" : "popup-alert"} style={{ marginBottom: '10px' }}>
+                            {activeAlert?.emergencyType === 'lost_pet' ? '🐾 ¡MASCOTA PERDIDA!' : '🚨 ¡EMERGENCIA ACTIVA!'}
+                          </div>
+                        )}
+
+                        {activeAlert?.emergencyType === 'lost_pet' && activeAlert.petInfo && (
+                          <div className="pet-info-popup" style={{ background: 'rgba(251, 191, 36, 0.1)', padding: '10px', borderRadius: '8px', marginBottom: '10px', border: '1px solid #fbbf24' }}>
+                            {activeAlert.petInfo.photo && (
+                              <img src={activeAlert.petInfo.photo} alt="Mascota" style={{ width: '100%', borderRadius: '4px', marginBottom: '8px' }} />
+                            )}
+                            <div style={{ fontSize: '0.9em' }}>
+                              <strong>Nombre:</strong> {activeAlert.petInfo.name}<br />
+                              <strong>Raza:</strong> {activeAlert.petInfo.breed}<br />
+                              <div style={{ marginTop: '5px', fontStyle: 'italic', fontSize: '0.85em' }}>
+                                "{activeAlert.petInfo.traits}"
+                              </div>
+                            </div>
+                          </div>
                         )}
 
                         <button
@@ -1889,7 +1944,16 @@ function App() {
                 )
               })}
               {activeAlerts.map(a => a.location && (
-                <CircleMarker key={a._id || a.alertId} center={[a.location.lat, a.location.lng]} radius={50} pathOptions={{ color: 'red', fillColor: 'red' }} className="sos-marker" />
+                <CircleMarker
+                  key={a._id || a.alertId}
+                  center={[a.location.lat, a.location.lng]}
+                  radius={50}
+                  pathOptions={{
+                    color: a.emergencyType === 'lost_pet' ? '#fbbf24' : 'red',
+                    fillColor: a.emergencyType === 'lost_pet' ? '#fbbf24' : 'red'
+                  }}
+                  className={a.emergencyType === 'lost_pet' ? "pet-marker-circle" : "sos-marker"}
+                />
               ))}
 
               {/* Users can still mark "Mine" if we keep that feature, or is that strictly admin too?
@@ -1934,7 +1998,7 @@ function App() {
       }
 
       {
-        pendingSOS && (
+        pendingSOS && !showPetForm && (
           <div className="modal-overlay" onClick={() => setPendingSOS(null)}>
             <div className="auth-box confirmation-modal" onClick={e => e.stopPropagation()} style={{ textAlign: 'center', borderColor: '#ef4444' }}>
               <h2 style={{ color: '#ef4444' }}>⚠️ ¿CONFIRMAR ALERTA?</h2>
@@ -1962,6 +2026,95 @@ function App() {
           </div>
         )
       }
+
+      {/* Pet Form Modal */}
+      {showPetForm && (
+        <div className="modal-overlay" onClick={() => { setShowPetForm(false); setPendingSOS(null); }}>
+          <div className="auth-box pet-modal" onClick={e => e.stopPropagation()} style={{ textAlign: 'left', borderColor: '#fbbf24', maxWidth: '400px' }}>
+            <h2 style={{ color: '#fbbf24', textAlign: 'center' }}>🐾 DATOS DE LA MASCOTA</h2>
+            <p style={{ color: '#94a3b8', fontSize: '0.85em', textAlign: 'center', marginBottom: '20px' }}>
+              Ayuda a tus vecinos a identificar a tu mascota rápidamente.
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div>
+                <label style={{ fontSize: '0.8em', color: '#fbbf24', fontWeight: 'bold' }}>Nombre</label>
+                <input
+                  placeholder="Ej: Toby"
+                  value={petFormData.name}
+                  onChange={e => setPetFormData({ ...petFormData, name: e.target.value })}
+                  style={{ width: '100%', marginTop: '4px' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ fontSize: '0.8em', color: '#fbbf24', fontWeight: 'bold' }}>Raza / Especie</label>
+                <input
+                  placeholder="Ej: Labrador, Gato siamés..."
+                  value={petFormData.breed}
+                  onChange={e => setPetFormData({ ...petFormData, breed: e.target.value })}
+                  style={{ width: '100%', marginTop: '4px' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ fontSize: '0.8em', color: '#fbbf24', fontWeight: 'bold' }}>Características</label>
+                <textarea
+                  placeholder="Ej: Collar rojo, mancha en ojo derecho, muy asustadizo..."
+                  value={petFormData.traits}
+                  onChange={e => setPetFormData({ ...petFormData, traits: e.target.value })}
+                  style={{ width: '100%', marginTop: '4px', minHeight: '80px', background: '#1e293b', border: '1px solid #334155', borderRadius: '8px', color: 'white', padding: '10px' }}
+                />
+              </div>
+
+              <div>
+                <label style={{ fontSize: '0.8em', color: '#fbbf24', fontWeight: 'bold' }}>Foto (Opcional)</label>
+                <div style={{ marginTop: '4px', display: 'flex', gap: '10px', alignItems: 'center' }}>
+                  <label className="attach-btn" style={{ cursor: 'pointer', fontSize: '1.2em', background: '#334155', padding: '10px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    📷 {petFormData.photo ? 'Cambiar' : 'Subir Foto'}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files[0]
+                        if (file) {
+                          const reader = new FileReader()
+                          reader.onloadend = () => setPetFormData({ ...petFormData, photo: reader.result })
+                          reader.readAsDataURL(file)
+                        }
+                      }}
+                      style={{ display: 'none' }}
+                    />
+                  </label>
+                  {petFormData.photo && (
+                    <div style={{ position: 'relative' }}>
+                      <img src={petFormData.photo} alt="Preview" style={{ height: '50px', borderRadius: '4px' }} />
+                      <button onClick={() => setPetFormData({ ...petFormData, photo: null })} style={{ position: 'absolute', top: -5, right: -5, background: 'red', color: 'white', border: 'none', borderRadius: '50%', width: '18px', height: '18px', cursor: 'pointer', fontSize: '10px' }}>x</button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px', marginTop: '25px' }}>
+              <button
+                onClick={() => { setShowPetForm(false); setPendingSOS(null); }}
+                style={{ flex: 1, background: '#475569', border: 'none', padding: '12px', borderRadius: '8px', cursor: 'pointer', color: 'white', fontWeight: 'bold' }}
+              >
+                CANCELAR
+              </button>
+              <button
+                onClick={confirmSOS}
+                disabled={!petFormData.name}
+                className="sos-button"
+                style={{ flex: 1, width: 'auto', padding: '12px', fontSize: '0.9em', marginTop: 0, opacity: petFormData.name ? 1 : 0.5 }}
+              >
+                🐾 LANZAR ALERTA
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div >
   );
 }

@@ -676,7 +676,7 @@ app.post('/api/subscribe', authenticate, checkCommunity, async (req, res) => {
 
 // --- SOS REST API (Robust Flow) ---
 app.post('/api/sos', authenticate, checkCommunity, sosLimiter, async (req, res) => {
-    const { communityId, userId, userName, houseNumber, emergencyType, emergencyTypeLabel, location, communityName } = req.body;
+    const { communityId, userId, userName, houseNumber, emergencyType, emergencyTypeLabel, location, communityName, petInfo } = req.body;
     if (!communityId || !userId) return res.status(400).json({ success: false, message: 'Missing data' });
 
     // --- ANTI-ABUSE: DEDUPLICATION ---
@@ -707,13 +707,15 @@ app.post('/api/sos', authenticate, checkCommunity, sosLimiter, async (req, res) 
         if (label.includes('robo')) ttlMinutes = 15;
         else if (label.includes('medica')) ttlMinutes = 30;
         else if (label.includes('incendio')) ttlMinutes = 45;
+        else if (label.includes('mascota')) ttlMinutes = 60 * 24 * 7; // Pet alerts: 7 days
         const expiresAt = new Date(Date.now() + ttlMinutes * 60000);
 
         // 1. Persist to DB
         const alert = await ActiveSOS.create({
             communityId, userId, userName, houseNumber, emergencyType, emergencyTypeLabel, location,
             status: 'CREATED',
-            expiresAt
+            expiresAt,
+            ...(petInfo && { petInfo })
         });
 
         if (isRedisAvailable) {

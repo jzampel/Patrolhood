@@ -225,6 +225,7 @@ textarea {
   margin-bottom: 20px;
   background: var(--gold-gradient);
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
   font-weight: 900;
   letter-spacing: 2px;
@@ -1164,5 +1165,101 @@ textarea {
   .section-header p {
     margin: 2px 0 0 0 !important;
     width: 100% !important;
+  }
+}
+
+/* LOST PET ALERT STYLES */
+.house-marker.pet-alert .house-label {
+  background: #fbbf24;
+  color: #000;
+  border-color: #f59e0b;
+  box-shadow: 0 0 15px rgba(251, 191, 36, 0.4);
+  animation: pet-marker-sway 2s infinite ease-in-out;
+}
+
+@keyframes pet-marker-sway {
+
+  0%,
+  100% {
+    transform: translateY(0) rotate(0);
+  }
+
+  25% {
+    transform: translateY(-3px) rotate(-1deg);
+  }
+
+  75% {
+    transform: translateY(-3px) rotate(1deg);
+  }
+}
+
+.pet-stop-button {
+  width: 100%;
+  padding: 20px;
+  background: #fbbf24;
+  border: 1px solid #f59e0b;
+  border-radius: 12px;
+  color: #000;
+  font-weight: bold;
+  font-size: 1.1rem;
+  cursor: pointer;
+  box-shadow: 0 4px 15px rgba(251, 191, 36, 0.2);
+}
+
+.pet-stop-button:hover {
+  background: #f59e0b;
+}
+
+.popup-alert.pet {
+  background: #fbbf24;
+  color: #000;
+  padding: 8px;
+  border-radius: 6px;
+  font-weight: bold;
+  text-align: center;
+}
+
+.pet-info-popup img {
+  border: 1px solid rgba(251, 191, 36, 0.3);
+  transition: transform 0.3s;
+}
+
+.pet-info-popup img:hover {
+  transform: scale(1.05);
+}
+
+.pet-toast {
+  border: 1px solid #f59e0b;
+  animation: slide-down 0.5s ease-out;
+}
+
+@keyframes slide-down {
+  from {
+    transform: translate(-50%, -100%);
+  }
+
+  to {
+    transform: translate(-50%, 0);
+  }
+}
+
+.pet-marker-circle {
+  animation: pet-pulse 2s infinite;
+}
+
+@keyframes pet-pulse {
+  0% {
+    stroke-width: 2;
+    opacity: 0.8;
+  }
+
+  50% {
+    stroke-width: 10;
+    opacity: 0.4;
+  }
+
+  100% {
+    stroke-width: 2;
+    opacity: 0.8;
   }
 }
