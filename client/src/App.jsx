@@ -763,6 +763,7 @@ function App() {
   const [petFormData, setPetFormData] = useState({ name: '', breed: '', traits: '', photo: null })
   const [mapFocusPosition, setMapFocusPosition] = useState(null)
   const mapRef = useRef(null)
+  const [allCommunitiesHouses, setAllCommunitiesHouses] = useState([]) // global_admin: etiquetas de todas las comunidades
   const [houses, setHouses] = useState([])
   const [users, setUsers] = useState([])
   const [communityContacts, setCommunityContacts] = useState([])
@@ -770,6 +771,7 @@ function App() {
   const [newContact, setNewContact] = useState({ name: '', phone: '', icon: '📞' })
   const [isOnline, setIsOnline] = useState(navigator.onLine)
   const [offlineCount, setOfflineCount] = useState(0)
+  const [allCommunities, setAllCommunities] = useState([]) // Listado de comunidades para selectores
 
   // PWA Install Logic
   const [deferredPrompt, setDeferredPrompt] = useState(null)
@@ -954,6 +956,29 @@ function App() {
     // Force reload bypassing cache
     window.location.reload(true)
   }
+
+  // Fetch all communities for global_admin selectors
+  useEffect(() => {
+    if (user?.role !== 'global_admin') return;
+    safeFetch(`${import.meta.env.VITE_API_URL || ''}/api/superadmin/communities`)
+      .then(data => {
+        if (data.success && data.communities) {
+            setAllCommunities(data.communities);
+            window._allCommunities = data.communities; // Legacy support for the inline select
+        }
+      })
+      .catch(err => console.error('Error fetching communities:', err))
+  }, [user?.role])
+
+  // Fetch all communities' houses for global_admin map
+  useEffect(() => {
+    if (user?.role !== 'global_admin') return;
+    safeFetch(`${import.meta.env.VITE_API_URL || ''}/api/superadmin/all-houses`)
+      .then(data => {
+        if (data.success && data.houses) setAllCommunitiesHouses(data.houses)
+      })
+      .catch(err => console.error('Error fetching all community houses:', err))
+  }, [user?.role])
 
   useEffect(() => {
     registerServiceWorker();
@@ -1477,7 +1502,7 @@ function App() {
           <button className={`nav-btn ${activeTab === 'map' ? 'active' : ''}`} onClick={() => { setActiveTab('map'); setIsSidebarOpen(false); }}>🗺️ Mapa</button>
           <button className={`nav-btn ${activeTab === 'forum' ? 'active' : ''}`} onClick={() => { setActiveTab('forum'); setIsSidebarOpen(false); }}>💬 Foro</button>
           <button className={`nav-btn ${activeTab === 'users' ? 'active' : ''}`} onClick={() => { setActiveTab('users'); setIsSidebarOpen(false); }}>👥 Vecinos</button>
-          {(user.role === 'admin' || user.role === 'moderator' || user.role === 'global_admin') && (
+          {(user.role === 'admin' || user.role === 'moderator') && (
             <button className={`nav-btn ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => { setActiveTab('dashboard'); setIsSidebarOpen(false); }}>📊 Dashboard</button>
           )}
           {user.role === 'global_admin' && (
@@ -1485,8 +1510,8 @@ function App() {
           )}
         </div>
 
-        {/* Telegram Connect Button - Only show if NOT connected */}
-        {!user.telegramChatId && (
+        {/* Telegram Connect Button - Only show if NOT connected and NOT global_admin */}
+        {!user.telegramChatId && user.role !== 'global_admin' && (
           <div style={{ padding: '10px 20px' }}>
             {user.telegramBotUsername ? (
               <a
@@ -1517,8 +1542,8 @@ function App() {
         )}
 
 
-        {/* Quiet Hours */}
-        <div style={{ padding: '10px 20px', borderTop: '1px solid rgba(255,255,255,0.07)', marginTop: '10px' }}>
+        {/* Quiet Hours - hidden for global_admin */}
+        {user.role !== 'global_admin' && <div style={{ padding: '10px 20px', borderTop: '1px solid rgba(255,255,255,0.07)', marginTop: '10px' }}>
           <h4 style={{ color: '#fbbf24', fontSize: '0.85rem', marginBottom: '10px' }}>🌙 Zona de Silencio</h4>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
             <span style={{ fontSize: '0.82em', color: '#cbd5e1' }}>Silenciar notificaciones del foro</span>
@@ -1576,10 +1601,10 @@ function App() {
             </div>
           )}
           <p style={{ fontSize: '0.72em', color: '#64748b', marginTop: '6px' }}>⚠️ Las alertas SOS <strong>siempre</strong> llegarán aunque tengas el silencio activado.</p>
-        </div>
+        </div>}
 
-        {/* Public Phone Privacy Toggle */}
-        <div style={{ padding: '10px 20px', borderTop: '1px solid rgba(255,255,255,0.07)' }}>
+        {/* Public Phone Privacy Toggle - hidden for global_admin */}
+        {user.role !== 'global_admin' && <div style={{ padding: '10px 20px', borderTop: '1px solid rgba(255,255,255,0.07)' }}>
           <h4 style={{ color: '#fbbf24', fontSize: '0.85rem', marginBottom: '10px' }}>🔒 Privacidad de Datos</h4>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <span style={{ fontSize: '0.82em', color: '#cbd5e1' }}>Mostrar mi teléfono a otros vecinos</span>
@@ -1607,7 +1632,7 @@ function App() {
             </label>
           </div>
           <p style={{ fontSize: '0.7em', color: '#64748b', marginTop: '6px' }}>Si activas este botón, los vecinos podrán ver tu numero de telefono (actualmente oculto). El administrador siempre verá tu numero por segurida.</p>
-        </div>
+        </div>}
 
         {activeTab === 'map' && (
           <>
@@ -1659,12 +1684,42 @@ function App() {
         {activeTab === 'forum' && (
           <div className="forum-sidebar-info">
             <p>Selecciona una sala para chatear con tus vecinos.</p>
+            {user.role === 'global_admin' && (
+              <div style={{ marginTop: '10px' }}>
+                <label style={{ color: '#fbbf24', fontSize: '0.8em', fontWeight: 'bold', display: 'block', marginBottom: '6px' }}>🏘️ Comunidad del Foro:</label>
+                <select
+                  value={user.communityId || ''}
+                  onChange={e => {
+                    const comm = allCommunities.find(c => c.id === e.target.value);
+                    if (comm) { setUser(prev => ({ ...prev, communityId: comm.id, communityName: comm.name })); }
+                  }}
+                  style={{ background: '#0f172a', color: 'white', border: '1px solid #334155', borderRadius: '8px', padding: '8px', width: '100%' }}
+                >
+                  {allCommunities.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
+            )}
           </div>
         )}
 
         {activeTab === 'users' && (
           <div className="forum-sidebar-info">
             <p>Listado oficial de vecinos registrados.</p>
+            {user.role === 'global_admin' && (
+              <div style={{ marginTop: '10px' }}>
+                <label style={{ color: '#fbbf24', fontSize: '0.8em', fontWeight: 'bold', display: 'block', marginBottom: '6px' }}>🏘️ Comunidad:</label>
+                <select
+                  value={user.communityId || ''}
+                  onChange={e => {
+                    const comm = allCommunities.find(c => c.id === e.target.value);
+                    if (comm) { setUser(prev => ({ ...prev, communityId: comm.id, communityName: comm.name })); }
+                  }}
+                  style={{ background: '#0f172a', color: 'white', border: '1px solid #334155', borderRadius: '8px', padding: '8px', width: '100%' }}
+                >
+                  {allCommunities.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
+            )}
           </div>
         )}
 
@@ -1758,7 +1813,7 @@ function App() {
           )}
         </div>
 
-        {user.telegramChatId && (
+        {user.telegramChatId && user.role !== 'global_admin' && (
           <div style={{ textAlign: 'center', marginBottom: '15px' }}>
             <button
               onClick={deactivateTelegram}
@@ -1862,6 +1917,24 @@ function App() {
                 <AlertZoom key={a._id || a.alertId} sosActive={true} sosLocation={a.location ? [a.location.lat, a.location.lng] : null} />
               ))}
               <MapClickHandler onAddHouse={onAddHouse} user={user} />
+              {/* Global admin: show all communities' markers in a different style */}
+              {user.role === 'global_admin' && allCommunitiesHouses
+                .filter(h => h.communityId !== user.communityId) // avoid duplicates with current community
+                .map(h => (
+                  <Marker
+                    key={`all-${h.id}`}
+                    position={h.position}
+                    icon={createHouseIcon(h.number, 'empty', null)}
+                  >
+                    <Popup className="house-popup">
+                      <div className="popup-content">
+                        <strong>🏠 #{h.number}</strong>
+                        <p style={{ fontSize: '0.8em', color: '#888' }}>📍 {h.communityName}</p>
+                      </div>
+                    </Popup>
+                  </Marker>
+                ))
+              }
               {houses.map(h => {
                 const inhabitants = users.filter(u => u.mapLabel === h.number || u.phone === h.owner); // Match by label or legacy owner
                 const isAssigned = inhabitants.length > 0;
@@ -2009,10 +2082,18 @@ function App() {
         {activeTab === 'superadmin' && (
           <SuperAdminDashboard 
             user={user} 
-            onSwitchCommunity={(id, name) => {
+            onSwitchCommunity={(id, name, center) => {
               setUser(prev => ({ ...prev, communityId: id, communityName: name }));
               setActiveTab('map');
               setIsSidebarOpen(false);
+              // Fly to community center on the map
+              if (center && mapRef.current) {
+                setTimeout(() => {
+                  if (mapRef.current) mapRef.current.flyTo(center, 17, { animate: true, duration: 1.5 });
+                }, 300);
+              } else if (mapRef.current) {
+                setMapFocusPosition(null); // reset any previous focus
+              }
             }} 
           />
         )}

@@ -421,9 +421,21 @@ app.get('/api/superadmin/communities', authenticate, async (req, res) => {
         // Add member counts per community
         const enriched = await Promise.all(communities.map(async (c) => {
             const count = await User.countDocuments({ communityId: c.id });
-            return { ...c, memberCount: count };
+            return { ...c, memberCount: count, center: c.center }; // Ensure center is included
         }));
         res.json({ success: true, communities: enriched });
+    } catch (error) { res.status(500).json({ success: false }); }
+});
+
+app.get('/api/superadmin/all-houses', authenticate, async (req, res) => {
+    if (req.user.role !== 'global_admin') return res.status(403).json({ success: false });
+    try {
+        const houses = await House.find().lean();
+        const enriched = await Promise.all(houses.map(async (h) => {
+            const community = await Community.findOne({ id: h.communityId }, 'name');
+            return { ...h, communityName: community?.name || 'Desconocido' };
+        }));
+        res.json({ success: true, houses: enriched });
     } catch (error) { res.status(500).json({ success: false }); }
 });
 
