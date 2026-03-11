@@ -18,9 +18,9 @@ const rateLimit = require('express-rate-limit');
 // --- RATE LIMITERS ---
 const apiLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100, // Limit each IP to 100 requests per windowMs
-    standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
-    legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+    max: 1000, // Limit each IP (or proxy) to 1000 requests per windowMs
+    standardHeaders: true,
+    legacyHeaders: false,
     message: { success: false, message: 'Demasiadas peticiones. Por favor, inténtalo de nuevo más tarde.' }
 });
 
@@ -48,6 +48,7 @@ const ActiveSOS = require('./models/ActiveSOS');
 const AuditLog = require('./models/AuditLog');
 
 const app = express();
+app.set('trust proxy', 1);
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 
