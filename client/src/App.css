@@ -586,32 +586,82 @@ textarea {
 /* NAV TABS */
 .nav-tabs {
   display: flex;
-  flex-direction: column;
-  gap: 10px;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 12px;
   margin-bottom: 20px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  padding-bottom: 10px;
+  padding-bottom: 15px;
+  justify-content: center;
 }
 
 .nav-btn {
-  width: 100%;
-  background: transparent;
-  border: none;
+  width: 65px;
+  height: 65px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   color: #94a3b8;
-  padding: 12px 15px;
+  padding: 5px;
   cursor: pointer;
   font-weight: bold;
-  border-radius: 8px;
-  transition: all 0.2s;
-  text-align: left;
+  border-radius: 12px;
+  transition: all 0.3s ease;
+  text-align: center;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 10px;
+  justify-content: center;
+  gap: 4px;
+}
+
+.nav-icon {
+  font-size: 1.4rem;
+}
+
+.nav-label {
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
 }
 
 .nav-btn.active {
-  background: rgba(255, 255, 255, 0.1);
-  color: white;
+  background: var(--primary);
+  color: #000;
+  border-color: #fbbf24;
+  box-shadow: 0 4px 15px rgba(251, 191, 36, 0.3);
+}
+
+.admin-nav-group {
+  display: contents; /* Allows children to participate in the nav-tabs flex/grid */
+}
+
+/* Subtle border context for admin group if needed, but display:contents makes it hard to wrap it in a box. 
+   Instead, we'll give admin buttons a distinct border color. */
+
+.admin-nav-group .nav-btn {
+  border-color: rgba(251, 191, 36, 0.2);
+}
+
+.admin-nav-group .nav-btn.active {
+  border-color: #fbbf24;
+}
+
+.community-selector-forum {
+  background: rgba(15, 23, 42, 0.6) !important;
+  backdrop-filter: blur(12px) !important;
+  border: 1px solid rgba(251, 191, 36, 0.3) !important;
+  border-radius: 12px !important;
+  padding: 12px !important;
+  margin-top: 15px !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4) !important;
+}
+
+.community-selector-forum select {
+  box-shadow: 0 2px 10px rgba(0,0,0,0.2);
 }
 
 .map-container {

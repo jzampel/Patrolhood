@@ -1539,23 +1539,52 @@ function App() {
         </button>
 
         <div className="nav-tabs">
-          <button className={`nav-btn ${activeTab === 'map' ? 'active' : ''}`} onClick={() => { setActiveTab('map'); setIsSidebarOpen(false); }}>🗺️ Mapa</button>
-          <button className={`nav-btn ${activeTab === 'forum' ? 'active' : ''}`} onClick={() => { setActiveTab('forum'); setIsSidebarOpen(false); }}>💬 Foro</button>
+          <button className={`nav-btn ${activeTab === 'map' ? 'active' : ''}`} onClick={() => { setActiveTab('map'); setIsSidebarOpen(false); }}>
+            <span className="nav-icon">🗺️</span>
+            <span className="nav-label">Mapa</span>
+          </button>
+          <button className={`nav-btn ${activeTab === 'forum' ? 'active' : ''}`} onClick={() => { setActiveTab('forum'); setIsSidebarOpen(false); }}>
+            <span className="nav-icon">💬</span>
+            <span className="nav-label">Foro</span>
+          </button>
           {user.role !== 'global_admin' && (
-            <button className={`nav-btn ${activeTab === 'users' ? 'active' : ''}`} onClick={() => { setActiveTab('users'); setIsSidebarOpen(false); }}>👥 Vecinos</button>
+            <button className={`nav-btn ${activeTab === 'users' ? 'active' : ''}`} onClick={() => { setActiveTab('users'); setIsSidebarOpen(false); }}>
+              <span className="nav-icon">👥</span>
+              <span className="nav-label">Vecinos</span>
+            </button>
           )}
           {(user.role === 'admin' || user.role === 'moderator') && (
-            <button className={`nav-btn ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => { setActiveTab('dashboard'); setIsSidebarOpen(false); }}>📊 Dashboard</button>
+            <button className={`nav-btn ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => { setActiveTab('dashboard'); setIsSidebarOpen(false); }}>
+              <span className="nav-icon">📊</span>
+              <span className="nav-label">Dashboard</span>
+            </button>
           )}
-          {user.role === 'global_admin' && (
-            <>
-              <button className={`nav-btn ${activeTab === 'sa-communities' ? 'active' : ''}`} onClick={() => { setActiveTab('sa-communities'); setIsSidebarOpen(false); }}>🏘️ Comunidades</button>
-              <button className={`nav-btn ${activeTab === 'sa-users' ? 'active' : ''}`} onClick={() => { setActiveTab('sa-users'); setIsSidebarOpen(false); }}>👥 Usuarios</button>
-              <button className={`nav-btn ${activeTab === 'sa-alerts' ? 'active' : ''}`} onClick={() => { setActiveTab('sa-alerts'); setIsSidebarOpen(false); }}>🚨 Alertas</button>
-              <button className={`nav-btn ${activeTab === 'sa-audit' ? 'active' : ''}`} onClick={() => { setActiveTab('sa-audit'); setIsSidebarOpen(false); }}>📊 Auditoría</button>
-              <button className={`nav-btn ${activeTab === 'sa-reported' ? 'active' : ''}`} onClick={() => { setActiveTab('sa-reported'); setIsSidebarOpen(false); }}>🚩 Reportados</button>
-            </>
-          )}
+          <div className="admin-nav-group">
+            {user.role === 'global_admin' && (
+              <>
+                <button className={`nav-btn ${activeTab === 'sa-communities' ? 'active' : ''}`} onClick={() => { setActiveTab('sa-communities'); setIsSidebarOpen(false); }}>
+                  <span className="nav-icon">🏘️</span>
+                  <span className="nav-label">Comunidades</span>
+                </button>
+                <button className={`nav-btn ${activeTab === 'sa-users' ? 'active' : ''}`} onClick={() => { setActiveTab('sa-users'); setIsSidebarOpen(false); }}>
+                  <span className="nav-icon">👥</span>
+                  <span className="nav-label">Usuarios</span>
+                </button>
+                <button className={`nav-btn ${activeTab === 'sa-alerts' ? 'active' : ''}`} onClick={() => { setActiveTab('sa-alerts'); setIsSidebarOpen(false); }}>
+                  <span className="nav-icon">🚨</span>
+                  <span className="nav-label">Alertas</span>
+                </button>
+                <button className={`nav-btn ${activeTab === 'sa-audit' ? 'active' : ''}`} onClick={() => { setActiveTab('sa-audit'); setIsSidebarOpen(false); }}>
+                  <span className="nav-icon">📊</span>
+                  <span className="nav-label">Auditoría</span>
+                </button>
+                <button className={`nav-btn ${activeTab === 'sa-reported' ? 'active' : ''}`} onClick={() => { setActiveTab('sa-reported'); setIsSidebarOpen(false); }}>
+                  <span className="nav-icon">🚩</span>
+                  <span className="nav-label">Reportados</span>
+                </button>
+              </>
+            )}
+          </div>
         </div>
 
         {/* Telegram Connect Button - Only show if NOT connected and NOT global_admin */}
