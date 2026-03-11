@@ -3,8 +3,13 @@ import { safeFetch } from './api';
 
 const TABS = ['🏘️ Comunidades', '👥 Usuarios', '🚨 Alertas Activas', '📊 Auditoría', '🚩 Reportados'];
 
-function SuperAdminDashboard({ user, onSwitchCommunity }) {
-    const [activeTab, setActiveTab] = useState(0);
+function SuperAdminDashboard({ user, onSwitchCommunity, initialTab }) {
+    const [activeTab, setActiveTab] = useState(initialTab || 0);
+
+    // Sync activeTab when initialTab changes from parent
+    useEffect(() => {
+        if (initialTab !== undefined) setActiveTab(initialTab);
+    }, [initialTab]);
     const [communities, setCommunities] = useState([]);
     const [users, setUsers] = useState([]);
     const [houses, setHouses] = useState([]);
@@ -204,22 +209,24 @@ function SuperAdminDashboard({ user, onSwitchCommunity }) {
     };
 
     return (
-        <div style={{ padding: '20px', color: 'white' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <div style={{ padding: '20px', color: 'white' }} className="sa-dashboard-wrapper">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }} className="sa-header-alignment">
                 <div>
-                    <h1 style={{ color: '#fbbf24', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>💎 DASHBOARD MASTER</h1>
-                    <p style={{ color: '#94a3b8' }}>Super Admin: {user.name}</p>
+                    <h1 style={{ color: '#fbbf24', margin: 0, display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.5rem' }}>💎 PANEL MASTER</h1>
+                    <p style={{ color: '#94a3b8', fontSize: '0.9rem' }}>Super Admin: {user.name}</p>
                 </div>
             </div>
 
-            <div className="dashboard-tabs" style={{ marginTop: '20px', display: 'flex', gap: '5px', borderBottom: '1px solid #334155', paddingBottom: '10px', overflowX: 'auto', alignItems: 'center' }}>
-                {TABS.map((t, i) => (
-                    <button key={i} onClick={() => setActiveTab(i)}
-                        style={{ background: activeTab === i ? '#fbbf24' : 'transparent', color: activeTab === i ? '#000' : '#94a3b8', border: 'none', padding: '10px 12px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', whiteSpace: 'nowrap', fontSize: '0.9em' }}>
-                        {t}
-                    </button>
-                ))}
-            </div>
+            {initialTab === undefined && (
+                <div className="dashboard-tabs" style={{ marginTop: '20px', display: 'flex', gap: '5px', borderBottom: '1px solid #334155', paddingBottom: '10px', overflowX: 'auto', alignItems: 'center' }}>
+                    {TABS.map((t, i) => (
+                        <button key={i} onClick={() => setActiveTab(i)}
+                            style={{ background: activeTab === i ? '#fbbf24' : 'transparent', color: activeTab === i ? '#000' : '#94a3b8', border: 'none', padding: '10px 12px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', whiteSpace: 'nowrap', fontSize: '0.9em' }}>
+                            {t}
+                        </button>
+                    ))}
+                </div>
+            )}
 
             <div style={{ marginTop: '20px' }}>
                 {/* === COMUNIDADES === */}

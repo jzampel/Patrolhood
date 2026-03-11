@@ -1170,6 +1170,14 @@ textarea {
     margin: 2px 0 0 0 !important;
     width: 100% !important;
   }
+
+  .sa-header-alignment {
+    padding-left: 65px !important;
+    width: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+  }
 }
 
 /* LOST PET ALERT STYLES */

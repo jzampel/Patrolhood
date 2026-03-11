@@ -354,7 +354,7 @@ function AuthOverlay({ onLogin, deletedMsg }) {
   )
 }
 
-function Forum({ user }) {
+function Forum({ user, allCommunities, onSwitchCommunity }) {
   const [activeChannel, setActiveChannel] = useState('General')
   const [messages, setMessages] = useState([])
   const [newMessage, setNewMessage] = useState('')
@@ -482,6 +482,23 @@ function Forum({ user }) {
   return (
     <div className="forum-container">
       <div className="forum-header">
+        {user.role === 'global_admin' && allCommunities && allCommunities.length > 0 && (
+          <div className="community-selector-forum" style={{ marginBottom: '15px', padding: '0 5px' }}>
+            <label style={{ fontSize: '0.7em', color: '#94a3b8', display: 'block', marginBottom: '4px', fontWeight: 'bold' }}>📍 COMUNIDAD ACTUAL</label>
+            <select 
+              value={user.communityId} 
+              onChange={(e) => {
+                const comm = allCommunities.find(c => c.id === e.target.value);
+                if (comm) onSwitchCommunity(comm.id, comm.name, comm.center);
+              }}
+              style={{ width: '100%', background: '#1e293b', color: '#fbbf24', border: '1px solid #fbbf24', borderRadius: '8px', padding: '8px', fontSize: '0.9em', fontWeight: 'bold' }}
+            >
+              {allCommunities.map(c => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+          </div>
+        )}
         <div className="forum-tabs">
           {FORUM_CHANNELS.map(ch => (
             <button
@@ -1531,7 +1548,16 @@ function App() {
             <button className={`nav-btn ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => { setActiveTab('dashboard'); setIsSidebarOpen(false); }}>📊 Dashboard</button>
           )}
           {user.role === 'global_admin' && (
-            <button className={`nav-btn ${activeTab === 'superadmin' ? 'active' : ''}`} onClick={() => { setActiveTab('superadmin'); setIsSidebarOpen(false); }}>💎 Super Admin</button>
+            <>
+              <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', margin: '15px 0 10px 0', paddingTop: '15px' }}>
+                <span style={{ fontSize: '0.75em', color: '#fbbf24', padding: '0 15px', textTransform: 'uppercase', fontWeight: 'bold', letterSpacing: '1px' }}>💎 Panel Master</span>
+              </div>
+              <button className={`nav-btn ${activeTab === 'sa-communities' ? 'active' : ''}`} onClick={() => { setActiveTab('sa-communities'); setIsSidebarOpen(false); }}>🏘️ Comunidades</button>
+              <button className={`nav-btn ${activeTab === 'sa-users' ? 'active' : ''}`} onClick={() => { setActiveTab('sa-users'); setIsSidebarOpen(false); }}>👥 Usuarios</button>
+              <button className={`nav-btn ${activeTab === 'sa-alerts' ? 'active' : ''}`} onClick={() => { setActiveTab('sa-alerts'); setIsSidebarOpen(false); }}>🚨 Alertas</button>
+              <button className={`nav-btn ${activeTab === 'sa-audit' ? 'active' : ''}`} onClick={() => { setActiveTab('sa-audit'); setIsSidebarOpen(false); }}>📊 Auditoría</button>
+              <button className={`nav-btn ${activeTab === 'sa-reported' ? 'active' : ''}`} onClick={() => { setActiveTab('sa-reported'); setIsSidebarOpen(false); }}>🚩 Reportados</button>
+            </>
           )}
         </div>
 
@@ -2094,7 +2120,18 @@ function App() {
             </MapContainer >
           </div>
         )}
-        {activeTab === 'forum' && <Forum user={user} />}
+        {activeTab === 'forum' && (
+          <Forum 
+            user={user} 
+            allCommunities={allCommunities} 
+            onSwitchCommunity={(id, name, center) => {
+              setUser(prev => ({ ...prev, communityId: id, communityName: name, communityCenter: center }));
+              if (center && center.length === 2 && mapRef.current) {
+                  mapRef.current.flyTo(center, 18);
+              }
+            }}
+          />
+        )}
         {activeTab === 'users' && <UserList currentUser={user} houses={houses} users={users} setUsers={setUsers} onViewOnMap={handleViewOnMap} />}
         {activeTab === 'dashboard' && (
           <AdminDashboard 
@@ -2110,9 +2147,15 @@ function App() {
             checkStatus={checkStatus}
           />
         )}
-        {activeTab === 'superadmin' && (
+        {(activeTab === 'sa-communities' || activeTab === 'sa-users' || activeTab === 'sa-alerts' || activeTab === 'sa-audit' || activeTab === 'sa-reported') && (
           <SuperAdminDashboard 
             user={user} 
+            initialTab={
+              activeTab === 'sa-communities' ? 0 :
+              activeTab === 'sa-users' ? 1 :
+              activeTab === 'sa-alerts' ? 2 :
+              activeTab === 'sa-audit' ? 3 : 4
+            }
             onSwitchCommunity={(id, name, center) => {
               setUser(prev => ({ ...prev, communityId: id, communityName: name, communityCenter: center }));
               setActiveTab('map');
