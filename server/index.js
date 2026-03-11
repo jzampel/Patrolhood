@@ -434,7 +434,19 @@ app.get('/api/superadmin/all-houses', authenticate, async (req, res) => {
         const houses = await House.find().lean();
         const enriched = await Promise.all(houses.map(async (h) => {
             const community = await Community.findOne({ id: h.communityId }, 'name');
-            return { ...h, communityName: community?.name || 'Desconocido' };
+            // Find if anyone lives here and if any of them is an admin
+            const residents = await User.find({ communityId: h.communityId, mapLabel: h.number }, 'role');
+            let status = 'empty';
+            if (residents.length > 0) {
+                const hasAdmin = residents.some(r => r.role === 'admin' || r.role === 'global_admin');
+                status = hasAdmin ? 'admin' : 'inhabited';
+            }
+
+            return { 
+                ...h, 
+                communityName: community?.name || 'Desconocido',
+                status: status
+            };
         }));
         res.json({ success: true, houses: enriched });
     } catch (error) { res.status(500).json({ success: false }); }

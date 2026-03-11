@@ -86,6 +86,7 @@ function createHouseIcon(labelText, status, emergencyType) {
   }
   else if (status === 'mine') className += ' my-house'
   else if (status === 'inhabited') className += ' inhabited'
+  else if (status === 'admin') className += ' admin-inhabited'
 
   const emergencyEmoji = status === 'sos' && emergencyType ?
     EMERGENCY_TYPES.find(e => e.id === emergencyType)?.emoji || '' : ''
@@ -124,8 +125,12 @@ function AutoCenter({ houses, userMapLabel, communityCenter }) {
     if (communityCenter && communityCenter[0] !== 40.4168) {
       map.setView(communityCenter, 18)
       hasCentered.current = true
+    } else if (user?.role === 'global_admin') {
+      // 3. For global admin with no community selected, show Iberia
+      map.setView([40.4168, -3.7038], 6)
+      hasCentered.current = true
     }
-  }, [houses, map, userMapLabel, communityCenter])
+  }, [houses, map, userMapLabel, communityCenter, user?.role])
 
   return null
 }
@@ -1944,12 +1949,13 @@ function App() {
                   <Marker
                     key={`all-${h.id}`}
                     position={h.position}
-                    icon={createHouseIcon(h.number, 'empty', null)}
+                    icon={createHouseIcon(h.number, h.status || 'empty', null)}
                   >
                     <Popup className="house-popup">
                       <div className="popup-content">
                         <strong>🏠 #{h.number}</strong>
                         <p style={{ fontSize: '0.8em', color: '#888' }}>📍 {h.communityName}</p>
+                        <p style={{ fontSize: '0.8em', color: '#fbbf24' }}>Status: {h.status}</p>
                       </div>
                     </Popup>
                   </Marker>
@@ -1967,7 +1973,10 @@ function App() {
 
                 if (isSos) status = 'sos';
                 else if (isMine) status = 'mine';
-                else if (isAssigned) status = 'inhabited';
+                else if (isAssigned) {
+                  const hasAdmin = inhabitants.some(i => i.role === 'admin' || i.role === 'global_admin');
+                  status = hasAdmin ? 'admin' : 'inhabited';
+                }
 
                 // Label is always Number now
                 const labelText = h.number;
