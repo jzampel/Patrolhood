@@ -548,6 +548,21 @@ app.delete('/api/superadmin/communities/:id', authenticate, async (req, res) => 
     } catch (error) { res.status(500).json({ success: false }); }
 });
 
+// Delete House (SuperAdmin)
+app.delete('/api/superadmin/houses/:id', authenticate, async (req, res) => {
+    if (req.user.role !== 'global_admin') return res.status(403).json({ success: false });
+    try {
+        const id = req.params.id;
+        const result = await House.deleteOne({ id: id });
+        if (result.deletedCount === 0) {
+            // Try by _id if id fails
+            await House.deleteOne({ _id: id });
+        }
+        io.emit('house_deleted', id);
+        res.json({ success: true });
+    } catch (error) { res.status(500).json({ success: false }); }
+});
+
 async function seedSuperAdmin() {
     try {
         const adminPhone = 'superadmin';

@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { safeFetch } from './api';
 
-const TABS = ['🏘️ Comunidades', '👥 Usuarios', '🚨 Alertas Activas', '📊 Auditoría', '🚩 Reportados'];
+const TABS = ['🏘️ Comunidades', '👥 Usuarios', '🏠 Casas', '🚨 Alertas Activas', '📊 Auditoría', '🚩 Reportados'];
 
 function SuperAdminDashboard({ user, onSwitchCommunity }) {
     const [activeTab, setActiveTab] = useState(0);
     const [communities, setCommunities] = useState([]);
     const [users, setUsers] = useState([]);
+    const [houses, setHouses] = useState([]);
     const [loading, setLoading] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
 
@@ -49,6 +50,13 @@ function SuperAdminDashboard({ user, onSwitchCommunity }) {
         setLoading(false);
     };
 
+    const fetchAllHouses = async () => {
+        setLoading(true);
+        const data = await safeFetch(`${import.meta.env.VITE_API_URL || ''}/api/superadmin/all-houses`);
+        if (data.success) setHouses(data.houses);
+        setLoading(false);
+    };
+
     const loadLogs = async (communityId) => {
         if (!communityId) return;
         setLogsLoading(true);
@@ -69,19 +77,20 @@ function SuperAdminDashboard({ user, onSwitchCommunity }) {
     };
 
     useEffect(() => {
-        fetchCommunities(); // Load communities once on mount to have IDs for forms
+        fetchCommunities();
     }, []);
 
     useEffect(() => {
         if (activeTab === 0) fetchCommunities();
         if (activeTab === 1) fetchUsers();
-        if (activeTab === 3) loadLogs(selectedCommunityId);
-        if (activeTab === 4) fetchReported(selectedCommunityId);
+        if (activeTab === 2) fetchAllHouses();
+        if (activeTab === 4) loadLogs(selectedCommunityId);
+        if (activeTab === 5) fetchReported(selectedCommunityId);
     }, [activeTab]);
 
     useEffect(() => {
-        if (activeTab === 3) loadLogs(selectedCommunityId);
-        if (activeTab === 4) fetchReported(selectedCommunityId);
+        if (activeTab === 4) loadLogs(selectedCommunityId);
+        if (activeTab === 5) fetchReported(selectedCommunityId);
     }, [selectedCommunityId]);
 
     const handleUserSubmit = async (e) => {
@@ -90,7 +99,6 @@ function SuperAdminDashboard({ user, onSwitchCommunity }) {
             ? `${import.meta.env.VITE_API_URL || ''}/api/superadmin/users/${editingUser.id}`
             : `${import.meta.env.VITE_API_URL || ''}/api/superadmin/users`;
         
-        // Find community name
         const comm = communities.find(c => c.id === userForm.communityId);
         const payload = { ...userForm, communityName: comm?.name || '' };
 
@@ -112,7 +120,7 @@ function SuperAdminDashboard({ user, onSwitchCommunity }) {
         e.preventDefault();
         const url = editingComm 
             ? `${import.meta.env.VITE_API_URL || ''}/api/superadmin/communities/${editingComm.id}`
-            : `${import.meta.env.VITE_API_URL || ''}/api/superadmin/communities`; // Note: Create comm might need different logic if it's new
+            : `${import.meta.env.VITE_API_URL || ''}/api/superadmin/communities`;
 
         const data = await safeFetch(url, {
             method: editingComm ? 'PUT' : 'POST',
@@ -138,6 +146,12 @@ function SuperAdminDashboard({ user, onSwitchCommunity }) {
         if (data.success) fetchCommunities();
     };
 
+    const deleteHouse = async (id) => {
+        if (!window.confirm('¿Seguro que quieres eliminar esta etiqueta de casa?')) return;
+        const data = await safeFetch(`${import.meta.env.VITE_API_URL || ''}/api/superadmin/houses/${id}`, { method: 'DELETE' });
+        if (data.success) fetchAllHouses();
+    };
+
     const styles = {
         card: { background: '#1e293b', padding: '16px', borderRadius: '12px', border: '1px solid #334155', marginBottom: '12px' },
         btn: (color) => ({ background: color, border: 'none', color: 'white', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }),
@@ -160,14 +174,13 @@ function SuperAdminDashboard({ user, onSwitchCommunity }) {
                         setUserForm({ name: '', surname: '', phone: '', email: '', password: '', role: 'user', communityId: communities[0]?.id || '', mapLabel: '', address: '' }); 
                         setShowUserModal(true); 
                     }}>+ Nuevo Usuario</button>
-                    {/* Community creation usually happens via Register process, but we could add it here if needed */}
                 </div>
             </div>
 
-            <div className="dashboard-tabs" style={{ marginTop: '20px', display: 'flex', gap: '10px', borderBottom: '1px solid #334155', paddingBottom: '10px' }}>
+            <div className="dashboard-tabs" style={{ marginTop: '20px', display: 'flex', gap: '10px', borderBottom: '1px solid #334155', paddingBottom: '10px', overflowX: 'auto' }}>
                 {TABS.map((t, i) => (
                     <button key={i} onClick={() => setActiveTab(i)}
-                        style={{ background: activeTab === i ? '#fbbf24' : 'transparent', color: activeTab === i ? '#000' : '#94a3b8', border: 'none', padding: '10px 15px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>
+                        style={{ background: activeTab === i ? '#fbbf24' : 'transparent', color: activeTab === i ? '#000' : '#94a3b8', border: 'none', padding: '10px 15px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', whiteSpace: 'nowrap' }}>
                         {t}
                     </button>
                 ))}
@@ -186,7 +199,7 @@ function SuperAdminDashboard({ user, onSwitchCommunity }) {
                                     </div>
                                     <div style={{ display: 'flex', gap: '6px' }}>
                                         <button style={styles.smallBtn('#3b82f6')} onClick={() => onSwitchCommunity(c.id, c.name, c.center)}>🗺️ Ir</button>
-                                        <button style={styles.smallBtn('#64748b')} onClick={() => { setEditingComm(c); setCommForm({ name: c.name, telegramBotToken: c.telegramBotToken || '', center: c.center }); setShowCommModal(true); }}>️✏️ Editar</button>
+                                        <button style={styles.smallBtn('#64748b')} onClick={() => { setEditingComm(c); setCommForm({ name: c.name, telegramBotToken: c.telegramBotToken || '', center: c.center }); setShowCommModal(true); }}>✏️ Editar</button>
                                         <button style={styles.smallBtn('#ef4444')} onClick={() => deleteComm(c.id)}>🗑️</button>
                                     </div>
                                 </div>
@@ -220,16 +233,36 @@ function SuperAdminDashboard({ user, onSwitchCommunity }) {
                     </div>
                 )}
 
-                {/* === AUDITORÍA / REPORTADOS (Using a shared selector visually) === */}
-                {(activeTab === 3 || activeTab === 4) && (
+                {/* === CASAS === */}
+                {activeTab === 2 && (
+                    <div>
+                        <p style={{ color: '#94a3b8', fontSize: '0.85em', marginBottom: '15px' }}>Desde aquí puedes eliminar casas registradas (incluyendo deshabitadas).</p>
+                        {loading && <p>Cargando casas...</p>}
+                        {houses.map(h => (
+                            <div key={h.id} style={styles.card}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <div>
+                                        <h3 style={{ margin: 0 }}>🏠 Casa {h.label}</h3>
+                                        <p style={{ fontSize: '0.85em', color: '#94a3b8' }}>{h.communityName} | Pos: {h.position?.[0]?.toFixed(4)}, {h.position?.[1]?.toFixed(4)}</p>
+                                    </div>
+                                    <button style={styles.smallBtn('#ef4444')} onClick={() => deleteHouse(h.id)}>🗑️ Eliminar</button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+
+                {/* === AUDITORÍA / REPORTADOS === */}
+                {(activeTab === 4 || activeTab === 5) && (
                     <div>
                         <select style={styles.input} value={selectedCommunityId} onChange={e => setSelectedCommunityId(e.target.value)}>
                             {communities.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                         </select>
                         <hr style={{ border: '0.5px solid #334155', margin: '15px 0' }} />
                         
-                        {activeTab === 3 && (
+                        {activeTab === 4 && (
                             logsLoading ? <p>Cargando registros...</p> : (
+                                logs.length === 0 ? <p>Sin registros.</p> :
                                 logs.map(l => (
                                     <div key={l._id} style={{ ...styles.card, borderLeft: '4px solid #fbbf24' }}>
                                         <div style={{ fontWeight: 'bold' }}>{l.action}</div>
@@ -240,8 +273,9 @@ function SuperAdminDashboard({ user, onSwitchCommunity }) {
                             )
                         )}
 
-                        {activeTab === 4 && (
+                        {activeTab === 5 && (
                             reportedLoading ? <p>Cargando reportes...</p> : (
+                                reported.length === 0 ? <p>Sin reportes.</p> :
                                 reported.map(r => (
                                     <div key={r._id} style={{ ...styles.card, borderLeft: '4px solid #ef4444' }}>
                                         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
