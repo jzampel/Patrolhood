@@ -106,7 +106,7 @@ function createHouseIcon(labelText, status, emergencyType) {
 }
 
 // Auto-center map (Priority: My House > Community Default > Global Default)
-function AutoCenter({ houses, userMapLabel, communityCenter }) {
+function AutoCenter({ houses, userMapLabel, communityCenter, user }) {
   const map = useMapEvents({})
   const hasCentered = useRef(false)
 
@@ -1936,7 +1936,7 @@ function App() {
                 attribution='&copy; Google'
                 maxZoom={22}
               />
-              <AutoCenter houses={houses} userMapLabel={user.mapLabel} communityCenter={user.communityCenter} />
+              <AutoCenter houses={houses} userMapLabel={user.mapLabel} communityCenter={user.communityCenter} user={user} />
               <MapFocusController focusLocation={mapFocusPosition} />
               {activeAlerts.map(a => (
                 <AlertZoom key={a._id || a.alertId} sosActive={true} sosLocation={a.location ? [a.location.lat, a.location.lng] : null} />
