@@ -482,8 +482,19 @@ function Forum({ user, allCommunities, onSwitchCommunity }) {
   return (
     <div className="forum-container">
       <div className="forum-header">
+        <div className="forum-tabs">
+          {FORUM_CHANNELS.map(ch => (
+            <button
+              key={ch.id}
+              className={`forum-tab ${activeChannel === ch.id ? 'active' : ''}`}
+              onClick={() => setActiveChannel(ch.id)}
+            >
+              {ch.label}
+            </button>
+          ))}
+        </div>
         {user.role === 'global_admin' && allCommunities && allCommunities.length > 0 && (
-          <div className="community-selector-forum" style={{ marginBottom: '15px', padding: '0 5px' }}>
+          <div className="community-selector-forum" style={{ marginTop: '15px', padding: '0 5px' }}>
             <label style={{ fontSize: '0.7em', color: '#94a3b8', display: 'block', marginBottom: '4px', fontWeight: 'bold' }}>📍 COMUNIDAD ACTUAL</label>
             <select 
               value={user.communityId} 
@@ -499,17 +510,6 @@ function Forum({ user, allCommunities, onSwitchCommunity }) {
             </select>
           </div>
         )}
-        <div className="forum-tabs">
-          {FORUM_CHANNELS.map(ch => (
-            <button
-              key={ch.id}
-              className={`forum-tab ${activeChannel === ch.id ? 'active' : ''}`}
-              onClick={() => setActiveChannel(ch.id)}
-            >
-              {ch.label}
-            </button>
-          ))}
-        </div>
       </div>
 
       <div className="forum-messages">
@@ -1549,9 +1549,6 @@ function App() {
           )}
           {user.role === 'global_admin' && (
             <>
-              <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', margin: '15px 0 10px 0', paddingTop: '15px' }}>
-                <span style={{ fontSize: '0.75em', color: '#fbbf24', padding: '0 15px', textTransform: 'uppercase', fontWeight: 'bold', letterSpacing: '1px' }}>💎 Panel Master</span>
-              </div>
               <button className={`nav-btn ${activeTab === 'sa-communities' ? 'active' : ''}`} onClick={() => { setActiveTab('sa-communities'); setIsSidebarOpen(false); }}>🏘️ Comunidades</button>
               <button className={`nav-btn ${activeTab === 'sa-users' ? 'active' : ''}`} onClick={() => { setActiveTab('sa-users'); setIsSidebarOpen(false); }}>👥 Usuarios</button>
               <button className={`nav-btn ${activeTab === 'sa-alerts' ? 'active' : ''}`} onClick={() => { setActiveTab('sa-alerts'); setIsSidebarOpen(false); }}>🚨 Alertas</button>
@@ -1735,42 +1732,12 @@ function App() {
         {activeTab === 'forum' && (
           <div className="forum-sidebar-info">
             <p>Selecciona una sala para chatear con tus vecinos.</p>
-            {user.role === 'global_admin' && (
-              <div style={{ marginTop: '10px' }}>
-                <label style={{ color: '#fbbf24', fontSize: '0.8em', fontWeight: 'bold', display: 'block', marginBottom: '6px' }}>🏘️ Comunidad del Foro:</label>
-                <select
-                  value={user.communityId || ''}
-                  onChange={e => {
-                    const comm = allCommunities.find(c => c.id === e.target.value);
-                    if (comm) { setUser(prev => ({ ...prev, communityId: comm.id, communityName: comm.name })); }
-                  }}
-                  style={{ background: '#0f172a', color: 'white', border: '1px solid #334155', borderRadius: '8px', padding: '8px', width: '100%' }}
-                >
-                  {allCommunities.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
-              </div>
-            )}
           </div>
         )}
 
         {activeTab === 'users' && (
           <div className="forum-sidebar-info">
             <p>Listado oficial de vecinos registrados.</p>
-            {user.role === 'global_admin' && (
-              <div style={{ marginTop: '10px' }}>
-                <label style={{ color: '#fbbf24', fontSize: '0.8em', fontWeight: 'bold', display: 'block', marginBottom: '6px' }}>🏘️ Comunidad:</label>
-                <select
-                  value={user.communityId || ''}
-                  onChange={e => {
-                    const comm = allCommunities.find(c => c.id === e.target.value);
-                    if (comm) { setUser(prev => ({ ...prev, communityId: comm.id, communityName: comm.name })); }
-                  }}
-                  style={{ background: '#0f172a', color: 'white', border: '1px solid #334155', borderRadius: '8px', padding: '8px', width: '100%' }}
-                >
-                  {allCommunities.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
-              </div>
-            )}
           </div>
         )}
 
