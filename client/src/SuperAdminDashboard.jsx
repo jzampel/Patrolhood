@@ -46,7 +46,10 @@ function SuperAdminDashboard({ user, onSwitchCommunity }) {
     const fetchUsers = async (q = '') => {
         setLoading(true);
         const data = await safeFetch(`${import.meta.env.VITE_API_URL || ''}/api/superadmin/users?q=${q}`);
-        if (data.success) setUsers(data.users);
+        if (data.success) {
+            // Filter out global_admins as requested
+            setUsers(data.users.filter(u => u.role !== 'global_admin')); 
+        }
         setLoading(false);
     };
 
@@ -85,14 +88,14 @@ function SuperAdminDashboard({ user, onSwitchCommunity }) {
     useEffect(() => {
         if (activeTab === 0) { fetchCommunities(); fetchAllHouses(); fetchUsers(); }
         if (activeTab === 1) fetchUsers();
-        if (activeTab === 2) fetchAllHouses();
-        if (activeTab === 4) loadLogs(selectedCommunityId);
-        if (activeTab === 5) fetchReported(selectedCommunityId);
+        // activeTab === 2 is Alertas Activas
+        if (activeTab === 3) loadLogs(selectedCommunityId);
+        if (activeTab === 4) fetchReported(selectedCommunityId);
     }, [activeTab]);
 
     useEffect(() => {
-        if (activeTab === 4) loadLogs(selectedCommunityId);
-        if (activeTab === 5) fetchReported(selectedCommunityId);
+        if (activeTab === 3) loadLogs(selectedCommunityId);
+        if (activeTab === 4) fetchReported(selectedCommunityId);
     }, [selectedCommunityId]);
 
     const handleUserSubmit = async (e) => {
@@ -237,7 +240,7 @@ function SuperAdminDashboard({ user, onSwitchCommunity }) {
                             return (
                                 <div key={c.id} style={styles.card}>
                                     <div 
-                                        style={{ display: 'flex', justifyContent: 'space-between', cursor: 'pointer', paddingBottom: isExpanded ? '10px' : '0', borderBottom: isExpanded ? '1px solid #334155' : 'none', marginBottom: isExpanded ? '10px' : '0' }}
+                                        style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', paddingBottom: isExpanded ? '10px' : '0', borderBottom: isExpanded ? '1px solid #334155' : 'none', marginBottom: isExpanded ? '10px' : '0' }}
                                         onClick={() => setExpandedCommId(isExpanded ? null : c.id)}
                                     >
                                         <div>
