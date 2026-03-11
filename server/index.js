@@ -575,6 +575,26 @@ app.delete('/api/superadmin/houses/:id', authenticate, async (req, res) => {
     } catch (error) { res.status(500).json({ success: false }); }
 });
 
+// Update House Community (SuperAdmin)
+app.put('/api/superadmin/houses/:id', authenticate, async (req, res) => {
+    if (req.user.role !== 'global_admin') return res.status(403).json({ success: false });
+    try {
+        const id = req.params.id;
+        const { communityId } = req.body;
+        
+        let house = await House.findOne({ id: id });
+        if (!house) house = await House.findById(id);
+        
+        if (!house) return res.status(404).json({ success: false, message: 'Casa no encontrada' });
+
+        house.communityId = communityId;
+        await house.save();
+
+        io.emit('house_updated', house);
+        res.json({ success: true, house });
+    } catch (error) { res.status(500).json({ success: false }); }
+});
+
 async function seedSuperAdmin() {
     try {
         const adminPhone = 'superadmin';

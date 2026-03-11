@@ -78,10 +78,12 @@ function SuperAdminDashboard({ user, onSwitchCommunity }) {
 
     useEffect(() => {
         fetchCommunities();
+        fetchAllHouses();
+        fetchUsers();
     }, []);
 
     useEffect(() => {
-        if (activeTab === 0) fetchCommunities();
+        if (activeTab === 0) { fetchCommunities(); fetchAllHouses(); fetchUsers(); }
         if (activeTab === 1) fetchUsers();
         if (activeTab === 2) fetchAllHouses();
         if (activeTab === 4) loadLogs(selectedCommunityId);
@@ -160,6 +162,32 @@ function SuperAdminDashboard({ user, onSwitchCommunity }) {
         }
     };
 
+    const changeHouseCommunity = async (houseId, targetCommunityId) => {
+        if (!targetCommunityId) return;
+        const comm = communities.find(c => c.id === targetCommunityId);
+        if (!comm) return;
+        
+        if (!window.confirm(`¿Mover esta casa a la comunidad "${comm.name}"?`)) return;
+
+        try {
+            const data = await safeFetch(`${import.meta.env.VITE_API_URL || ''}/api/superadmin/houses/${houseId}`, {
+                method: 'PUT',
+                body: JSON.stringify({ communityId: targetCommunityId })
+            });
+
+            if (data.success) {
+                fetchAllHouses();
+            } else {
+                alert('Error al mover: ' + (data.message || 'Desconocido'));
+            }
+        } catch (error) {
+            alert('Error de conexión.');
+        }
+    };
+
+    // Collapse state for communities in Tab 0
+    const [expandedCommId, setExpandedCommId] = useState(null);
+
     const styles = {
         card: { background: '#1e293b', padding: '16px', borderRadius: '12px', border: '1px solid #334155', marginBottom: '12px' },
         btn: (color) => ({ background: color, border: 'none', color: 'white', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }),
@@ -198,21 +226,74 @@ function SuperAdminDashboard({ user, onSwitchCommunity }) {
                 {/* === COMUNIDADES === */}
                 {activeTab === 0 && (
                     <div>
-                        {communities.map(c => (
-                            <div key={c.id} style={styles.card}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                    <div>
-                                        <h3 style={{ margin: 0, color: '#fbbf24' }}>{c.name}</h3>
-                                        <p style={{ fontSize: '0.85em', color: '#94a3b8' }}>ID: {c.id} | Members: {c.memberCount}</p>
+                        <p style={{ color: '#94a3b8', fontSize: '0.85em', marginBottom: '15px' }}>Toca en una comunidad para ver y administrar sus casas.</p>
+                        {communities.map(c => {
+                            const commHouses = houses.filter(h => h.communityId === c.id);
+                            const isExpanded = expandedCommId === c.id;
+
+                            return (
+                                <div key={c.id} style={styles.card}>
+                                    <div 
+                                        style={{ display: 'flex', justifyContent: 'space-between', cursor: 'pointer', paddingBottom: isExpanded ? '10px' : '0', borderBottom: isExpanded ? '1px solid #334155' : 'none', marginBottom: isExpanded ? '10px' : '0' }}
+                                        onClick={() => setExpandedCommId(isExpanded ? null : c.id)}
+                                    >
+                                        <div>
+                                            <h3 style={{ margin: 0, color: '#fbbf24' }}>{isExpanded ? '▼' : '▶'} {c.name}</h3>
+                                            <p style={{ fontSize: '0.85em', color: '#94a3b8', marginLeft: '20px' }}>ID: {c.id} | Vecinos: {c.memberCount} | Casas: {commHouses.length}</p>
+                                        </div>
+                                        <div style={{ display: 'flex', gap: '6px' }} onClick={e => e.stopPropagation()}>
+                                            <button style={styles.smallBtn('#3b82f6')} onClick={() => onSwitchCommunity(c.id, c.name, c.center)}>🗺️ Ir</button>
+                                            <button style={styles.smallBtn('#64748b')} onClick={() => { setEditingComm(c); setCommForm({ name: c.name, telegramBotToken: c.telegramBotToken || '', center: c.center }); setShowCommModal(true); }}>✏️ Editar</button>
+                                            <button style={styles.smallBtn('#ef4444')} onClick={() => deleteComm(c.id)}>🗑️</button>
+                                        </div>
                                     </div>
-                                    <div style={{ display: 'flex', gap: '6px' }}>
-                                        <button style={styles.smallBtn('#3b82f6')} onClick={() => onSwitchCommunity(c.id, c.name, c.center)}>🗺️ Ir</button>
-                                        <button style={styles.smallBtn('#64748b')} onClick={() => { setEditingComm(c); setCommForm({ name: c.name, telegramBotToken: c.telegramBotToken || '', center: c.center }); setShowCommModal(true); }}>✏️ Editar</button>
-                                        <button style={styles.smallBtn('#ef4444')} onClick={() => deleteComm(c.id)}>🗑️</button>
-                                    </div>
+
+                                    {/* EXPANDED HOUSES VIEW */}
+                                    {isExpanded && (
+                                        <div style={{ paddingLeft: '20px', marginTop: '10px' }}>
+                                            {commHouses.length === 0 ? (
+                                                <p style={{ fontSize: '0.85em', color: '#64748b' }}>No hay casas en esta comunidad.</p>
+                                            ) : (
+                                                <div style={{ display: 'grid', gap: '8px' }}>
+                                                    {commHouses.sort((a,b) => a.number && b.number ? a.number.localeCompare(b.number, undefined, {numeric:true}) : 0).map(h => {
+                                                        const inhabitants = users.filter(u => u.mapLabel === h.number || u.phone === h.owner);
+                                                        const statusColor = h.status === 'admin' ? '#22c55e' : (h.status === 'inhabited' ? '#3b82f6' : '#64748b');
+                                                        
+                                                        return (
+                                                            <div key={h.id || h._id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#0f172a', padding: '10px', borderRadius: '8px', borderLeft: `4px solid ${statusColor}` }}>
+                                                                <div>
+                                                                    <strong>Casa #{h.number}</strong>
+                                                                    {inhabitants.length > 0 ? (
+                                                                        <div style={{ fontSize: '0.8em', color: '#cbd5e1', marginTop: '4px' }}>
+                                                                            Habitada por: {inhabitants.map(u => `${u.name} ${u.surname}`).join(', ')}
+                                                                        </div>
+                                                                    ) : (
+                                                                        <div style={{ fontSize: '0.8em', color: '#64748b', fontStyle: 'italic', marginTop: '4px' }}>Vacía</div>
+                                                                    )}
+                                                                </div>
+                                                                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                                                                    <select 
+                                                                        style={{ ...styles.input, marginBottom: 0, padding: '4px 8px', width: 'auto', fontSize: '0.8em', height: 'auto' }}
+                                                                        value={""}
+                                                                        onChange={(e) => changeHouseCommunity(h.id || h._id, e.target.value)}
+                                                                    >
+                                                                        <option value="" disabled>Mover a...</option>
+                                                                        {communities.filter(c2 => c2.id !== c.id).map(c2 => (
+                                                                            <option key={c2.id} value={c2.id}>{c2.name}</option>
+                                                                        ))}
+                                                                    </select>
+                                                                    <button style={styles.smallBtn('#ef4444')} onClick={() => deleteHouse(h.id || h._id)}>🗑️</button>
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 )}
 
@@ -244,7 +325,7 @@ function SuperAdminDashboard({ user, onSwitchCommunity }) {
                 {/* === CASAS === */}
                 {activeTab === 2 && (
                     <div>
-                        <p style={{ color: '#94a3b8', fontSize: '0.85em', marginBottom: '15px' }}>Desde aquí puedes eliminar casas registradas (incluyendo deshabitadas).</p>
+                        <p style={{ color: '#94a3b8', fontSize: '0.85em', marginBottom: '15px' }}>Listado global de casas. <br/>💡 <i>Tip: Ahora también puedes administrar las casas desde la pestaña "Comunidades", desplegando la comunidad deseada.</i></p>
                         {loading && <p>Cargando casas...</p>}
                         {houses.map(h => {
                             const houseId = h.id || h._id; // Robust ID handling

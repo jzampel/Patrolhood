@@ -2112,17 +2112,10 @@ function App() {
           <SuperAdminDashboard 
             user={user} 
             onSwitchCommunity={(id, name, center) => {
-              setUser(prev => ({ ...prev, communityId: id, communityName: name }));
+              setUser(prev => ({ ...prev, communityId: id, communityName: name, communityCenter: center }));
               setActiveTab('map');
               setIsSidebarOpen(false);
-              // Fly to community center on the map
-              if (center && mapRef.current) {
-                setTimeout(() => {
-                  if (mapRef.current) mapRef.current.flyTo(center, 17, { animate: true, duration: 1.5 });
-                }, 300);
-              } else if (mapRef.current) {
-                setMapFocusPosition(null); // reset any previous focus
-              }
+              setMapFocusPosition(null); // reset any previous focus so AutoCenter takes over
             }} 
           />
         )}
