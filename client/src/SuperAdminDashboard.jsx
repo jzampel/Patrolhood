@@ -336,7 +336,19 @@ function SuperAdminDashboard({ user, onSwitchCommunity }) {
                                             <h3 style={{ margin: 0 }}>🏠 Casa {h.number}</h3>
                                             <p style={{ fontSize: '0.85em', color: '#94a3b8' }}>{h.communityName} | Pos: {h.position?.[0]?.toFixed(4)}, {h.position?.[1]?.toFixed(4)}</p>
                                         </div>
-                                        <button style={styles.smallBtn('#ef4444')} onClick={() => deleteHouse(houseId)}>🗑️ Eliminar</button>
+                                        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                                            <select 
+                                                style={{ ...styles.input, marginBottom: 0, padding: '4px 8px', width: 'auto', fontSize: '0.8em', height: 'auto' }}
+                                                value={""}
+                                                onChange={(e) => changeHouseCommunity(houseId, e.target.value)}
+                                            >
+                                                <option value="" disabled>Mover a...</option>
+                                                {communities.map(c => (
+                                                    <option key={c.id} value={c.id}>{c.name}</option>
+                                                ))}
+                                            </select>
+                                            <button style={styles.smallBtn('#ef4444')} onClick={() => deleteHouse(houseId)}>🗑️ Eliminar</button>
+                                        </div>
                                     </div>
                                 </div>
                             );
