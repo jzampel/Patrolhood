@@ -3,13 +3,14 @@ import { safeFetch } from './api';
 
 const TABS = ['🏘️ Comunidades', '👥 Usuarios', '🚨 Alertas Activas', '📊 Auditoría', '🚩 Reportados'];
 
-function SuperAdminDashboard({ user, onSwitchCommunity, initialTab }) {
-    const [activeTab, setActiveTab] = useState(initialTab || 0);
+const SuperAdminDashboard = ({ user, initialTab = 0, onSwitchCommunity, activeAlerts = [] }) => {
+    const [activeTab, setActiveTab] = useState(initialTab);
 
     // Sync activeTab when initialTab changes from parent
     useEffect(() => {
         if (initialTab !== undefined) setActiveTab(initialTab);
     }, [initialTab]);
+
     const [communities, setCommunities] = useState([]);
     const [users, setUsers] = useState([]);
     const [houses, setHouses] = useState([]);
@@ -411,9 +412,46 @@ function SuperAdminDashboard({ user, onSwitchCommunity, initialTab }) {
                 )}
 
                 {/* === ALERTAS ACTIVAS === */}
-                {activeTab === 2 && (<div>
-                    {/* Content for original activeTab 3 (Alertas Activas) */}
-                </div>)}
+                {activeTab === 2 && (
+                    <div style={{ display: 'grid', gap: '15px' }}>
+                        {activeAlerts.length === 0 ? (
+                            <div style={{ ...styles.card, textAlign: 'center', padding: '40px' }}>
+                                <div style={{ fontSize: '3rem', marginBottom: '10px' }}>✅</div>
+                                <h3 style={{ margin: 0, color: '#94a3b8' }}>No hay alertas activas en ninguna comunidad.</h3>
+                            </div>
+                        ) : (
+                            activeAlerts.map(alert => (
+                                <div key={alert._id || alert.alertId} style={{ ...styles.card, borderLeft: alert.emergencyType === 'lost_pet' ? '6px solid #fbbf24' : '6px solid #ef4444', animation: 'pulse-border 2s infinite' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                        <div>
+                                            <div style={{ fontSize: '0.7em', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '1px' }}>🏢 {alert.communityName}</div>
+                                            <h2 style={{ margin: '5px 0', color: alert.emergencyType === 'lost_pet' ? '#fbbf24' : '#ef4444', fontSize: '1.4rem' }}>
+                                                {alert.emergencyType === 'lost_pet' ? '🐾 MASCOTA PERDIDA' : `🚨 ${alert.emergencyTypeLabel.toUpperCase()}`}
+                                            </h2>
+                                            <div style={{ fontWeight: 'bold', fontSize: '1.1rem' }}>Casa #{alert.houseNumber} - {alert.userName}</div>
+                                            <div style={{ fontSize: '0.8em', color: '#64748b', marginTop: '5px' }}>⏰ {new Date(alert.timestamp).toLocaleString()}</div>
+                                        </div>
+                                        <button 
+                                            style={styles.btn(alert.emergencyType === 'lost_pet' ? '#fbbf24' : '#ef4444')} 
+                                            onClick={() => onSwitchCommunity(alert.communityId, alert.communityName, alert.location ? [alert.location.lat, alert.location.lng] : null)}
+                                        >
+                                            📍 Ver en Mapa
+                                        </button>
+                                    </div>
+                                    {alert.petInfo && (
+                                        <div style={{ marginTop: '15px', padding: '10px', background: 'rgba(251, 191, 36, 0.1)', borderRadius: '8px', border: '1px solid rgba(251, 191, 36, 0.3)', display: 'flex', gap: '15px' }}>
+                                            {alert.petInfo.photo && <img src={alert.petInfo.photo} alt="Mascota" style={{ width: '80px', height: '80px', borderRadius: '8px', objectFit: 'cover' }} />}
+                                            <div>
+                                                <div style={{ fontWeight: 'bold', color: '#fbbf24' }}>{alert.petInfo.name} ({alert.petInfo.breed})</div>
+                                                <div style={{ fontSize: '0.9em', fontStyle: 'italic' }}>"{alert.petInfo.traits}"</div>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            ))
+                        )}
+                    </div>
+                )}
 
                 {/* === AUDITORÍA / REPORTADOS === */}
                 {(activeTab === 3 || activeTab === 4) && (

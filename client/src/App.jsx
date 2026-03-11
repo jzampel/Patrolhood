@@ -494,7 +494,7 @@ function Forum({ user, allCommunities, onSwitchCommunity }) {
           ))}
         </div>
         {user.role === 'global_admin' && allCommunities && allCommunities.length > 0 && (
-          <div className="community-selector-forum">
+          <div className="community-selector-forum" style={{ marginTop: '0', borderTop: 'none', borderTopLeftRadius: '0', borderTopRightRadius: '0' }}>
             <label style={{ fontSize: '0.7em', color: '#94a3b8', display: 'block', marginBottom: '4px', fontWeight: 'bold' }}>📍 COMUNIDAD ACTUAL</label>
             <select 
               value={user.communityId} 
@@ -1010,6 +1010,9 @@ function App() {
     if (user?.communityId) {
       socket.emit('join_community', user.communityId)
     }
+    if (user?.role === 'global_admin') {
+      socket.emit('join_community', 'global_admins')
+    }
 
     // Sockets for live updates
     socket.on('house_updated', (newHouse) => {
@@ -1023,6 +1026,18 @@ function App() {
         }
         return [...prev, newHouse]
       })
+      // Global Admin: Also update the background communities markers
+      if (user?.role === 'global_admin') {
+        setAllCommunitiesHouses(prev => {
+          const index = prev.findIndex(h => String(h.id) === String(newHouse.id))
+          if (index !== -1) {
+            const updated = [...prev]
+            updated[index] = newHouse
+            return updated
+          }
+          return [...prev, newHouse]
+        })
+      }
     })
 
     socket.on('houses_cleared', () => {
@@ -1969,21 +1984,30 @@ function App() {
               {/* Global admin: show all communities' markers in a different style */}
               {user.role === 'global_admin' && allCommunitiesHouses
                 .filter(h => h.communityId !== user.communityId) // avoid duplicates with current community
-                .map(h => (
-                  <Marker
-                    key={`all-${h.id}`}
-                    position={h.position}
-                    icon={createHouseIcon(h.number, h.status || 'empty', null)}
-                  >
-                    <Popup className="house-popup">
-                      <div className="popup-content">
-                        <strong>🏠 #{h.number}</strong>
-                        <p style={{ fontSize: '0.8em', color: '#888' }}>📍 {h.communityName}</p>
-                        <p style={{ fontSize: '0.8em', color: '#fbbf24' }}>Status: {h.status}</p>
-                      </div>
-                    </Popup>
-                  </Marker>
-                ))
+                .map(h => {
+                  const activeAlert = activeAlerts.find(a => a.houseNumber === h.number && a.communityId === h.communityId);
+                  const status = activeAlert ? 'sos' : (h.status || 'empty');
+                  return (
+                    <Marker
+                      key={`all-${h.id}`}
+                      position={h.position}
+                      icon={createHouseIcon(h.number, status, activeAlert?.emergencyType)}
+                    >
+                      <Popup className="house-popup">
+                        <div className="popup-content">
+                          <strong>🏠 #{h.number}</strong>
+                          <p style={{ fontSize: '0.8em', color: '#888' }}>📍 {h.communityName}</p>
+                          <p style={{ fontSize: '0.8em', color: '#fbbf24' }}>Status: {status}</p>
+                          {activeAlert && (
+                            <div className={activeAlert.emergencyType === 'lost_pet' ? "popup-alert pet" : "popup-alert"} style={{ marginBottom: '10px' }}>
+                              {activeAlert.emergencyType === 'lost_pet' ? '🐾 ¡MASCOTA PERDIDA!' : '🚨 ¡EMERGENCIA ACTIVA!'}
+                            </div>
+                          )}
+                        </div>
+                      </Popup>
+                    </Marker>
+                  );
+                })
               }
               {houses.map(h => {
                 const inhabitants = users.filter(u => u.mapLabel === h.number || u.phone === h.owner); // Match by label or legacy owner
@@ -1992,7 +2016,7 @@ function App() {
                 // Determine Status
                 let status = 'empty';
                 const isMine = user.mapLabel === h.number;
-                const activeAlert = activeAlerts.find(a => a.houseNumber === h.number);
+                const activeAlert = activeAlerts.find(a => a.houseNumber === h.number && (a.communityId === h.communityId || a.communityId === user.communityId));
                 const isSos = !!activeAlert;
 
                 if (isSos) status = 'sos';
@@ -2146,6 +2170,7 @@ function App() {
         {(activeTab === 'sa-communities' || activeTab === 'sa-users' || activeTab === 'sa-alerts' || activeTab === 'sa-audit' || activeTab === 'sa-reported') && (
           <SuperAdminDashboard 
             user={user} 
+            activeAlerts={activeAlerts}
             initialTab={
               activeTab === 'sa-communities' ? 0 :
               activeTab === 'sa-users' ? 1 :
@@ -2159,7 +2184,7 @@ function App() {
               if (center && center.length === 2 && mapRef.current) {
                   mapRef.current.flyTo(center, 18);
               }
-              setMapFocusPosition(null); // reset any previous focus so AutoCenter takes over
+              setMapFocusPosition(null); 
             }} 
           />
         )}

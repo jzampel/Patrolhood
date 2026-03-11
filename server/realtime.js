@@ -39,6 +39,12 @@ subClient.subscribe('SOCKET_UPDATE', (message) => {
 
         // Broadcast to the whole community (across all Socket.io nodes)
         io.to(communityId).emit(event, payload);
+
+        // EXTRA: If it's an emergency, also broadcast to global_admins room
+        if (event === 'emergency_alert' || event === 'stop_alert') {
+            io.to('global_admins').emit(event, payload);
+        }
+
         console.log(`📡 [Bridge] Socket Event: ${event} for community ${communityId}`);
     } catch (e) { console.error('Bridge Error:', e); }
 });
