@@ -207,27 +207,15 @@ function SuperAdminDashboard({ user, onSwitchCommunity }) {
         <div style={{ padding: '20px', color: 'white' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
-                    <h1 style={{ color: '#fbbf24', margin: 0 }}>💎 DASHBOARD MASTER</h1>
+                    <h1 style={{ color: '#fbbf24', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>💎 DASHBOARD MASTER</h1>
                     <p style={{ color: '#94a3b8' }}>Super Admin: {user.name}</p>
-                </div>
-                <div style={{ display: 'flex', gap: '10px' }}>
-                    <button style={styles.btn('#3b82f6')} onClick={() => { 
-                        setEditingComm(null); 
-                        setCommForm({ name: '', telegramBotToken: '', center: [40.4168, -3.7038] }); 
-                        setShowCommModal(true); 
-                    }}>+ Nueva Comunidad</button>
-                    <button style={styles.btn('#059669')} onClick={() => { 
-                        setEditingUser(null); 
-                        setUserForm({ name: '', surname: '', phone: '', email: '', password: '', role: 'user', communityId: communities[0]?.id || '', mapLabel: '', address: '' }); 
-                        setShowUserModal(true); 
-                    }}>+ Nuevo Usuario</button>
                 </div>
             </div>
 
-            <div className="dashboard-tabs" style={{ marginTop: '20px', display: 'flex', gap: '10px', borderBottom: '1px solid #334155', paddingBottom: '10px', overflowX: 'auto' }}>
+            <div className="dashboard-tabs" style={{ marginTop: '20px', display: 'flex', gap: '5px', borderBottom: '1px solid #334155', paddingBottom: '10px', overflowX: 'auto', alignItems: 'center' }}>
                 {TABS.map((t, i) => (
                     <button key={i} onClick={() => setActiveTab(i)}
-                        style={{ background: activeTab === i ? '#fbbf24' : 'transparent', color: activeTab === i ? '#000' : '#94a3b8', border: 'none', padding: '10px 15px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', whiteSpace: 'nowrap' }}>
+                        style={{ background: activeTab === i ? '#fbbf24' : 'transparent', color: activeTab === i ? '#000' : '#94a3b8', border: 'none', padding: '10px 12px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', whiteSpace: 'nowrap', fontSize: '0.9em' }}>
                         {t}
                     </button>
                 ))}
@@ -237,7 +225,14 @@ function SuperAdminDashboard({ user, onSwitchCommunity }) {
                 {/* === COMUNIDADES === */}
                 {activeTab === 0 && (
                     <div>
-                        <p style={{ color: '#94a3b8', fontSize: '0.85em', marginBottom: '15px' }}>Toca en una comunidad para ver y administrar sus casas.</p>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+                            <p style={{ color: '#94a3b8', fontSize: '0.85em', margin: 0 }}>Toca en una comunidad para ver y administrar sus casas.</p>
+                            <button style={styles.btn('#3b82f6')} onClick={() => { 
+                                setEditingComm(null); 
+                                setCommForm({ name: '', telegramBotToken: '', center: [40.4168, -3.7038] }); 
+                                setShowCommModal(true); 
+                            }}>+ Nueva Comunidad</button>
+                        </div>
                         {communities.map(c => {
                             const commHouses = houses.filter(h => h.communityId === c.id);
                             const isExpanded = expandedCommId === c.id;
@@ -311,7 +306,14 @@ function SuperAdminDashboard({ user, onSwitchCommunity }) {
                 {/* === USUARIOS === */}
                 {activeTab === 1 && (
                     <div>
-                        <input style={styles.input} placeholder="Buscar usuarios..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} onKeyDown={e => e.key === 'Enter' && fetchUsers(searchQuery)} />
+                        <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
+                            <input style={{...styles.input, marginBottom: 0}} placeholder="Buscar usuarios..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} onKeyDown={e => e.key === 'Enter' && fetchUsers(searchQuery)} />
+                            <button style={{...styles.btn('#059669'), whiteSpace: 'nowrap'}} onClick={() => { 
+                                setEditingUser(null); 
+                                setUserForm({ name: '', surname: '', phone: '', email: '', password: '', role: 'user', communityId: communities[0]?.id || '', mapLabel: '', address: '' }); 
+                                setShowUserModal(true); 
+                            }}>+ Nuevo Usuario</button>
+                        </div>
                         
                         {communities.map(c => {
                             const commUsers = users.filter(u => u.communityId === c.id && u.name.toLowerCase().includes(searchQuery.toLowerCase()));
@@ -479,9 +481,9 @@ function SuperAdminDashboard({ user, onSwitchCommunity }) {
             {showCommModal && (
                 <div style={styles.modal}>
                     <form style={styles.modalContent} onSubmit={handleCommSubmit}>
-                        <h2 style={{ color: '#fbbf24' }}>Editar Comunidad</h2>
+                        <h2 style={{ color: '#fbbf24' }}>{editingComm ? 'Editar Comunidad' : 'Nueva Comunidad'}</h2>
                         <input style={styles.input} placeholder="Nombre Comunidad" value={commForm.name} onChange={e => setCommForm({...commForm, name: e.target.value})} required />
-                        <input style={styles.input} placeholder="Telegram Bot Token" value={commForm.telegramBotToken} onChange={e => setCommForm({...commForm, telegramBotToken: e.target.value})} />
+                        <input style={styles.input} placeholder="Telegram Bot Token (Opcional, configurar más tarde)" value={commForm.telegramBotToken} onChange={e => setCommForm({...commForm, telegramBotToken: e.target.value})} />
                         
                         <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
                             <button type="button" style={styles.btn('#475569')} onClick={() => setShowCommModal(false)}>Cancelar</button>
