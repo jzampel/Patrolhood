@@ -212,7 +212,13 @@ function SuperAdminDashboard({ user, onSwitchCommunity, initialTab }) {
         <div style={{ padding: '20px', color: 'white' }} className="sa-dashboard-wrapper">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }} className="sa-header-alignment">
                 <div>
-                    <h1 style={{ color: '#fbbf24', margin: 0, display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.5rem' }}>💎 PANEL MASTER</h1>
+                    <h1 style={{ color: '#fbbf24', margin: 0, display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.5rem', textTransform: 'uppercase' }}>
+                        {activeTab === 0 ? '🏘️ Comunidades' : 
+                         activeTab === 1 ? '👥 Usuarios' : 
+                         activeTab === 2 ? '🚨 Alertas' : 
+                         activeTab === 3 ? '📊 Auditoría' : 
+                         activeTab === 4 ? '🚩 Reportados' : 'Super Admin'}
+                    </h1>
                     <p style={{ color: '#94a3b8', fontSize: '0.9rem' }}>Super Admin: {user.name}</p>
                 </div>
             </div>

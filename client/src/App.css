@@ -651,17 +651,16 @@ textarea {
 }
 
 .community-selector-forum {
-  background: rgba(15, 23, 42, 0.6) !important;
-  backdrop-filter: blur(12px) !important;
-  border: 1px solid rgba(251, 191, 36, 0.3) !important;
+  background: #1e293b !important;
+  border: 1px solid #334155 !important;
   border-radius: 12px !important;
-  padding: 12px !important;
+  padding: 15px !important;
   margin-top: 15px !important;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important;
 }
 
 .community-selector-forum select {
-  box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+  box-shadow: none;
 }
 
 .map-container {
