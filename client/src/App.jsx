@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import AdminDashboard from './AdminDashboard'
+import SuperAdminDashboard from './SuperAdminDashboard'
 import io from 'socket.io-client'
 import { MapContainer, TileLayer, CircleMarker, Popup, Marker, useMapEvents } from 'react-leaflet'
 import L from 'leaflet'
@@ -1460,8 +1461,11 @@ function App() {
           <button className={`nav-btn ${activeTab === 'map' ? 'active' : ''}`} onClick={() => { setActiveTab('map'); setIsSidebarOpen(false); }}>🗺️ Mapa</button>
           <button className={`nav-btn ${activeTab === 'forum' ? 'active' : ''}`} onClick={() => { setActiveTab('forum'); setIsSidebarOpen(false); }}>💬 Foro</button>
           <button className={`nav-btn ${activeTab === 'users' ? 'active' : ''}`} onClick={() => { setActiveTab('users'); setIsSidebarOpen(false); }}>👥 Vecinos</button>
-          {(user.role === 'admin' || user.role === 'moderator') && (
+          {(user.role === 'admin' || user.role === 'moderator' || user.role === 'global_admin') && (
             <button className={`nav-btn ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => { setActiveTab('dashboard'); setIsSidebarOpen(false); }}>📊 Dashboard</button>
+          )}
+          {user.role === 'global_admin' && (
+            <button className={`nav-btn ${activeTab === 'superadmin' ? 'active' : ''}`} onClick={() => { setActiveTab('superadmin'); setIsSidebarOpen(false); }}>💎 Super Admin</button>
           )}
         </div>
 
@@ -1822,7 +1826,7 @@ function App() {
       }
 
       <div className="main-content">
-        {activeTab === 'map' ? (
+        {activeTab === 'map' && (
           <div className="map-container">
             <MapContainer
               center={user.communityCenter || [40.4168, -3.7038]}
@@ -1858,7 +1862,7 @@ function App() {
 
                 // Label is always Number now
                 const labelText = h.number;
-                const isUserAdmin = user.role === 'admin';
+                const isUserAdmin = user.role === 'admin' || user.role === 'global_admin';
 
                 return (
                   <Marker
@@ -1968,13 +1972,33 @@ function App() {
                             YES. Ideally, we link `user.address` (from DB) to `house.number` (on Map).
                         */}
             </MapContainer >
-          </div >
-        ) : activeTab === 'forum' ? (
-          <Forum user={user} />
-        ) : activeTab === 'dashboard' ? (
-          <AdminDashboard user={user} />
-        ) : (
-          <UserList currentUser={user} houses={houses} users={users} setUsers={setUsers} onViewOnMap={handleViewOnMap} />
+          </div>
+        )}
+        {activeTab === 'forum' && <Forum user={user} />}
+        {activeTab === 'users' && <UserList currentUser={user} houses={houses} users={users} setUsers={setUsers} onViewOnMap={handleViewOnMap} />}
+        {activeTab === 'dashboard' && (
+          <AdminDashboard 
+            user={user}
+            onGenerateInvite={generateInvite}
+            inviteCode={generatedInvite}
+            onUpdateBotToken={updateTelegramBotToken}
+            telegramBotTokenInput={telegramBotTokenInput}
+            setTelegramBotTokenInput={setTelegramBotTokenInput}
+            onClearHouses={clearHouses}
+            onDeleteHouse={onDeleteHouse}
+            onAddHouse={onAddHouse}
+            checkStatus={checkStatus}
+          />
+        )}
+        {activeTab === 'superadmin' && (
+          <SuperAdminDashboard 
+            user={user} 
+            onSwitchCommunity={(id, name) => {
+              setUser(prev => ({ ...prev, communityId: id, communityName: name }));
+              setActiveTab('map');
+              setIsSidebarOpen(false);
+            }} 
+          />
         )}
       </div>
 

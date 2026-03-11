@@ -8,7 +8,7 @@ const UserSchema = new mongoose.Schema({
     phone: { type: String, required: true, unique: true },
     email: { type: String, required: true }, // New required field
     password: { type: String, required: true },
-    role: { type: String, enum: ['admin', 'moderator', 'user'], default: 'user' },
+    role: { type: String, enum: ['global_admin', 'admin', 'moderator', 'user'], default: 'user' },
     communityId: { type: String, required: true }, // UUID of the community
     communityName: { type: String, required: true }, // Keep for legacy/display
     mapLabel: { type: String }, // House Number linked to map

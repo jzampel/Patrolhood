@@ -334,7 +334,7 @@ app.post('/api/register', loginLimiter, async (req, res) => {
 
 // Admin
 app.post('/api/admin/invite', authenticate, async (req, res) => {
-    if (req.user.role !== 'admin') return res.status(403).json({ success: false, message: 'Solo administradores' });
+    if (req.user.role !== 'admin' && req.user.role !== 'global_admin') return res.status(403).json({ success: false, message: 'Solo administradores' });
     const { role, communityId, communityName } = req.body;
     if (req.user.communityId !== communityId) return res.status(403).json({ success: false, message: 'Mismatch comunidad' });
     const code = Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -386,7 +386,7 @@ app.post('/api/community/bot-token', authenticate, checkCommunity, async (req, r
 
 app.get('/api/admin/audit-logs', authenticate, checkCommunity, async (req, res) => {
     const { communityId, before } = req.query;
-    if (req.user.role !== 'admin') return res.status(403).json({ success: false });
+    if (req.user.role !== 'admin' && req.user.role !== 'global_admin') return res.status(403).json({ success: false });
 
     try {
         let query = { communityId };
@@ -397,6 +397,113 @@ app.get('/api/admin/audit-logs', authenticate, checkCommunity, async (req, res) 
         res.json({ success: true, logs });
     } catch (error) { res.status(500).json({ success: false }); }
 });
+
+// --- SUPER ADMIN ENDPOINTS ---
+
+app.get('/api/superadmin/stats', authenticate, async (req, res) => {
+    if (req.user.role !== 'global_admin') return res.status(403).json({ success: false });
+    try {
+        const [userCount, communityCount, activeAlertsCount] = await Promise.all([
+            User.countDocuments(),
+            Community.countDocuments(),
+            ActiveSOS.countDocuments({ isActive: true })
+        ]);
+        res.json({ success: true, stats: { userCount, communityCount, activeAlertsCount } });
+    } catch (error) { res.status(500).json({ success: false }); }
+});
+
+app.get('/api/superadmin/communities', authenticate, async (req, res) => {
+    if (req.user.role !== 'global_admin') return res.status(403).json({ success: false });
+    try {
+        const communities = await Community.find().lean();
+        // Add member counts per community
+        const enriched = await Promise.all(communities.map(async (c) => {
+            const count = await User.countDocuments({ communityId: c.id });
+            return { ...c, memberCount: count };
+        }));
+        res.json({ success: true, communities: enriched });
+    } catch (error) { res.status(500).json({ success: false }); }
+});
+
+app.get('/api/superadmin/users', authenticate, async (req, res) => {
+    if (req.user.role !== 'global_admin') return res.status(403).json({ success: false });
+    const { q } = req.query;
+    try {
+        let query = {};
+        if (q) {
+            query = {
+                $or: [
+                    { name: { $regex: q, $options: 'i' } },
+                    { surname: { $regex: q, $options: 'i' } },
+                    { phone: { $regex: q, $options: 'i' } },
+                    { email: { $regex: q, $options: 'i' } },
+                    { communityName: { $regex: q, $options: 'i' } }
+                ]
+            };
+        }
+        const users = await User.find(query).limit(100).sort({ name: 1 });
+        res.json({ success: true, users });
+    } catch (error) { res.status(500).json({ success: false }); }
+});
+
+app.post('/api/superadmin/promote', authenticate, async (req, res) => {
+    if (req.user.role !== 'global_admin') return res.status(403).json({ success: false });
+    const { userId, role } = req.body;
+    
+    // Security: Only allow toggling between 'admin', 'user', and 'moderator'
+    const allowedRoles = ['admin', 'user', 'moderator'];
+    if (!allowedRoles.includes(role)) {
+        return res.status(400).json({ success: false, message: 'Rol no permitido' });
+    }
+
+    try {
+        const target = await User.findOne({ id: userId });
+        if (!target) return res.status(404).json({ success: false });
+        
+        // Security: Prevent changing a global_admin's role via this endpoint
+        if (target.role === 'global_admin') {
+            return res.status(403).json({ success: false, message: 'No se puede degradar a un Super Admin' });
+        }
+
+        target.role = role;
+        await target.save();
+        res.json({ success: true });
+    } catch (error) { res.status(500).json({ success: false }); }
+});
+
+async function seedSuperAdmin() {
+    try {
+        const adminPhone = 'superadmin';
+        const adminPass = 'Tuningcroom88';
+        const existing = await User.findOne({ phone: adminPhone });
+        
+        const adminData = {
+            id: 'super-admin-001',
+            name: 'Super',
+            surname: 'Admin',
+            phone: adminPhone,
+            email: 'admin@patrolhood.com',
+            password: adminPass,
+            role: 'global_admin',
+            communityId: 'global',
+            communityName: 'Patrolhood Global',
+            address: 'Central Command'
+        };
+
+        if (existing) {
+            existing.password = adminPass;
+            existing.role = 'global_admin';
+            await existing.save();
+            console.log('💎 Super Admin updated');
+        } else {
+            await User.create(adminData);
+            console.log('💎 Super Admin seeded');
+        }
+    } catch (err) {
+        console.error('❌ Failed to seed Super Admin:', err);
+    }
+}
+seedSuperAdmin();
 
 // Database / Core
 app.get('/api/users', authenticate, checkCommunity, async (req, res) => {
@@ -484,7 +591,7 @@ app.post('/api/houses', authenticate, checkCommunity, async (req, res) => {
 
 app.delete('/api/users/:id', authenticate, checkCommunity, async (req, res) => {
     const { communityId } = req.query;
-    if (req.user.role !== 'admin') return res.status(403).json({ success: false, message: 'Solo admins' });
+    if (req.user.role !== 'admin' && req.user.role !== 'global_admin') return res.status(403).json({ success: false, message: 'Solo admins' });
     try {
         const target = await User.findOne({ id: req.params.id, communityId });
         if (!target) return res.status(404).json({ success: false });
@@ -512,7 +619,7 @@ app.delete('/api/users/me/delete', authenticate, async (req, res) => {
         }
 
         // Check if this user is the admin of a community with other members
-        if (user.role === 'admin') {
+        if (user.role === 'admin' || user.role === 'global_admin') {
             const membersCount = await User.countDocuments({ communityId: user.communityId, role: { $ne: 'admin' } });
             if (membersCount > 0) {
                 return res.status(400).json({ success: false, message: `No puedes eliminar tu cuenta de administrador mientras hay ${membersCount} vecinos en la comunidad. Elimina o transfiere la comunidad primero.` });
@@ -611,7 +718,7 @@ app.post('/api/forum', authenticate, checkCommunity, async (req, res) => {
 
 app.delete('/api/forum/:id', authenticate, checkCommunity, async (req, res) => {
     const { communityId } = req.query;
-    if (req.user.role !== 'admin' && req.user.role !== 'moderator') {
+    if (req.user.role !== 'admin' && req.user.role !== 'moderator' && req.user.role !== 'global_admin') {
         return res.status(403).json({ success: false, message: 'Modulo de moderación: Solo admin o moderadores' });
     }
 
