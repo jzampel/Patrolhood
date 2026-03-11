@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { safeFetch } from './api';
 
-const TABS = ['🏘️ Comunidades', '👥 Usuarios', '🏠 Casas', '🚨 Alertas Activas', '📊 Auditoría', '🚩 Reportados'];
+const TABS = ['🏘️ Comunidades', '👥 Usuarios', '🚨 Alertas Activas', '📊 Auditoría', '🚩 Reportados'];
 
 function SuperAdminDashboard({ user, onSwitchCommunity }) {
     const [activeTab, setActiveTab] = useState(0);
@@ -188,6 +188,9 @@ function SuperAdminDashboard({ user, onSwitchCommunity }) {
     // Collapse state for communities in Tab 0
     const [expandedCommId, setExpandedCommId] = useState(null);
 
+    // Collapse state for users by community in Tab 1
+    const [expandedUserCommId, setExpandedUserCommId] = useState(null);
+
     const styles = {
         card: { background: '#1e293b', padding: '16px', borderRadius: '12px', border: '1px solid #334155', marginBottom: '12px' },
         btn: (color) => ({ background: color, border: 'none', color: 'white', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }),
@@ -301,70 +304,103 @@ function SuperAdminDashboard({ user, onSwitchCommunity }) {
                 {activeTab === 1 && (
                     <div>
                         <input style={styles.input} placeholder="Buscar usuarios..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} onKeyDown={e => e.key === 'Enter' && fetchUsers(searchQuery)} />
-                        {users.map(u => (
-                            <div key={u.id} style={styles.card}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                    <div>
-                                        <h3 style={{ margin: 0 }}>{u.name} {u.surname} <span style={{ fontSize: '0.6em', background: '#334155', padding: '2px 6px', borderRadius: '4px' }}>{u.role}</span></h3>
-                                        <p style={{ fontSize: '0.85em', color: '#94a3b8' }}>{u.phone} | {u.communityName} | Casa: {u.mapLabel || '?'}</p>
-                                    </div>
-                                    <div style={{ display: 'flex', gap: '6px' }}>
-                                        <button style={styles.smallBtn('#64748b')} onClick={() => { 
-                                            setEditingUser(u); 
-                                            setUserForm({ name: u.name, surname: u.surname, phone: u.phone, email: u.email, role: u.role, communityId: u.communityId, mapLabel: u.mapLabel || '', address: u.address || '' }); 
-                                            setShowUserModal(true); 
-                                        }}>✏️</button>
-                                        <button style={styles.smallBtn('#ef4444')} onClick={() => deleteUser(u.id)}>🗑️</button>
-                                    </div>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                )}
+                        
+                        {communities.map(c => {
+                            const commUsers = users.filter(u => u.communityId === c.id && u.name.toLowerCase().includes(searchQuery.toLowerCase()));
+                            if (commUsers.length === 0 && !searchQuery) return null; // Hide empty if not searching
+                            
+                            const isExpanded = expandedUserCommId === c.id;
 
-                {/* === CASAS === */}
-                {activeTab === 2 && (
-                    <div>
-                        <p style={{ color: '#94a3b8', fontSize: '0.85em', marginBottom: '15px' }}>Listado global de casas. <br/>💡 <i>Tip: Ahora también puedes administrar las casas desde la pestaña "Comunidades", desplegando la comunidad deseada.</i></p>
-                        {loading && <p>Cargando casas...</p>}
-                        {houses.map(h => {
-                            const houseId = h.id || h._id; // Robust ID handling
                             return (
-                                <div key={houseId} style={styles.card}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                        <div>
-                                            <h3 style={{ margin: 0 }}>🏠 Casa {h.number}</h3>
-                                            <p style={{ fontSize: '0.85em', color: '#94a3b8' }}>{h.communityName} | Pos: {h.position?.[0]?.toFixed(4)}, {h.position?.[1]?.toFixed(4)}</p>
-                                        </div>
-                                        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                                            <select 
-                                                style={{ ...styles.input, marginBottom: 0, padding: '4px 8px', width: 'auto', fontSize: '0.8em', height: 'auto' }}
-                                                value={""}
-                                                onChange={(e) => changeHouseCommunity(houseId, e.target.value)}
-                                            >
-                                                <option value="" disabled>Mover a...</option>
-                                                {communities.map(c => (
-                                                    <option key={c.id} value={c.id}>{c.name}</option>
-                                                ))}
-                                            </select>
-                                            <button style={styles.smallBtn('#ef4444')} onClick={() => deleteHouse(houseId)}>🗑️ Eliminar</button>
-                                        </div>
+                                <div key={c.id} style={{ ...styles.card, marginBottom: '8px', padding: '12px' }}>
+                                    <div 
+                                        style={{ display: 'flex', justifyContent: 'space-between', cursor: 'pointer', paddingBottom: isExpanded ? '8px' : '0', borderBottom: isExpanded ? '1px solid #334155' : 'none', marginBottom: isExpanded ? '8px' : '0' }}
+                                        onClick={() => setExpandedUserCommId(isExpanded ? null : c.id)}
+                                    >
+                                        <h3 style={{ margin: 0, color: '#fbbf24', fontSize: '1.1em' }}>{isExpanded ? '▼' : '▶'} {c.name} ({commUsers.length})</h3>
                                     </div>
+
+                                    {isExpanded && (
+                                        <div style={{ paddingLeft: '20px', marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                            {commUsers.map(u => (
+                                                <div key={u.id} style={{ background: '#0f172a', padding: '10px', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                    <div>
+                                                        <span style={{ fontWeight: 'bold' }}>{u.name} {u.surname}</span> 
+                                                        <span style={{ fontSize: '0.7em', background: '#334155', padding: '2px 6px', borderRadius: '4px', marginLeft: '6px' }}>{u.role}</span>
+                                                        <p style={{ fontSize: '0.85em', color: '#94a3b8', margin: '4px 0 0' }}>{u.phone} | Casa: {u.mapLabel || '?'}</p>
+                                                    </div>
+                                                    <div style={{ display: 'flex', gap: '6px' }}>
+                                                        <button style={styles.smallBtn('#64748b')} onClick={() => { 
+                                                            setEditingUser(u); 
+                                                            setUserForm({ name: u.name, surname: u.surname, phone: u.phone, email: u.email, role: u.role, communityId: u.communityId, mapLabel: u.mapLabel || '', address: u.address || '' }); 
+                                                            setShowUserModal(true); 
+                                                        }}>✏️</button>
+                                                        <button style={styles.smallBtn('#ef4444')} onClick={() => deleteUser(u.id)}>🗑️</button>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                            {commUsers.length === 0 && <p style={{ fontSize: '0.85em', color: '#64748b' }}>No hay resultados.</p>}
+                                        </div>
+                                    )}
                                 </div>
                             );
                         })}
+
+                        {/* Unassigned / Orphan Users (just in case) */}
+                        {(() => {
+                            const orphanUsers = users.filter(u => !communities.find(c => c.id === u.communityId) && u.name.toLowerCase().includes(searchQuery.toLowerCase()));
+                            if (orphanUsers.length === 0) return null;
+                            const isExpanded = expandedUserCommId === 'orphan';
+                            
+                            return (
+                                <div style={{ ...styles.card, marginBottom: '8px', padding: '12px' }}>
+                                    <div 
+                                        style={{ display: 'flex', justifyContent: 'space-between', cursor: 'pointer', paddingBottom: isExpanded ? '8px' : '0', borderBottom: isExpanded ? '1px solid #334155' : 'none', marginBottom: isExpanded ? '8px' : '0' }}
+                                        onClick={() => setExpandedUserCommId(isExpanded ? null : 'orphan')}
+                                    >
+                                        <h3 style={{ margin: 0, color: '#ef4444', fontSize: '1.1em' }}>{isExpanded ? '▼' : '▶'} Sin Comunidad ({orphanUsers.length})</h3>
+                                    </div>
+                                    {isExpanded && (
+                                        <div style={{ paddingLeft: '20px', marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                            {orphanUsers.map(u => (
+                                                <div key={u.id} style={{ background: '#0f172a', padding: '10px', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                    <div>
+                                                        <span style={{ fontWeight: 'bold' }}>{u.name} {u.surname}</span> 
+                                                        <span style={{ fontSize: '0.7em', background: '#334155', padding: '2px 6px', borderRadius: '4px', marginLeft: '6px' }}>{u.role}</span>
+                                                        <p style={{ fontSize: '0.85em', color: '#94a3b8', margin: '4px 0 0' }}>{u.phone} | Casa: {u.mapLabel || '?'}</p>
+                                                    </div>
+                                                    <div style={{ display: 'flex', gap: '6px' }}>
+                                                        <button style={styles.smallBtn('#64748b')} onClick={() => { 
+                                                            setEditingUser(u); 
+                                                            setUserForm({ name: u.name, surname: u.surname, phone: u.phone, email: u.email, role: u.role, communityId: u.communityId, mapLabel: u.mapLabel || '', address: u.address || '' }); 
+                                                            setShowUserModal(true); 
+                                                        }}>✏️</button>
+                                                        <button style={styles.smallBtn('#ef4444')} onClick={() => deleteUser(u.id)}>🗑️</button>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })()}
                     </div>
                 )}
 
+                {/* === ALERTAS ACTIVAS === */}
+                {activeTab === 2 && (<div>
+                    {/* Content for original activeTab 3 (Alertas Activas) */}
+                </div>)}
+
                 {/* === AUDITORÍA / REPORTADOS === */}
-                {(activeTab === 4 || activeTab === 5) && (
+                {(activeTab === 3 || activeTab === 4) && (
                     <div>
                         <select style={styles.input} value={selectedCommunityId} onChange={e => setSelectedCommunityId(e.target.value)}>
                             {communities.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                         </select>
                         <hr style={{ border: '0.5px solid #334155', margin: '15px 0' }} />
                         
-                        {activeTab === 4 && (
+                        {activeTab === 3 && (
                             logsLoading ? <p>Cargando registros...</p> : (
                                 logs.length === 0 ? <p>Sin registros.</p> :
                                 logs.map(l => (
@@ -377,7 +413,7 @@ function SuperAdminDashboard({ user, onSwitchCommunity }) {
                             )
                         )}
 
-                        {activeTab === 5 && (
+                        {activeTab === 4 && (
                             reportedLoading ? <p>Cargando reportes...</p> : (
                                 reported.length === 0 ? <p>Sin reportes.</p> :
                                 reported.map(r => (
