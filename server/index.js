@@ -485,6 +485,68 @@ app.post('/api/superadmin/promote', authenticate, async (req, res) => {
     } catch (error) { res.status(500).json({ success: false }); }
 });
 
+// Create User (SuperAdmin)
+app.post('/api/superadmin/users', authenticate, async (req, res) => {
+    if (req.user.role !== 'global_admin') return res.status(403).json({ success: false });
+    const { name, surname, address, phone, email, password, role, communityId, communityName, mapLabel } = req.body;
+    try {
+        const existing = await User.findOne({ $or: [{ phone }, { email }] });
+        if (existing) return res.status(400).json({ success: false, message: 'Usuario ya existe' });
+
+        const newUser = new User({
+            id: Date.now().toString(),
+            name, surname, address, phone, email, password, role,
+            communityId, communityName, mapLabel
+        });
+        await newUser.save();
+        res.json({ success: true, user: newUser });
+    } catch (error) { res.status(500).json({ success: false, message: error.message }); }
+});
+
+// Edit User (SuperAdmin)
+app.put('/api/superadmin/users/:id', authenticate, async (req, res) => {
+    if (req.user.role !== 'global_admin') return res.status(403).json({ success: false });
+    try {
+        const user = await User.findOneAndUpdate({ id: req.params.id }, req.body, { new: true });
+        if (!user) return res.status(404).json({ success: false });
+        res.json({ success: true, user });
+    } catch (error) { res.status(500).json({ success: false }); }
+});
+
+// Delete User (SuperAdmin)
+app.delete('/api/superadmin/users/:id', authenticate, async (req, res) => {
+    if (req.user.role !== 'global_admin') return res.status(403).json({ success: false });
+    try {
+        await User.deleteOne({ id: req.params.id });
+        res.json({ success: true });
+    } catch (error) { res.status(500).json({ success: false }); }
+});
+
+// Edit Community (SuperAdmin)
+app.put('/api/superadmin/communities/:id', authenticate, async (req, res) => {
+    if (req.user.role !== 'global_admin') return res.status(403).json({ success: false });
+    try {
+        const community = await Community.findOneAndUpdate({ id: req.params.id }, req.body, { new: true });
+        if (!community) return res.status(404).json({ success: false });
+        res.json({ success: true, community });
+    } catch (error) { res.status(500).json({ success: false }); }
+});
+
+// Delete Community (SuperAdmin)
+app.delete('/api/superadmin/communities/:id', authenticate, async (req, res) => {
+    if (req.user.role !== 'global_admin') return res.status(403).json({ success: false });
+    try {
+        await Promise.all([
+            Community.deleteOne({ id: req.params.id }),
+            User.deleteMany({ communityId: req.params.id }),
+            House.deleteMany({ communityId: req.params.id }),
+            ForumMessage.deleteMany({ communityId: req.params.id }),
+            AuditLog.deleteMany({ communityId: req.params.id })
+        ]);
+        res.json({ success: true });
+    } catch (error) { res.status(500).json({ success: false }); }
+});
+
 async function seedSuperAdmin() {
     try {
         const adminPhone = 'superadmin';

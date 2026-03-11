@@ -360,12 +360,13 @@ function Forum({ user }) {
   const [shouldAutoScroll, setShouldAutoScroll] = useState(true)
   const bottomRef = useRef(null)
 
-  // ... (useEffect for messages - same as before) ...
+  // Fetch forum messages for current channel and community
   useEffect(() => {
+    if (!user?.communityId) return;
     setMessages([])
     setHasMore(true)
     setShouldAutoScroll(true)
-    const communityParam = user?.communityId ? `?communityId=${user.communityId}` : ''
+    const communityParam = `?communityId=${user.communityId}`
     safeFetch(`${import.meta.env.VITE_API_URL || ''}/api/forum/${activeChannel}${communityParam}`)
       .then(data => {
         if (data.success && data.messages) {
@@ -390,7 +391,7 @@ function Forum({ user }) {
       socket.off('forum_message', handleMsg)
       socket.off('forum_message_deleted', handleDelete)
     }
-  }, [activeChannel])
+  }, [activeChannel, user?.communityId])
 
   useEffect(() => {
     if (shouldAutoScroll) {
@@ -983,35 +984,6 @@ function App() {
   useEffect(() => {
     registerServiceWorker();
 
-    // Fetch houses from server
-    const communityParam = user?.communityId ? `?communityId=${user.communityId}` : ''
-    safeFetch(`${import.meta.env.VITE_API_URL || ''}/api/houses${communityParam}`)
-      .then(data => {
-        if (data.success && data.houses) setHouses(data.houses)
-      })
-      .catch(err => console.error('Error fetching houses:', err))
-
-    // Fetch users for map labels
-    safeFetch(`${import.meta.env.VITE_API_URL || ''}/api/users${communityParam}`)
-      .then(data => {
-        if (data.success && data.users) setUsers(data.users)
-      })
-      .catch(err => console.error('Error fetching users:', err))
-
-    // Fetch dynamic contacts
-    safeFetch(`${import.meta.env.VITE_API_URL || ''}/api/contacts${communityParam}`)
-      .then(data => {
-        if (data.success && data.contacts) setCommunityContacts(data.contacts)
-      })
-      .catch(err => console.error('Error fetching contacts:', err))
-
-    // Fetch active SOS alerts
-    safeFetch(`${import.meta.env.VITE_API_URL || ''}/api/sos/active${communityParam}`)
-      .then(data => {
-        if (data.success && data.alerts) setActiveAlerts(data.alerts)
-      })
-      .catch(err => console.error('Error fetching active SOS:', err))
-
     // Join community socket room
     if (user?.communityId) {
       socket.emit('join_community', user.communityId)
@@ -1046,6 +1018,43 @@ function App() {
     }
   }, [user?.id, user?.communityId]) // Re-run when user logs in/out or switches community
 
+  // Data fetching useEffects, dependent on user.communityId
+  useEffect(() => {
+    if (!user?.communityId) return; // Only fetch if communityId is available
+
+    const communityParam = `?communityId=${user.communityId}`;
+
+    // Fetch houses from server
+    safeFetch(`${import.meta.env.VITE_API_URL || ''}/api/houses${communityParam}`)
+      .then(data => {
+        if (data.success && data.houses) setHouses(data.houses);
+      })
+      .catch(err => console.error('Error fetching houses:', err));
+
+    // Fetch users for map labels
+    safeFetch(`${import.meta.env.VITE_API_URL || ''}/api/users${communityParam}`)
+      .then(data => {
+        if (data.success && data.users) setUsers(data.users);
+      })
+      .catch(err => console.error('Error fetching users:', err));
+
+    // Fetch community contacts
+    safeFetch(`${import.meta.env.VITE_API_URL || ''}/api/contacts${communityParam}`)
+      .then(data => {
+        if (data.success && data.contacts) setCommunityContacts(data.contacts);
+      })
+      .catch(err => console.error('Error fetching contacts:', err));
+
+    // Fetch active SOS alerts
+    safeFetch(`${import.meta.env.VITE_API_URL || ''}/api/sos/active${communityParam}`)
+      .then(data => {
+        if (data.success && data.alerts) setActiveAlerts(data.alerts);
+      })
+      .catch(err => console.error('Error fetching active SOS:', err));
+
+  }, [user?.communityId]); // Re-fetch all when community changes
+
+
   // Auto-sync user profile (to detect Telegram link etc)
   useEffect(() => {
     if (!user?.id) return
@@ -1078,7 +1087,7 @@ function App() {
     // And every 10 seconds while logged in
     const interval = setInterval(syncUser, 10000)
     return () => clearInterval(interval)
-  }, [user?.id])
+  }, [user?.id, user?.communityId])
 
 
   // ... rest of effects ...
@@ -1723,95 +1732,97 @@ function App() {
           </div>
         )}
 
-        <div className="contacts-section" style={{ position: 'relative' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-            <h3 style={{ margin: 0 }}>📌 Contactos de interés</h3>
-            {(user.role === 'admin' || user.role === 'global_admin') && (
-              <button
-                onClick={() => setIsAddingContact(true)}
-                style={{ background: '#333', color: '#fbbf24', border: '1px solid #fbbf24', borderRadius: '50%', width: '24px', height: '24px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}
-              >
-                +
-              </button>
-            )}
-          </div>
+        {user.role !== 'global_admin' && (
+          <div className="contacts-section" style={{ position: 'relative' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+              <h3 style={{ margin: 0 }}>📌 Contactos de interés</h3>
+              {(user.role === 'admin') && (
+                <button
+                  onClick={() => setIsAddingContact(true)}
+                  style={{ background: '#333', color: '#fbbf24', border: '1px solid #fbbf24', borderRadius: '50%', width: '24px', height: '24px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}
+                >
+                  +
+                </button>
+              )}
+            </div>
 
-          <ul className="contacts-list">
-            <li><strong>🚨 Emergencia General:</strong> <a href="tel:112">112</a></li>
-            <li><strong>👮 Policía Nacional:</strong> <a href="tel:091">091</a></li>
-            <li><strong>🚔 Guardia Civil:</strong> <a href="tel:062">062</a></li>
-            <li><strong>🚒 Bomberos:</strong> <a href="tel:080">080</a></li>
-            <li><strong>🚓 Policía Local:</strong> <a href="tel:092">092</a></li>
-            {communityContacts.map(contact => (
-              <li key={contact._id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <strong>{contact.icon} {contact.name}:</strong> <a href={`tel:${contact.phone}`}>{contact.phone}</a>
-                </div>
-                {(user.role === 'admin' || user.role === 'global_admin') && (
+            <ul className="contacts-list">
+              <li><strong>🚨 Emergencia General:</strong> <a href="tel:112">112</a></li>
+              <li><strong>👮 Policía Nacional:</strong> <a href="tel:091">091</a></li>
+              <li><strong>🚔 Guardia Civil:</strong> <a href="tel:062">062</a></li>
+              <li><strong>🚒 Bomberos:</strong> <a href="tel:080">080</a></li>
+              <li><strong>🚓 Policía Local:</strong> <a href="tel:092">092</a></li>
+              {communityContacts.map(contact => (
+                <li key={contact._id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <strong>{contact.icon} {contact.name}:</strong> <a href={`tel:${contact.phone}`}>{contact.phone}</a>
+                  </div>
+                  {(user.role === 'admin') && (
+                    <button
+                      onClick={() => {
+                        if (window.confirm('¿Borrar contacto?')) {
+                          safeFetch(`${import.meta.env.VITE_API_URL || ''}/api/contacts/${contact._id}?communityId=${user.communityId}`, {
+                            method: 'DELETE'
+                          })
+                            .then(data => {
+                              if (data.success) setCommunityContacts(prev => prev.filter(c => c._id !== contact._id))
+                            })
+                        }
+                      }}
+                      style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '10px' }}
+                    >
+                      ✖
+                    </button>
+                  )}
+                </li>
+              ))}
+            </ul>
+
+            {isAddingContact && (
+              <div style={{ marginTop: '10px', padding: '10px', background: '#1e293b', borderRadius: '8px', fontSize: '0.85em' }}>
+                <input
+                  placeholder="Nombre (ej: Local)"
+                  value={newContact.name}
+                  onChange={e => setNewContact({ ...newContact, name: e.target.value })}
+                  style={{ width: '100%', marginBottom: '5px', background: '#0f172a', color: 'white', border: '1px solid #334155', padding: '4px', borderRadius: '4px' }}
+                />
+                <input
+                  placeholder="Teléfono"
+                  value={newContact.phone}
+                  onChange={e => setNewContact({ ...newContact, phone: e.target.value })}
+                  style={{ width: '100%', marginBottom: '5px', background: '#0f172a', color: 'white', border: '1px solid #334155', padding: '4px', borderRadius: '4px' }}
+                />
+                <div style={{ display: 'flex', gap: '5px' }}>
+                  <button
+                    onClick={() => setIsAddingContact(false)}
+                    style={{ flex: 1, padding: '5px', background: '#475569', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                  >
+                    Cerrar
+                  </button>
                   <button
                     onClick={() => {
-                      if (window.confirm('¿Borrar contacto?')) {
-                        safeFetch(`${import.meta.env.VITE_API_URL || ''}/api/contacts/${contact._id}?communityId=${user.communityId}`, {
-                          method: 'DELETE'
-                        })
-                          .then(data => {
-                            if (data.success) setCommunityContacts(prev => prev.filter(c => c._id !== contact._id))
-                          })
-                      }
-                    }}
-                    style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '10px' }}
-                  >
-                    ✖
-                  </button>
-                )}
-              </li>
-            ))}
-          </ul>
-
-          {isAddingContact && (
-            <div style={{ marginTop: '10px', padding: '10px', background: '#1e293b', borderRadius: '8px', fontSize: '0.85em' }}>
-              <input
-                placeholder="Nombre (ej: Local)"
-                value={newContact.name}
-                onChange={e => setNewContact({ ...newContact, name: e.target.value })}
-                style={{ width: '100%', marginBottom: '5px', background: '#0f172a', color: 'white', border: '1px solid #334155', padding: '4px', borderRadius: '4px' }}
-              />
-              <input
-                placeholder="Teléfono"
-                value={newContact.phone}
-                onChange={e => setNewContact({ ...newContact, phone: e.target.value })}
-                style={{ width: '100%', marginBottom: '5px', background: '#0f172a', color: 'white', border: '1px solid #334155', padding: '4px', borderRadius: '4px' }}
-              />
-              <div style={{ display: 'flex', gap: '5px' }}>
-                <button
-                  onClick={() => setIsAddingContact(false)}
-                  style={{ flex: 1, padding: '5px', background: '#475569', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
-                >
-                  Cerrar
-                </button>
-                <button
-                  onClick={() => {
-                    if (!newContact.name || !newContact.phone) return;
-                    safeFetch(`${import.meta.env.VITE_API_URL || ''}/api/contacts`, {
-                      method: 'POST',
-                      body: JSON.stringify({ ...newContact, communityId: user.communityId, communityName: user.communityName })
-                    })
-                      .then(data => {
-                        if (data.success) {
-                          setCommunityContacts(prev => [...prev, data.contact])
-                          setNewContact({ name: '', phone: '', icon: '📞' })
-                          setIsAddingContact(false)
-                        }
+                      if (!newContact.name || !newContact.phone) return;
+                      safeFetch(`${import.meta.env.VITE_API_URL || ''}/api/contacts`, {
+                        method: 'POST',
+                        body: JSON.stringify({ ...newContact, communityId: user.communityId, communityName: user.communityName })
                       })
-                  }}
-                  style={{ flex: 1, padding: '5px', background: '#fbbf24', color: '#000', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
-                >
-                  Guardar
-                </button>
+                        .then(data => {
+                          if (data.success) {
+                            setCommunityContacts(prev => [...prev, data.contact])
+                            setNewContact({ name: '', phone: '', icon: '📞' })
+                            setIsAddingContact(false)
+                          }
+                        })
+                    }}
+                    style={{ flex: 1, padding: '5px', background: '#fbbf24', color: '#000', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}
+                  >
+                    Guardar
+                  </button>
+                </div>
               </div>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        )}
 
         {user.telegramChatId && user.role !== 'global_admin' && (
           <div style={{ textAlign: 'center', marginBottom: '15px' }}>

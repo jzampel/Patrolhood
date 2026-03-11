@@ -1,14 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { safeFetch } from './api';
 
-// Tabs: Comunidades, Usuarios Globales, Alertas Activas, Auditoría, Reportados
-const TABS = ['🏘️ Comunidades', '👥 Usuarios Globales', '🚨 Alertas Activas', '📊 Auditoría', '🚩 Reportados'];
+const TABS = ['🏘️ Comunidades', '👥 Usuarios', '🚨 Alertas Activas', '📊 Auditoría', '🚩 Reportados'];
 
 function SuperAdminDashboard({ user, onSwitchCommunity }) {
     const [activeTab, setActiveTab] = useState(0);
     const [communities, setCommunities] = useState([]);
     const [users, setUsers] = useState([]);
-    const [alerts, setAlerts] = useState([]);
     const [loading, setLoading] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
 
@@ -16,19 +14,31 @@ function SuperAdminDashboard({ user, onSwitchCommunity }) {
     const [logs, setLogs] = useState([]);
     const [logsLoading, setLogsLoading] = useState(false);
     const [logsHasMore, setLogsHasMore] = useState(true);
-    const [logsLoadingMore, setLogsLoadingMore] = useState(false);
 
     // --- Reported Messages state ---
     const [reported, setReported] = useState([]);
     const [reportedLoading, setReportedLoading] = useState(false);
 
-    // Selected community for audit/reported context
-    const [selectedCommunityId, setSelectedCommunityId] = useState(user.communityId || '');
+    // Selected items for context
+    const [selectedCommunityId, setSelectedCommunityId] = useState('');
+
+    // Modal state
+    const [showUserModal, setShowUserModal] = useState(false);
+    const [showCommModal, setShowCommModal] = useState(false);
+    const [editingUser, setEditingUser] = useState(null);
+    const [editingComm, setEditingComm] = useState(null);
+
+    // Form states
+    const [userForm, setUserForm] = useState({ name: '', surname: '', phone: '', email: '', password: '', role: 'user', communityId: '', mapLabel: '', address: '' });
+    const [commForm, setCommForm] = useState({ name: '', telegramBotToken: '', center: [40.4168, -3.7038] });
 
     const fetchCommunities = async () => {
         setLoading(true);
         const data = await safeFetch(`${import.meta.env.VITE_API_URL || ''}/api/superadmin/communities`);
-        if (data.success) setCommunities(data.communities);
+        if (data.success) {
+            setCommunities(data.communities);
+            if (!selectedCommunityId && data.communities.length > 0) setSelectedCommunityId(data.communities[0].id);
+        }
         setLoading(false);
     };
 
@@ -39,37 +49,18 @@ function SuperAdminDashboard({ user, onSwitchCommunity }) {
         setLoading(false);
     };
 
-    const fetchAlerts = async () => {
-        setLoading(false);
-    };
-
-    // Audit logs fetch
-    const fetchLogs = (communityId, before = null) => {
-        const url = `${import.meta.env.VITE_API_URL || ''}/api/admin/audit-logs?communityId=${communityId}${before ? `&before=${before}` : ''}`;
-        return fetch(url, { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } }).then(r => r.json());
-    };
-
     const loadLogs = async (communityId) => {
+        if (!communityId) return;
         setLogsLoading(true);
-        setLogs([]);
-        setLogsHasMore(true);
-        const data = await fetchLogs(communityId);
-        if (data.success) { setLogs(data.logs); if (data.logs.length < 50) setLogsHasMore(false); }
+        const url = `${import.meta.env.VITE_API_URL || ''}/api/admin/audit-logs?communityId=${communityId}`;
+        const data = await safeFetch(url);
+        if (data.success) { setLogs(data.logs); setLogsHasMore(data.logs.length >= 50); }
         setLogsLoading(false);
     };
 
-    const loadMoreLogs = async () => {
-        if (logsLoadingMore || !logsHasMore || !logs.length) return;
-        setLogsLoadingMore(true);
-        const data = await fetchLogs(selectedCommunityId, logs[logs.length - 1].timestamp);
-        if (data.success) { if (data.logs.length < 50) setLogsHasMore(false); setLogs(p => [...p, ...data.logs]); }
-        setLogsLoadingMore(false);
-    };
-
-    // Reported messages fetch
     const fetchReported = async (communityId) => {
+        if (!communityId) return;
         setReportedLoading(true);
-        setReported([]);
         const res = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/admin/reported-messages?communityId=${communityId}`,
             { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } });
         const data = await res.json();
@@ -77,251 +68,246 @@ function SuperAdminDashboard({ user, onSwitchCommunity }) {
         setReportedLoading(false);
     };
 
-    const deleteReported = async (msgId) => {
-        if (!window.confirm('¿Borrar este mensaje?')) return;
-        await fetch(`${import.meta.env.VITE_API_URL || ''}/api/forum/${msgId}?communityId=${selectedCommunityId}`,
-            { method: 'DELETE', headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } });
-        setReported(p => p.filter(m => m._id !== msgId));
-    };
-
-    const clearReports = async (msgId) => {
-        await fetch(`${import.meta.env.VITE_API_URL || ''}/api/forum/${msgId}/clear-reports`,
-            { method: 'POST', headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ communityId: selectedCommunityId }) });
-        setReported(p => p.filter(m => m._id !== msgId));
-    };
-
-    const promoteUser = async (userId, role) => {
-        if (!window.confirm(`¿Cambiar el rol de este usuario a ${role}?`)) return;
-        const data = await safeFetch(`${import.meta.env.VITE_API_URL || ''}/api/superadmin/promote`, {
-            method: 'POST',
-            body: JSON.stringify({ userId, role })
-        });
-        if (data.success) fetchUsers(searchQuery);
-    };
+    useEffect(() => {
+        fetchCommunities(); // Load communities once on mount to have IDs for forms
+    }, []);
 
     useEffect(() => {
         if (activeTab === 0) fetchCommunities();
         if (activeTab === 1) fetchUsers();
-        if (activeTab === 2) fetchAlerts();
-        if (activeTab === 3 && selectedCommunityId) loadLogs(selectedCommunityId);
-        if (activeTab === 4 && selectedCommunityId) fetchReported(selectedCommunityId);
+        if (activeTab === 3) loadLogs(selectedCommunityId);
+        if (activeTab === 4) fetchReported(selectedCommunityId);
     }, [activeTab]);
 
-    // When community selector changes
     useEffect(() => {
-        if (activeTab === 3 && selectedCommunityId) loadLogs(selectedCommunityId);
-        if (activeTab === 4 && selectedCommunityId) fetchReported(selectedCommunityId);
+        if (activeTab === 3) loadLogs(selectedCommunityId);
+        if (activeTab === 4) fetchReported(selectedCommunityId);
     }, [selectedCommunityId]);
 
-    // Make sure communities are loaded when switching to audit/reported tabs
-    useEffect(() => {
-        if ((activeTab === 3 || activeTab === 4) && communities.length === 0) fetchCommunities();
-    }, [activeTab]);
-
-    const handleSearch = (e) => {
+    const handleUserSubmit = async (e) => {
         e.preventDefault();
-        fetchUsers(searchQuery);
+        const url = editingUser 
+            ? `${import.meta.env.VITE_API_URL || ''}/api/superadmin/users/${editingUser.id}`
+            : `${import.meta.env.VITE_API_URL || ''}/api/superadmin/users`;
+        
+        // Find community name
+        const comm = communities.find(c => c.id === userForm.communityId);
+        const payload = { ...userForm, communityName: comm?.name || '' };
+
+        const data = await safeFetch(url, {
+            method: editingUser ? 'PUT' : 'POST',
+            body: JSON.stringify(payload)
+        });
+
+        if (data.success) {
+            setShowUserModal(false);
+            setEditingUser(null);
+            fetchUsers(searchQuery);
+        } else {
+            alert(data.message || 'Error al guardar usuario');
+        }
+    };
+
+    const handleCommSubmit = async (e) => {
+        e.preventDefault();
+        const url = editingComm 
+            ? `${import.meta.env.VITE_API_URL || ''}/api/superadmin/communities/${editingComm.id}`
+            : `${import.meta.env.VITE_API_URL || ''}/api/superadmin/communities`; // Note: Create comm might need different logic if it's new
+
+        const data = await safeFetch(url, {
+            method: editingComm ? 'PUT' : 'POST',
+            body: JSON.stringify(commForm)
+        });
+
+        if (data.success) {
+            setShowCommModal(false);
+            setEditingComm(null);
+            fetchCommunities();
+        }
+    };
+
+    const deleteUser = async (id) => {
+        if (!window.confirm('¿Seguro que quieres eliminar este usuario?')) return;
+        const data = await safeFetch(`${import.meta.env.VITE_API_URL || ''}/api/superadmin/users/${id}`, { method: 'DELETE' });
+        if (data.success) fetchUsers(searchQuery);
+    };
+
+    const deleteComm = async (id) => {
+        if (!window.confirm('⚠️ ATENCIÓN: Se eliminará la comunidad y TODOS sus datos (casas, mensajes, usuarios). ¿Continuar?')) return;
+        const data = await safeFetch(`${import.meta.env.VITE_API_URL || ''}/api/superadmin/communities/${id}`, { method: 'DELETE' });
+        if (data.success) fetchCommunities();
     };
 
     const styles = {
-        card: { background: '#1e293b', padding: '20px', borderRadius: '12px', border: '1px solid #334155', marginBottom: '15px' },
-        auditCard: { background: '#1e293b', padding: '14px', borderRadius: '10px', borderLeft: '4px solid #fbbf24', marginBottom: '10px' },
+        card: { background: '#1e293b', padding: '16px', borderRadius: '12px', border: '1px solid #334155', marginBottom: '12px' },
         btn: (color) => ({ background: color, border: 'none', color: 'white', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }),
-        smallBtn: (color) => ({ background: color, border: 'none', color: 'white', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8em', marginLeft: '6px' }),
-        ghost: { background: 'none', border: '1px solid #64748b', color: '#94a3b8', padding: '6px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8em', marginLeft: '6px' },
-        input: { background: '#0f172a', color: 'white', border: '1px solid #334155', borderRadius: '8px', padding: '12px', width: '100%', maxWidth: '400px' },
-        select: { background: '#0f172a', color: 'white', border: '1px solid #334155', borderRadius: '8px', padding: '10px', width: '100%', marginBottom: '16px' },
+        smallBtn: (color) => ({ background: color, border: 'none', color: 'white', padding: '6px 10px', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8em', marginLeft: '6px' }),
+        input: { background: '#0f172a', color: 'white', border: '1px solid #334155', borderRadius: '8px', padding: '10px', width: '100%', marginBottom: '10px' },
+        modal: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px' },
+        modalContent: { background: '#1e293b', padding: '24px', borderRadius: '16px', width: '100%', maxWidth: '500px', maxHeight: '90vh', overflowY: 'auto' },
     };
 
-    // Community picker for audit/reported tabs
-    const CommunityPicker = () => (
-        <div style={{ marginBottom: '16px' }}>
-            <label style={{ color: '#94a3b8', fontSize: '0.85em', display: 'block', marginBottom: '6px' }}>
-                🏘️ Seleccionar Comunidad:
-            </label>
-            <select
-                value={selectedCommunityId}
-                onChange={e => setSelectedCommunityId(e.target.value)}
-                style={styles.select}
-            >
-                <option value="">— Selecciona una comunidad —</option>
-                {communities.map(c => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-            </select>
-        </div>
-    );
-
     return (
-        <div className="admin-dashboard-container" style={{ padding: '20px' }}>
-            <div className="section-header">
-                <h1 style={{ color: '#fbbf24', margin: 0, fontFamily: 'Cinzel, serif', fontSize: '2rem' }}>💎 GESTIÓN GLOBAL</h1>
-                <p style={{ color: '#94a3b8' }}>Super Administrador: {user.name}</p>
-
-                <div className="dashboard-tabs" style={{ marginTop: '20px' }}>
-                    {TABS.map((t, i) => (
-                        <button key={i} onClick={() => setActiveTab(i)}
-                            className={`dashboard-tab ${activeTab === i ? 'active' : ''}`}>
-                            {t}
-                        </button>
-                    ))}
+        <div style={{ padding: '20px', color: 'white' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div>
+                    <h1 style={{ color: '#fbbf24', margin: 0 }}>💎 DASHBOARD MASTER</h1>
+                    <p style={{ color: '#94a3b8' }}>Super Admin: {user.name}</p>
+                </div>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                    <button style={styles.btn('#059669')} onClick={() => { 
+                        setEditingUser(null); 
+                        setUserForm({ name: '', surname: '', phone: '', email: '', password: '', role: 'user', communityId: communities[0]?.id || '', mapLabel: '', address: '' }); 
+                        setShowUserModal(true); 
+                    }}>+ Nuevo Usuario</button>
+                    {/* Community creation usually happens via Register process, but we could add it here if needed */}
                 </div>
             </div>
 
-            <div className="dashboard-content-scroll" style={{ marginTop: '20px' }}>
+            <div className="dashboard-tabs" style={{ marginTop: '20px', display: 'flex', gap: '10px', borderBottom: '1px solid #334155', paddingBottom: '10px' }}>
+                {TABS.map((t, i) => (
+                    <button key={i} onClick={() => setActiveTab(i)}
+                        style={{ background: activeTab === i ? '#fbbf24' : 'transparent', color: activeTab === i ? '#000' : '#94a3b8', border: 'none', padding: '10px 15px', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>
+                        {t}
+                    </button>
+                ))}
+            </div>
 
+            <div style={{ marginTop: '20px' }}>
                 {/* === COMUNIDADES === */}
                 {activeTab === 0 && (
-                    <div className="community-list">
-                        {loading ? <p>Cargando comunidades...</p> :
-                            communities.map(c => (
-                                <div key={c.id} style={styles.card}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                        <div>
-                                            <h3 style={{ margin: 0, color: '#fbbf24' }}>{c.name}</h3>
-                                            <p style={{ color: '#94a3b8', fontSize: '0.9rem', margin: '5px 0' }}>
-                                                ID: {c.id} | 👥 {c.memberCount} miembros
-                                            </p>
-                                            <p style={{ color: '#64748b', fontSize: '0.8rem' }}>
-                                                Bot: {c.telegramBotUsername || 'No configurado'}
-                                            </p>
-                                        </div>
-                                        <button
-                                            style={styles.btn('#3b82f6')}
-                                            onClick={() => onSwitchCommunity(c.id, c.name, c.center)}
-                                        >
-                                            👁️ Ver Comunidad
-                                        </button>
+                    <div>
+                        {communities.map(c => (
+                            <div key={c.id} style={styles.card}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                    <div>
+                                        <h3 style={{ margin: 0, color: '#fbbf24' }}>{c.name}</h3>
+                                        <p style={{ fontSize: '0.85em', color: '#94a3b8' }}>ID: {c.id} | Members: {c.memberCount}</p>
+                                    </div>
+                                    <div style={{ display: 'flex', gap: '6px' }}>
+                                        <button style={styles.smallBtn('#3b82f6')} onClick={() => onSwitchCommunity(c.id, c.name, c.center)}>🗺️ Ir</button>
+                                        <button style={styles.smallBtn('#64748b')} onClick={() => { setEditingComm(c); setCommForm({ name: c.name, telegramBotToken: c.telegramBotToken || '', center: c.center }); setShowCommModal(true); }}>️✏️ Editar</button>
+                                        <button style={styles.smallBtn('#ef4444')} onClick={() => deleteComm(c.id)}>🗑️</button>
                                     </div>
                                 </div>
-                            ))
-                        }
+                            </div>
+                        ))}
                     </div>
                 )}
 
-                {/* === USUARIOS GLOBALES === */}
+                {/* === USUARIOS === */}
                 {activeTab === 1 && (
-                    <div className="user-management">
-                        <form onSubmit={handleSearch} style={{ marginBottom: '20px', display: 'flex', gap: '10px' }}>
-                            <input
-                                style={styles.input}
-                                placeholder="Buscar por nombre, tlf, email o comunidad..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                            />
-                            <button type="submit" style={styles.btn('#fbbf24')}>Buscar</button>
-                        </form>
-
-                        {loading ? <p>Cargando usuarios...</p> :
-                            <div className="super-user-list">
-                                {users.map(u => (
-                                    <div key={u.id} style={{ ...styles.card, borderLeft: u.role === 'global_admin' ? '4px solid #fbbf24' : '1px solid #334155' }}>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                            <div>
-                                                <h3 style={{ margin: 0 }}>{u.name} {u.surname}</h3>
-                                                <p style={{ color: '#94a3b8', fontSize: '0.9rem' }}>{u.phone} | {u.email}</p>
-                                                <p style={{ color: '#64748b', fontSize: '0.8rem' }}>
-                                                    📍 {u.communityName} | Role: <strong>{u.role}</strong>
-                                                </p>
-                                            </div>
-                                            <div style={{ display: 'flex', gap: '8px' }}>
-                                                {u.role !== 'global_admin' && (
-                                                    u.role === 'admin' ? (
-                                                        <button style={styles.btn('#64748b')} onClick={() => promoteUser(u.id, 'user')}>🏠 Quitar Admin</button>
-                                                    ) : (
-                                                        <button style={styles.btn('#059669')} onClick={() => promoteUser(u.id, 'admin')}>🛠️ Hacer Admin</button>
-                                                    )
-                                                )}
-                                                <button style={styles.btn('#3b82f6')} onClick={() => onSwitchCommunity(u.communityId, u.communityName)}>🏘️ Ir a su comunidad</button>
-                                            </div>
-                                        </div>
+                    <div>
+                        <input style={styles.input} placeholder="Buscar usuarios..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} onKeyDown={e => e.key === 'Enter' && fetchUsers(searchQuery)} />
+                        {users.map(u => (
+                            <div key={u.id} style={styles.card}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                    <div>
+                                        <h3 style={{ margin: 0 }}>{u.name} {u.surname} <span style={{ fontSize: '0.6em', background: '#334155', padding: '2px 6px', borderRadius: '4px' }}>{u.role}</span></h3>
+                                        <p style={{ fontSize: '0.85em', color: '#94a3b8' }}>{u.phone} | {u.communityName} | Casa: {u.mapLabel || '?'}</p>
                                     </div>
-                                ))}
+                                    <div style={{ display: 'flex', gap: '6px' }}>
+                                        <button style={styles.smallBtn('#64748b')} onClick={() => { 
+                                            setEditingUser(u); 
+                                            setUserForm({ name: u.name, surname: u.surname, phone: u.phone, email: u.email, role: u.role, communityId: u.communityId, mapLabel: u.mapLabel || '', address: u.address || '' }); 
+                                            setShowUserModal(true); 
+                                        }}>✏️</button>
+                                        <button style={styles.smallBtn('#ef4444')} onClick={() => deleteUser(u.id)}>🗑️</button>
+                                    </div>
+                                </div>
                             </div>
-                        }
+                        ))}
                     </div>
                 )}
 
-                {/* === ALERTAS ACTIVAS === */}
-                {activeTab === 2 && (
-                    <div style={{ textAlign: 'center', padding: '40px' }}>
-                        <p style={{ color: '#94a3b8' }}>Las alertas activas se muestran en tiempo real en el mapa de cada comunidad.</p>
-                        <p>Usa la pestaña <b>Comunidades</b> para monitorizar una zona específica.</p>
-                    </div>
-                )}
-
-                {/* === AUDITORÍA === */}
-                {activeTab === 3 && (
+                {/* === AUDITORÍA / REPORTADOS (Using a shared selector visually) === */}
+                {(activeTab === 3 || activeTab === 4) && (
                     <div>
-                        <CommunityPicker />
-                        {!selectedCommunityId ? (
-                            <div style={{ textAlign: 'center', padding: '40px', color: '#64748b' }}>
-                                Selecciona una comunidad para ver su auditoría.
-                            </div>
-                        ) : logsLoading ? <p>Cargando...</p> : (
-                            <div>
-                                {logs.length === 0
-                                    ? <p style={{ color: '#64748b' }}>Sin actividad registrada.</p>
-                                    : logs.map(log => (
-                                        <div key={log._id} style={{ ...styles.auditCard, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                                            <div>
-                                                <div style={{ fontWeight: 'bold' }}>{log.action.replace(/_/g, ' ')}</div>
-                                                <div style={{ fontSize: '0.85em', color: '#94a3b8' }}>Por: <strong>{log.adminName}</strong></div>
-                                                {log.details && <div style={{ fontSize: '0.78em', background: '#0f172a', padding: '6px', borderRadius: '4px', marginTop: '6px', color: '#cbd5e1' }}>{JSON.stringify(log.details)}</div>}
-                                            </div>
-                                            <div style={{ fontSize: '0.75em', color: '#64748b', textAlign: 'right', whiteSpace: 'nowrap' }}>
-                                                {new Date(log.timestamp).toLocaleString()}
-                                            </div>
+                        <select style={styles.input} value={selectedCommunityId} onChange={e => setSelectedCommunityId(e.target.value)}>
+                            {communities.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                        </select>
+                        <hr style={{ border: '0.5px solid #334155', margin: '15px 0' }} />
+                        
+                        {activeTab === 3 && (
+                            logsLoading ? <p>Cargando registros...</p> : (
+                                logs.map(l => (
+                                    <div key={l._id} style={{ ...styles.card, borderLeft: '4px solid #fbbf24' }}>
+                                        <div style={{ fontWeight: 'bold' }}>{l.action}</div>
+                                        <div style={{ fontSize: '0.8em', color: '#94a3b8' }}>{l.adminName} - {new Date(l.timestamp).toLocaleString()}</div>
+                                        {l.details && <pre style={{ fontSize: '0.7em', background: '#0f172a', padding: '5px', marginTop: '5px' }}>{JSON.stringify(l.details, null, 2)}</pre>}
+                                    </div>
+                                ))
+                            )
+                        )}
+
+                        {activeTab === 4 && (
+                            reportedLoading ? <p>Cargando reportes...</p> : (
+                                reported.map(r => (
+                                    <div key={r._id} style={{ ...styles.card, borderLeft: '4px solid #ef4444' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                            <strong>{r.user}</strong>
+                                            <span style={{ color: '#ef4444' }}>⚠️ {r.reports?.length} reportes</span>
                                         </div>
-                                    ))
-                                }
-                                {logsHasMore && (
-                                    <button onClick={loadMoreLogs} disabled={logsLoadingMore}
-                                        style={{ marginTop: '10px', padding: '12px', width: '100%', background: 'transparent', border: '1px dashed #fbbf24', color: '#fbbf24', borderRadius: '8px', cursor: 'pointer' }}>
-                                        {logsLoadingMore ? 'Cargando...' : '📜 Cargar historial más antiguo'}
-                                    </button>
-                                )}
-                            </div>
+                                        <p style={{ margin: '8px 0' }}>{r.text}</p>
+                                        <div style={{ fontSize: '0.8em', color: '#64748b' }}>#{r.channel}</div>
+                                    </div>
+                                ))
+                            )
                         )}
                     </div>
                 )}
-
-                {/* === REPORTADOS === */}
-                {activeTab === 4 && (
-                    <div>
-                        <CommunityPicker />
-                        {!selectedCommunityId ? (
-                            <div style={{ textAlign: 'center', padding: '40px', color: '#64748b' }}>
-                                Selecciona una comunidad para ver mensajes reportados.
-                            </div>
-                        ) : reportedLoading ? <p>Cargando...</p> : (
-                            <div>
-                                {reported.length === 0
-                                    ? <div style={{ textAlign: 'center', padding: '40px', background: '#1e293b', borderRadius: '12px', color: '#64748b' }}>✅ No hay mensajes reportados en esta comunidad.</div>
-                                    : reported.map(msg => (
-                                        <div key={msg._id} style={styles.auditCard}>
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                                                <div>
-                                                    <span style={{ color: '#fbbf24', fontWeight: 'bold' }}>{msg.user}</span>
-                                                    <span style={{ color: '#64748b', fontSize: '0.8em', marginLeft: '8px' }}>#{msg.channel}</span>
-                                                    <span style={{ color: '#ef4444', fontSize: '0.8em', marginLeft: '8px' }}>⚠️ {msg.reports.length} reportes</span>
-                                                </div>
-                                                <div>
-                                                    <button style={styles.smallBtn('#ef4444')} onClick={() => deleteReported(msg._id)}>🗑️ Borrar</button>
-                                                    <button style={styles.ghost} onClick={() => clearReports(msg._id)}>✅ Indultar</button>
-                                                </div>
-                                            </div>
-                                            {msg.text && <p style={{ marginTop: '8px', color: '#e2e8f0' }}>{msg.text}</p>}
-                                            {msg.image && <img src={msg.image} alt="adjunto" style={{ maxHeight: '80px', borderRadius: '6px', marginTop: '6px' }} />}
-                                        </div>
-                                    ))
-                                }
-                            </div>
-                        )}
-                    </div>
-                )}
-
             </div>
+
+            {/* MODAL USUARIO */}
+            {showUserModal && (
+                <div style={styles.modal}>
+                    <form style={styles.modalContent} onSubmit={handleUserSubmit}>
+                        <h2 style={{ color: '#fbbf24' }}>{editingUser ? 'Editar Usuario' : 'Nuevo Usuario'}</h2>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                            <input style={styles.input} placeholder="Nombre" value={userForm.name} onChange={e => setUserForm({...userForm, name: e.target.value})} required />
+                            <input style={styles.input} placeholder="Apellido" value={userForm.surname} onChange={e => setUserForm({...userForm, surname: e.target.value})} />
+                        </div>
+                        <input style={styles.input} placeholder="Teléfono" value={userForm.phone} onChange={e => setUserForm({...userForm, phone: e.target.value})} required />
+                        {!editingUser && <input style={styles.input} type="password" placeholder="Contraseña" value={userForm.password} onChange={e => setUserForm({...userForm, password: e.target.value})} required />}
+                        <input style={styles.input} placeholder="Email" value={userForm.email} onChange={e => setUserForm({...userForm, email: e.target.value})} />
+                        
+                        <label style={{ fontSize: '0.8em', color: '#94a3b8' }}>Comunidad</label>
+                        <select style={styles.input} value={userForm.communityId} onChange={e => setUserForm({...userForm, communityId: e.target.value})}>
+                            {communities.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                        </select>
+
+                        <label style={{ fontSize: '0.8em', color: '#94a3b8' }}>Rol</label>
+                        <select style={styles.input} value={userForm.role} onChange={e => setUserForm({...userForm, role: e.target.value})}>
+                            <option value="user">Vecino</option>
+                            <option value="admin">Administrador</option>
+                            <option value="moderator">Moderador</option>
+                        </select>
+
+                        <input style={styles.input} placeholder="Nº Casa (Label en mapa)" value={userForm.mapLabel} onChange={e => setUserForm({...userForm, mapLabel: e.target.value})} />
+
+                        <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+                            <button type="button" style={styles.btn('#475569')} onClick={() => setShowUserModal(false)}>Cancelar</button>
+                            <button type="submit" style={styles.btn('#fbbf24')}>{editingUser ? 'Actualizar' : 'Crear Usuario'}</button>
+                        </div>
+                    </form>
+                </div>
+            )}
+
+            {/* MODAL COMUNIDAD */}
+            {showCommModal && (
+                <div style={styles.modal}>
+                    <form style={styles.modalContent} onSubmit={handleCommSubmit}>
+                        <h2 style={{ color: '#fbbf24' }}>Editar Comunidad</h2>
+                        <input style={styles.input} placeholder="Nombre Comunidad" value={commForm.name} onChange={e => setCommForm({...commForm, name: e.target.value})} required />
+                        <input style={styles.input} placeholder="Telegram Bot Token" value={commForm.telegramBotToken} onChange={e => setCommForm({...commForm, telegramBotToken: e.target.value})} />
+                        
+                        <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+                            <button type="button" style={styles.btn('#475569')} onClick={() => setShowCommModal(false)}>Cancelar</button>
+                            <button type="submit" style={styles.btn('#fbbf24')}>Guardar Cambios</button>
+                        </div>
+                    </form>
+                </div>
+            )}
         </div>
     );
 }
