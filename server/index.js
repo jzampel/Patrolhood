@@ -105,7 +105,9 @@ function isInQuietHours(quietHours) {
     return cur >= from && cur < to;
 }
 
-connectDB();
+connectDB().then(() => {
+    seedSuperAdmin();
+});
 
 const sosQueue = isRedisAvailable ? new Queue('SOS_QUEUE', { connection: queueConnection }) : null;
 
@@ -503,7 +505,7 @@ async function seedSuperAdmin() {
         console.error('❌ Failed to seed Super Admin:', err);
     }
 }
-seedSuperAdmin();
+// seedSuperAdmin(); // Moved to after connectDB()
 
 // Database / Core
 app.get('/api/users', authenticate, checkCommunity, async (req, res) => {

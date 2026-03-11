@@ -183,7 +183,7 @@ function AdminDashboard({ user }) {
                                         <div>
                                             <div style={{ fontWeight: 'bold' }}>{m.name} {m.surname}
                                                 {m.banned && <span style={{ marginLeft: '8px', fontSize: '0.75em', background: '#ef4444', color: 'white', padding: '2px 6px', borderRadius: '4px' }}>SUSPENDIDO</span>}
-                                                {m.role === 'admin' && <span style={{ marginLeft: '8px', fontSize: '0.75em', background: '#fbbf24', color: '#000', padding: '2px 6px', borderRadius: '4px' }}>ADMIN</span>}
+                                                {(m.role === 'admin' || m.role === 'global_admin') && <span style={{ marginLeft: '8px', fontSize: '0.75em', background: '#fbbf24', color: '#000', padding: '2px 6px', borderRadius: '4px' }}>{m.role === 'global_admin' ? '⭐ SUPER' : 'ADMIN'}</span>}
                                             </div>
                                             <div style={{ fontSize: '0.82em', color: '#94a3b8' }}>{m.phone} · {m.address}</div>
                                             {m.bannedUntil && <div style={{ fontSize: '0.78em', color: '#f87171' }}>Hasta: {new Date(m.bannedUntil).toLocaleDateString('es-ES')}{m.banReason ? ` · ${m.banReason}` : ''}</div>}

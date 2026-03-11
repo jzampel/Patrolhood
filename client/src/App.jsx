@@ -58,7 +58,7 @@ function MapClickHandler({ onAddHouse, user }) {
   useMapEvents({
     dblclick(e) {
       console.log('🗺️ Double click detected at:', e.latlng)
-      if (!user || user.role !== 'admin') {
+      if (!user || (user.role !== 'admin' && user.role !== 'global_admin')) {
         console.warn('❌ dblclick: user is not admin or missing', user)
         alert('Solo el administrador puede añadir nuevas casas.')
         return
@@ -516,7 +516,7 @@ function Forum({ user }) {
             {msg.image && <img src={msg.image} alt="adjunto" className="msg-image" style={{ maxWidth: '100%', borderRadius: '8px', marginTop: '5px' }} />}
             {msg.text && <div className="msg-text">{msg.text}</div>}
             <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
-              {(user.role === 'admin' || user.role === 'moderator') && (
+              {(user.role === 'admin' || user.role === 'moderator' || user.role === 'global_admin') && (
                 <button
                   onClick={() => deleteMessage(msg._id || msg.id)}
                   style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '0.75em', opacity: 0.7 }}
@@ -532,7 +532,7 @@ function Forum({ user }) {
                   🚩 Reportar
                 </button>
               )}
-              {msg.reports && msg.reports.length > 0 && (user.role === 'admin' || user.role === 'moderator') && (
+              {msg.reports && msg.reports.length > 0 && (user.role === 'admin' || user.role === 'moderator' || user.role === 'global_admin') && (
                 <span style={{ fontSize: '0.7em', color: '#f59e0b', fontWeight: 'bold' }}>
                   ⚠️ {msg.reports.length} reportes
                 </span>
@@ -1420,6 +1420,22 @@ function App() {
           <div className="premium-divider"></div>
           <span className="brand-label">PATROLHOOD</span>
           <span className="community-name-label">{user.communityName}</span>
+          {user.role === 'global_admin' && (
+            <div style={{
+              background: 'linear-gradient(45deg, #fbbf24 0%, #d97706 100%)',
+              color: 'black',
+              padding: '4px 12px',
+              borderRadius: '20px',
+              fontSize: '0.75em',
+              fontWeight: 'bold',
+              marginTop: '10px',
+              boxShadow: '0 0 15px rgba(251, 191, 36, 0.4)',
+              display: 'inline-block',
+              animation: 'pulse 2s infinite'
+            }}>
+              💎 MODO SUPER ADMIN
+            </div>
+          )}
         </div>
 
         {showInstallBtn && (
@@ -1655,7 +1671,7 @@ function App() {
         <div className="contacts-section" style={{ position: 'relative' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
             <h3 style={{ margin: 0 }}>📌 Contactos de interés</h3>
-            {user.role === 'admin' && (
+            {(user.role === 'admin' || user.role === 'global_admin') && (
               <button
                 onClick={() => setIsAddingContact(true)}
                 style={{ background: '#333', color: '#fbbf24', border: '1px solid #fbbf24', borderRadius: '50%', width: '24px', height: '24px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}
@@ -1676,7 +1692,7 @@ function App() {
                 <div>
                   <strong>{contact.icon} {contact.name}:</strong> <a href={`tel:${contact.phone}`}>{contact.phone}</a>
                 </div>
-                {user.role === 'admin' && (
+                {(user.role === 'admin' || user.role === 'global_admin') && (
                   <button
                     onClick={() => {
                       if (window.confirm('¿Borrar contacto?')) {
@@ -1818,7 +1834,7 @@ function App() {
             })}
 
             {/* Banner for other active alerts I can't control */}
-            {activeAlerts.some(a => a.userId !== user.id && user.role !== 'admin') && (
+            {activeAlerts.some(a => a.userId !== user.id && user.role !== 'admin' && user.role !== 'global_admin') && (
               <div className="sos-active-banner">🚨 ALERTA ACTIVA</div>
             )}
           </div>
