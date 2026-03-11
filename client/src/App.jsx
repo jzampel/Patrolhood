@@ -1881,8 +1881,8 @@ function App() {
       {
         activeTab === 'map' && (
           <div className="floating-controls" style={{ display: 'flex', flexDirection: 'column', gap: '10px', alignItems: 'flex-end' }}>
-            {/* Always allow own SOS if not active */}
-            {!activeAlerts.some(a => a.userId === user.id) && (
+            {/* Always allow own SOS if not active, except for global_admin */}
+            {!activeAlerts.some(a => a.userId === user.id) && user.role !== 'global_admin' && (
               <button className="sos-button floating" onClick={() => setShowEmergencyMenu(true)}>SOS</button>
             )}
 
@@ -2117,6 +2117,9 @@ function App() {
               setUser(prev => ({ ...prev, communityId: id, communityName: name, communityCenter: center }));
               setActiveTab('map');
               setIsSidebarOpen(false);
+              if (center && center.length === 2 && mapRef.current) {
+                  mapRef.current.flyTo(center, 18);
+              }
               setMapFocusPosition(null); // reset any previous focus so AutoCenter takes over
             }} 
           />

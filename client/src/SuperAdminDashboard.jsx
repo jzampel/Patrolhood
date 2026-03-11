@@ -211,6 +211,11 @@ function SuperAdminDashboard({ user, onSwitchCommunity }) {
                     <p style={{ color: '#94a3b8' }}>Super Admin: {user.name}</p>
                 </div>
                 <div style={{ display: 'flex', gap: '10px' }}>
+                    <button style={styles.btn('#3b82f6')} onClick={() => { 
+                        setEditingComm(null); 
+                        setCommForm({ name: '', telegramBotToken: '', center: [40.4168, -3.7038] }); 
+                        setShowCommModal(true); 
+                    }}>+ Nueva Comunidad</button>
                     <button style={styles.btn('#059669')} onClick={() => { 
                         setEditingUser(null); 
                         setUserForm({ name: '', surname: '', phone: '', email: '', password: '', role: 'user', communityId: communities[0]?.id || '', mapLabel: '', address: '' }); 

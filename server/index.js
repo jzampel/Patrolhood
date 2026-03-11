@@ -354,7 +354,12 @@ app.post('/api/admin/invite', authenticate, async (req, res) => {
 app.post('/api/community/center', authenticate, checkCommunity, async (req, res) => {
     const { communityId, center, adminId } = req.body;
     try {
-        const community = await Community.findOne({ id: communityId, adminId });
+        let community;
+        if (req.user.role === 'global_admin') {
+            community = await Community.findOne({ id: communityId });
+        } else {
+            community = await Community.findOne({ id: communityId, adminId });
+        }
         if (!community) return res.status(403).json({ success: false, message: 'No autorizado' });
 
         community.center = center;
@@ -532,6 +537,22 @@ app.delete('/api/superadmin/users/:id', authenticate, async (req, res) => {
     try {
         await User.deleteOne({ id: req.params.id });
         res.json({ success: true });
+    } catch (error) { res.status(500).json({ success: false }); }
+});
+
+// Create Community (SuperAdmin)
+app.post('/api/superadmin/communities', authenticate, async (req, res) => {
+    if (req.user.role !== 'global_admin') return res.status(403).json({ success: false });
+    const { name, telegramBotToken, center } = req.body;
+    try {
+        const newCommunity = new Community({
+            id: Date.now().toString(),
+            name,
+            telegramBotToken,
+            center: center || [40.4168, -3.7038]
+        });
+        await newCommunity.save();
+        res.json({ success: true, community: newCommunity });
     } catch (error) { res.status(500).json({ success: false }); }
 });
 
