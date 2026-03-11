@@ -148,8 +148,16 @@ function SuperAdminDashboard({ user, onSwitchCommunity }) {
 
     const deleteHouse = async (id) => {
         if (!window.confirm('¿Seguro que quieres eliminar esta etiqueta de casa?')) return;
-        const data = await safeFetch(`${import.meta.env.VITE_API_URL || ''}/api/superadmin/houses/${id}`, { method: 'DELETE' });
-        if (data.success) fetchAllHouses();
+        try {
+            const data = await safeFetch(`${import.meta.env.VITE_API_URL || ''}/api/superadmin/houses/${id}`, { method: 'DELETE' });
+            if (data.success) {
+                fetchAllHouses();
+            } else {
+                alert('No se pudo eliminar: ' + (data.message || 'Error en el servidor'));
+            }
+        } catch (error) {
+            alert('Error de conexión al eliminar.');
+        }
     };
 
     const styles = {
@@ -238,17 +246,20 @@ function SuperAdminDashboard({ user, onSwitchCommunity }) {
                     <div>
                         <p style={{ color: '#94a3b8', fontSize: '0.85em', marginBottom: '15px' }}>Desde aquí puedes eliminar casas registradas (incluyendo deshabitadas).</p>
                         {loading && <p>Cargando casas...</p>}
-                        {houses.map(h => (
-                            <div key={h.id} style={styles.card}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <div>
-                                        <h3 style={{ margin: 0 }}>🏠 Casa {h.label}</h3>
-                                        <p style={{ fontSize: '0.85em', color: '#94a3b8' }}>{h.communityName} | Pos: {h.position?.[0]?.toFixed(4)}, {h.position?.[1]?.toFixed(4)}</p>
+                        {houses.map(h => {
+                            const houseId = h.id || h._id; // Robust ID handling
+                            return (
+                                <div key={houseId} style={styles.card}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <div>
+                                            <h3 style={{ margin: 0 }}>🏠 Casa {h.number}</h3>
+                                            <p style={{ fontSize: '0.85em', color: '#94a3b8' }}>{h.communityName} | Pos: {h.position?.[0]?.toFixed(4)}, {h.position?.[1]?.toFixed(4)}</p>
+                                        </div>
+                                        <button style={styles.smallBtn('#ef4444')} onClick={() => deleteHouse(houseId)}>🗑️ Eliminar</button>
                                     </div>
-                                    <button style={styles.smallBtn('#ef4444')} onClick={() => deleteHouse(h.id)}>🗑️ Eliminar</button>
                                 </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 )}
 

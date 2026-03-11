@@ -1063,14 +1063,23 @@ function App() {
       const data = await safeFetch(`${import.meta.env.VITE_API_URL || ''}/api/users/${user.id}?communityId=${user.communityId}`)
       if (data.success && data.user) {
         setUser(prev => {
-          if (!prev) return data.user
-          // Robust deep comparison to handle arrays (like communityCenter) and nested objects
-          const updated = { ...prev, ...data.user }
-          if (JSON.stringify(prev) === JSON.stringify(updated)) return prev
+          if (!prev) return data.user;
+          
+          // Merging logic
+          const updated = { ...prev, ...data.user };
 
-          localStorage.setItem('user', JSON.stringify(updated))
-          return updated
-        })
+          // If global_admin, preserve the locally selected community override
+          if (prev.role === 'global_admin') {
+            updated.communityId = prev.communityId;
+            updated.communityName = prev.communityName;
+            updated.communityCenter = prev.communityCenter;
+          }
+
+          if (JSON.stringify(prev) === JSON.stringify(updated)) return prev;
+
+          localStorage.setItem('user', JSON.stringify(updated));
+          return updated;
+        });
       } else if (data.status === 404 || (data.success === false && data.error?.includes('not found'))) {
         // User was deleted by admin
         localStorage.removeItem('user')
