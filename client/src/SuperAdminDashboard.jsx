@@ -172,7 +172,7 @@ function SuperAdminDashboard({ user, onSwitchCommunity }) {
         try {
             const data = await safeFetch(`${import.meta.env.VITE_API_URL || ''}/api/superadmin/houses/${houseId}`, {
                 method: 'PUT',
-                body: JSON.stringify({ communityId: targetCommunityId })
+                body: JSON.stringify({ communityId: targetCommunityId, communityName: comm.name })
             });
 
             if (data.success) {
