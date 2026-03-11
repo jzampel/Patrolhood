@@ -494,8 +494,8 @@ textarea {
 }
 
 .house-marker.admin-inhabited .house-label {
-  background: #22c55e; /* Green for Admin */
-  border-color: #86efac;
+  background: #8b5cf6; /* Vibrant Purple for Admin */
+  border-color: #c084fc;
 }
 
 .house-marker.sos-active .house-label {

@@ -1925,7 +1925,7 @@ function App() {
 
             {/* Show Stop buttons for active alerts I can control */}
             {activeAlerts.map(sosAlert => {
-              const canStop = user.role === 'admin' || user.id === sosAlert.userId;
+              const canStop = user.role === 'admin' || user.role === 'global_admin' || user.id === sosAlert.userId;
               if (!canStop) return null;
               return (
                 <button
@@ -1937,7 +1937,7 @@ function App() {
                       method: 'POST',
                       body: JSON.stringify({
                         alertId: sosAlert._id || sosAlert.alertId,
-                        communityId: user.communityId
+                        communityId: sosAlert.communityId || user.communityId
                       })
                     });
                     if (data.success) {
