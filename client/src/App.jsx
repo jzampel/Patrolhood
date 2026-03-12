@@ -481,7 +481,7 @@ function Forum({ user, allCommunities, onSwitchCommunity }) {
 
   return (
     <div className="forum-container">
-      <div className="forum-header">
+      <div className="forum-header" style={{ flexDirection: 'column', gap: '15px' }}>
         <div className="forum-tabs">
           {FORUM_CHANNELS.map(ch => (
             <button
@@ -494,21 +494,18 @@ function Forum({ user, allCommunities, onSwitchCommunity }) {
           ))}
         </div>
         {user.role === 'global_admin' && allCommunities && allCommunities.length > 0 && (
-          <div className="community-selector-forum" style={{ marginTop: '0', borderTop: 'none', borderTopLeftRadius: '0', borderTopRightRadius: '0' }}>
-            <label style={{ fontSize: '0.7em', color: '#94a3b8', display: 'block', marginBottom: '4px', fontWeight: 'bold' }}>📍 COMUNIDAD ACTUAL</label>
-            <select 
-              value={user.communityId} 
-              onChange={(e) => {
-                const comm = allCommunities.find(c => c.id === e.target.value);
-                if (comm) onSwitchCommunity(comm.id, comm.name, comm.center);
-              }}
-              style={{ width: '100%', background: '#0f172a', color: 'white', border: '1px solid #334155', borderRadius: '8px', padding: '10px', fontSize: '0.9em' }}
-            >
-              {allCommunities.map(c => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
-          </div>
+          <select 
+            value={user.communityId} 
+            onChange={(e) => {
+              const comm = allCommunities.find(c => c.id === e.target.value);
+              if (comm) onSwitchCommunity(comm.id, comm.name, comm.center);
+            }}
+            style={{ width: '100%', background: '#0f172a', color: 'white', border: '1px solid #334155', borderRadius: '8px', padding: '10px', fontSize: '0.9em', outline: 'none' }}
+          >
+            {allCommunities.map(c => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
         )}
       </div>
 
