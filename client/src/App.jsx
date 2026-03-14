@@ -85,8 +85,7 @@ function createHouseIcon(labelText, status, emergencyType) {
     else className += ' sos-active'
   }
   else if (status === 'mine') className += ' my-house'
-  else if (status === 'inhabited') className += ' inhabited'
-  else if (status === 'admin') className += ' admin-inhabited'
+  else if (status === 'inhabited' || status === 'admin') className += ' inhabited'
 
   const emergencyEmoji = status === 'sos' && emergencyType ?
     EMERGENCY_TYPES.find(e => e.id === emergencyType)?.emoji || '' : ''
@@ -100,8 +99,8 @@ function createHouseIcon(labelText, status, emergencyType) {
       ${labelText}
       ${markerIcon ? `<span class="emergency-icon">${markerIcon}</span>` : ''}
     </div>`,
-    iconSize: status === 'sos' ? [60, 60] : (status === 'mine' || status === 'inhabited' ? [50, 50] : [40, 40]),
-    iconAnchor: status === 'sos' ? [30, 30] : (status === 'mine' || status === 'inhabited' ? [25, 25] : [20, 20])
+    iconSize: status === 'sos' ? [60, 60] : (status === 'mine' || status === 'inhabited' || status === 'admin' ? [50, 50] : [40, 40]),
+    iconAnchor: status === 'sos' ? [30, 30] : (status === 'mine' || status === 'inhabited' || status === 'admin' ? [25, 25] : [20, 20])
   })
 }
 
