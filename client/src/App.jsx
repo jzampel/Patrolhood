@@ -8,6 +8,8 @@ import 'leaflet/dist/leaflet.css'
 import './App.css'
 import { db, addPendingSOS, getPendingSOS, markSOSAsSent, getPendingCount } from './db'
 import { safeFetch } from './api'
+import { PushNotifications } from '@capacitor/push-notifications'
+import { Device } from '@capacitor/device'
 
 const socket = io(import.meta.env.VITE_API_URL || '/')
 
@@ -833,9 +835,20 @@ function App() {
 
   // Auto-check notification permission
   useEffect(() => {
-    if (window.Notification && Notification.permission === 'granted') {
-      setNotificationsEnabled(true);
-    }
+    const checkPerm = async () => {
+      try {
+        const info = await Device.getInfo();
+        if (info.platform === 'android' || info.platform === 'ios') {
+          const perm = await PushNotifications.checkPermissions();
+          if (perm.receive === 'granted') setNotificationsEnabled(true);
+        } else if (window.Notification && window.Notification.permission === 'granted') {
+          setNotificationsEnabled(true);
+        }
+      } catch (e) {
+        console.warn('Error checking notifications:', e);
+      }
+    };
+    checkPerm();
   }, []);
 
   // Check pending SOS count periodically
@@ -865,15 +878,60 @@ function App() {
   // FCM Register and Logic
   async function subscribeToPush() {
     try {
+      // Check platform first
+      const info = await Device.getInfo();
+      const isNative = info.platform === 'android' || info.platform === 'ios';
+
+      if (isNative) {
+        console.log('📱 Running in Native App (Capacitor)');
+        let permStatus = await PushNotifications.checkPermissions();
+        if (permStatus.receive === 'prompt') {
+          permStatus = await PushNotifications.requestPermissions();
+        }
+
+        if (permStatus.receive !== 'granted') {
+          alert('⚠️ Permiso de notificaciones denegado en el sistema del móvil.');
+          return;
+        }
+
+        // Register for push notifications
+        await PushNotifications.register();
+
+        // One-time listener for registration
+        const regListener = await PushNotifications.addListener('registration', async (token) => {
+          console.log('✅ Native registration success, token:', token.value);
+          const response = await safeFetch(`${import.meta.env.VITE_API_URL || ''}/api/users/me/fcm-token`, {
+            method: 'POST',
+            body: JSON.stringify({ token: token.value })
+          });
+          if (response.success) {
+            setNotificationsEnabled(true);
+            alert('✅ ¡Notificaciones nativas activadas con éxito!');
+          }
+          regListener.remove();
+        });
+
+        PushNotifications.addListener('registrationError', (err) => {
+          console.error('❌ Native registration error:', err.error);
+          alert('Error al registrar notificaciones: ' + err.error);
+        });
+
+        PushNotifications.addListener('pushNotificationReceived', (notification) => {
+          console.log('🔔 Push received in foreground:', notification);
+        });
+
+        return;
+      }
+
+      // Web Push Logic (Existing)
       const { initializeApp } = await import('firebase/app');
       const { getMessaging, getToken, onMessage } = await import('firebase/messaging');
       const { firebaseConfig, vapidKey } = await import('./firebase-config');
-      const token_fcm = localStorage.getItem('token'); // Use a different name for local token
+      const token_fcm = localStorage.getItem('token'); 
 
       const app = initializeApp(firebaseConfig);
       const messaging = getMessaging(app);
 
-      // Request permission (with compatibility check for iOS)
       if (!window.Notification) {
         alert('⚠️ Tu navegador o dispositivo no soporta el sistema de notificaciones. \n\nNota para iPhone: Debes añadir esta web a tu pantalla de inicio ("Compartir" -> "Añadir a la pantalla de inicio") para poder activar las alertas.');
         return;
@@ -895,7 +953,7 @@ function App() {
       });
 
       if (token) {
-        console.log('✅ FCM Token generated:', token);
+        console.log('✅ FCM Token generated (Web):', token);
         const response = await safeFetch(`${import.meta.env.VITE_API_URL || ''}/api/subscribe`, {
           method: 'POST',
           body: JSON.stringify({ token, userId: user.id, role: user.role, communityId: user.communityId })
@@ -914,8 +972,6 @@ function App() {
       onMessage(messaging, (payload) => {
         console.log('Foreground Message received: ', payload);
         if (payload.notification) {
-          // Add a link or context if possible
-          console.log('Notification data:', payload.data);
           alert(`🔔 NOTIFICACIÓN: ${payload.notification.title}\n\n${payload.notification.body}`);
         }
       });
