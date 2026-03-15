@@ -881,7 +881,7 @@ function App() {
 
       const permission = await window.Notification.requestPermission();
       if (permission !== 'granted') {
-        alert('Permiso de notificaciones denegado. No recibirás alertas SOS.');
+        alert(`⚠️ Permiso de notificaciones: ${permission}.\n\nPara activar las alertas:\n1. Pulsa el icono del candado en la barra de direcciones.\n2. Asegúrate de que las "Notificaciones" estén permitidas.\n3. En Brave: Activa "Usar servicios de Google para mensajería push" en Ajustes > Privacidad.`);
         return;
       }
 
