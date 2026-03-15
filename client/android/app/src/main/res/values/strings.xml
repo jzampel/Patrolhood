@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Patrolhood</string>
+    <string name="title_activity_main">Patrolhood</string>
+    <string name="package_name">com.patrolhood.app</string>
+    <string name="custom_url_scheme">com.patrolhood.app</string>
+</resources>
