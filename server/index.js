@@ -921,7 +921,7 @@ app.delete('/api/contacts/:id', authenticate, checkCommunity, async (req, res) =
     } catch (error) { res.status(500).json({ success: false }); }
 });
 
-// Push
+// Push & FCM
 app.post('/api/subscribe', authenticate, checkCommunity, async (req, res) => {
     const { token, userId, role, communityId } = req.body;
     try {
@@ -929,6 +929,39 @@ app.post('/api/subscribe', authenticate, checkCommunity, async (req, res) => {
         res.status(201).json({ success: true });
     } catch (error) { res.status(500).json({ success: false }); }
 });
+
+// New FCM Token registration (Unified)
+app.post('/api/users/me/fcm-token', authenticate, async (req, res) => {
+    const { token } = req.body;
+    if (!token) return res.status(400).json({ success: false, message: 'Token missing' });
+    try {
+        // Save both in User (for direct access) and Subscription (for broadcast)
+        await User.findOneAndUpdate({ id: req.user.id }, { $addToSet: { fcmTokens: token } });
+        await Subscription.findOneAndUpdate(
+            { token },
+            { token, userId: req.user.id, communityId: req.user.communityId, role: req.user.role },
+            { upsert: true }
+        );
+        res.json({ success: true });
+    } catch (error) { res.status(500).json({ success: false }); }
+});
+
+async function sendFCMToCommunity(communityId, title, body, data = {}) {
+    try {
+        const subs = await Subscription.find({ communityId });
+        const tokens = subs.map(s => s.token).filter(t => !!t);
+        if (tokens.length === 0) return;
+
+        await admin.messaging().sendEachForMulticast({
+            tokens,
+            notification: { title, body },
+            data: { ...data, click_action: '/' }
+        });
+        console.log(`🚀 FCM: Sent to ${tokens.length} devices in community ${communityId}`);
+    } catch (err) {
+        console.error('❌ FCM Error:', err.message);
+    }
+}
 
 // --- SOS REST API (Robust Flow) ---
 app.post('/api/sos', authenticate, checkCommunity, sosLimiter, async (req, res) => {
@@ -1037,6 +1070,15 @@ app.post('/api/sos', authenticate, checkCommunity, sosLimiter, async (req, res) 
                 `⚠️ _Atención inmediata requerida_`;
             sendTelegramAlert(community.name, sosText);
         }
+
+        // --- FCM NOTIFICATION (Local Fallback) ---
+        const fcmTitle = `🚨 SOS: ${community?.name || 'Comunidad'}`;
+        const fcmBody = `¡Atención! ${alert.emergencyTypeLabel.toUpperCase()} en Casa #${alert.houseNumber}.`;
+        sendFCMToCommunity(alert.communityId, fcmTitle, fcmBody, {
+            type: 'SOS',
+            alertId: alert._id.toString(),
+            communityId: alert.communityId
+        });
 
         res.json({ success: true, alertId: alert._id });
     } catch (error) {

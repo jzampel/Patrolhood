@@ -831,6 +831,13 @@ function App() {
     }
   }, [])
 
+  // Auto-check notification permission
+  useEffect(() => {
+    if (window.Notification && Notification.permission === 'granted') {
+      setNotificationsEnabled(true);
+    }
+  }, []);
+
   // Check pending SOS count periodically
   useEffect(() => {
     const checkPending = async () => {
@@ -1626,6 +1633,33 @@ function App() {
             <p style={{ fontSize: '0.7em', color: '#94a3b8', textAlign: 'center', marginTop: '5px' }}>
               Únete al bot para recibir alertas fiables en tu móvil.
             </p>
+          </div>
+        )}
+
+        {/* FCM Native Notifications Button */}
+        {user.role !== 'global_admin' && !notificationsEnabled && (
+          <div style={{ padding: '0 20px 10px 20px' }}>
+            <button
+              onClick={subscribeToPush}
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                background: 'var(--gold-gradient)',
+                color: '#000', padding: '10px', borderRadius: '8px',
+                border: 'none', width: '100%', fontWeight: 'bold', fontSize: '0.9em',
+                cursor: 'pointer'
+              }}
+            >
+              🔔 Activar Notificaciones App
+            </button>
+            <p style={{ fontSize: '0.7em', color: '#94a3b8', textAlign: 'center', marginTop: '5px' }}>
+              Recibe alertas directas sin necesidad de Telegram.
+            </p>
+          </div>
+        )}
+
+        {notificationsEnabled && (
+          <div style={{ padding: '0 20px 10px 20px', textAlign: 'center' }}>
+            <span style={{ color: '#10b981', fontSize: '0.85em', fontWeight: 'bold' }}>✅ Notificaciones nativas activas</span>
           </div>
         )}
 

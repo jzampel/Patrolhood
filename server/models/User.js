@@ -24,7 +24,8 @@ const UserSchema = new mongoose.Schema({
         from: { type: String, default: '23:00' }, // HH:MM format
         to: { type: String, default: '07:00' }     // HH:MM format
     },
-    publicPhone: { type: Boolean, default: false } // Owner decides if phone is visible to others
+    publicPhone: { type: Boolean, default: false }, // Owner decides if phone is visible to others
+    fcmTokens: { type: [String], default: [] } // Push notification tokens for multiple devices
 });
 
 // Indexes for performant querying
