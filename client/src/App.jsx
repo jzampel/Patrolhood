@@ -296,18 +296,18 @@ function AuthOverlay({ onLogin, deletedMsg }) {
                     </ul>
 
                     <h4>3. Exención de Responsabilidad Técnica y Civil</h4>
-                    <p>Al amparo del Art. 1101 del Código Civil, los prestadores del servicio no responderán por daños y perjuicios derivados de: (a) Fallos de red, latencia en notificaciones push o indisponibilidad del servidor; (b) Acciones u omisiones de los vecinos ante una alerta; (c) Falta de veracidad en el contenido publicado por usuarios. La app se entrega "tal cual" sin garantía implícita de intervención externa.</p>
+                    <p>Al amparo del Art. 1101 del Código Civil, los prestadores del servicio no responderán por daños y perjuicios derivados de: (a) Fallos de red, latencia en notificaciones push o indisponibilidad del servidor; (b) Acciones u omisiones de los vecinos ante una alerta; (c) Falta de veracidad en el contenido publicado por usuarios. La app se entrega como una herramienta para los vecinos de una comunidad, sin garantía implícita de intervención externa por parte de ellos.</p>
 
-                    <h4>4. Responsabilidad Penal por Mal Uso (Art. 561 CP)</h4>
-                    <p>El uso del botón SOS para emitir falsas alarmas que movilicen innecesariamente servicios de emergencia pública es un delito tipificado en el **Artículo 561 del Código Penal**, con penas de prisión y multa. PatrolHood colaborará con las autoridades facilitando logs de auditoría ante requerimientos judiciales por uso malintencionado.</p>
+                    <h4>4. Naturaleza y Uso del Sistema SOS</h4>
+                    <p>El botón SOS no está conectado a ninguna central de servicios de emergencias públicas. Por ello su uso estará supeditado a la real necesidad de aquel que lo active. Toda activación quedará registrada en un historial de logs de auditoría al que tendrá acceso el administrador de la comunidad en la plataforma y quien regulará y tomará las decisiones pertinentes en caso de emisiones de falsas alarmas mal intencionadas.</p>
 
                     <h4>5. Retención de Datos y Derecho al Olvido (Art. 5.1.e RGPD)</h4>
                     <p style={{ background: 'rgba(251,191,36,0.08)', padding: '8px', borderRadius: '6px', borderLeft: '3px solid #fbbf24' }}>
                       ⏱️ **Conservación Limitada:** Los mensajes y multimedia se eliminan de forma irreversible a los **30 días** para minimizar riesgos de privacidad. Las alertas SOS se conservan 30 días para trazabilidad de seguridad. Al eliminar su cuenta, sus datos identificativos son borrados de inmediato de los servidores activos.
                     </p>
 
-                    <h4>6. Geolocalización</h4>
-                    <p>La compartición de su ubicación exacta ocurre **únicamente** cuando usted presiona voluntariamente el botón SOS, con el fin legítimo de facilitar su auxilio por parte de la comunidad (Art. 6.1.d RGPD - Interés vital).</p>
+                    <h4>6. Localización Estática y Privacidad</h4>
+                    <p>La plataforma procesa y visualiza la geolocalización estática del inmueble o punto de interés que el usuario proporciona durante el registro. Dicha información se utiliza con el fin legítimo de facilitar el auxilio por parte de la comunidad (Art. 6.1.d RGPD - Interés vital) de forma voluntaria, siempre que el incidente ocurra dentro del entorno de la propia comunidad. **No existe posibilidad de seguimiento en tiempo real ni monitorización dinámica de su dispositivo.** Lo que se muestra es una etiqueta fijada en un mapa del lugar que usted indica y del que se presupone su titularidad o interés legítimo.</p>
 
                     <p style={{ marginTop: '20px', fontSize: '0.9em', color: '#94a3b8' }}>* Al marcar la casilla de aceptación, confirmas que has leído y comprendido estos términos en su totalidad.</p>
                   </div>
