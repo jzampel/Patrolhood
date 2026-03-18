@@ -241,6 +241,46 @@ textarea {
   color: white;
 }
 
+.password-wrapper {
+  position: relative;
+  width: 100%;
+  margin-bottom: 12px;
+}
+
+.password-wrapper input {
+  margin-bottom: 0 !important;
+  padding-right: 45px !important;
+}
+
+.password-toggle {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  color: #94a3b8;
+  opacity: 0.6;
+  transition: all 0.2s ease;
+}
+
+.password-toggle:hover {
+  opacity: 1;
+  color: var(--primary);
+  transform: translateY(-50%) scale(1.1);
+}
+
+.password-toggle svg {
+  display: block;
+  pointer-events: none; /* Let the button handle the click */
+}
+
 .login-btn {
   width: 100%;
   padding: 12px;
