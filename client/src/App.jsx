@@ -861,14 +861,32 @@ function App() {
     }
   }, [])
 
-  // Auto-check notification permission
+  // Auto-check notification permission and register if granted
   useEffect(() => {
     const checkPerm = async () => {
       try {
         const info = await Device.getInfo();
         if (info.platform === 'android' || info.platform === 'ios') {
+          // Listeners for foreground and actions (Global)
+          const pushInListener = await PushNotifications.addListener('pushNotificationReceived', (notification) => {
+            console.log('🔔 Push received in foreground:', notification);
+            // Optionally show a local notification or alert or just let the system handle it
+          });
+
+          const pushActionListener = await PushNotifications.addListener('pushNotificationActionPerformed', (notification) => {
+            console.log('👆 Push notification action performed', notification.actionId, notification.notification);
+            // Navigate to appropriate tab based on data if needed
+            if (notification.notification.data?.type === 'SOS') {
+              setActiveTab('map');
+            }
+          });
+
           const perm = await PushNotifications.checkPermissions();
-          if (perm.receive === 'granted') setNotificationsEnabled(true);
+          if (perm.receive === 'granted') {
+            setNotificationsEnabled(true);
+            // Silent registration to ensure token is synced
+            subscribeToPush(true);
+          }
         } else if (window.Notification && window.Notification.permission === 'granted') {
           setNotificationsEnabled(true);
         }
@@ -877,7 +895,7 @@ function App() {
       }
     };
     checkPerm();
-  }, []);
+  }, [user?.id]); // Re-check on login
 
   // Check pending SOS count periodically
   useEffect(() => {
@@ -904,52 +922,48 @@ function App() {
   }
 
   // FCM Register and Logic
-  async function subscribeToPush() {
+  async function subscribeToPush(isSilent = false) {
     try {
       // Check platform first
       const info = await Device.getInfo();
-      const isNative = info.platform === 'android' || info.platform === 'ios';
+    const isNative = info.platform === 'android' || info.platform === 'ios';
 
-      if (isNative) {
-        console.log('📱 Running in Native App (Capacitor)');
-        let permStatus = await PushNotifications.checkPermissions();
-        if (permStatus.receive === 'prompt') {
-          permStatus = await PushNotifications.requestPermissions();
-        }
+    if (isNative) {
+      console.log('📱 Running in Native App (Capacitor)');
+      let permStatus = await PushNotifications.checkPermissions();
+      if (permStatus.receive === 'prompt') {
+        permStatus = await PushNotifications.requestPermissions();
+      }
 
-        if (permStatus.receive !== 'granted') {
-          alert('⚠️ Permiso de notificaciones denegado en el sistema del móvil.');
-          return;
-        }
-
-        // Register for push notifications
-        await PushNotifications.register();
-
-        // One-time listener for registration
-        const regListener = await PushNotifications.addListener('registration', async (token) => {
-          console.log('✅ Native registration success, token:', token.value);
-          const response = await safeFetch(`${import.meta.env.VITE_API_URL || ''}/api/users/me/fcm-token`, {
-            method: 'POST',
-            body: JSON.stringify({ token: token.value })
-          });
-          if (response.success) {
-            setNotificationsEnabled(true);
-            alert('✅ ¡Notificaciones nativas activadas con éxito!');
-          }
-          regListener.remove();
-        });
-
-        PushNotifications.addListener('registrationError', (err) => {
-          console.error('❌ Native registration error:', err.error);
-          alert('Error al registrar notificaciones: ' + err.error);
-        });
-
-        PushNotifications.addListener('pushNotificationReceived', (notification) => {
-          console.log('🔔 Push received in foreground:', notification);
-        });
-
+      if (permStatus.receive !== 'granted') {
+        if (!isSilent) alert('⚠️ Permiso de notificaciones denegado en el sistema del móvil.');
         return;
       }
+
+      // 1. Setup listeners BEFORE registration
+      const regListener = await PushNotifications.addListener('registration', async (token) => {
+        console.log('✅ Native registration success, token:', token.value);
+        const response = await safeFetch(`${import.meta.env.VITE_API_URL || ''}/api/users/me/fcm-token`, {
+          method: 'POST',
+          body: JSON.stringify({ token: token.value })
+        });
+        if (response.success) {
+          setNotificationsEnabled(true);
+          if (!isSilent) alert('✅ ¡Notificaciones nativas activadas con éxito!');
+        }
+        regListener.remove();
+      });
+
+      const errListener = await PushNotifications.addListener('registrationError', (err) => {
+        console.error('❌ Native registration error:', err.error);
+        if (!isSilent) alert('Error al registrar notificaciones: ' + err.error);
+        errListener.remove();
+      });
+
+      // 2. Now register
+      await PushNotifications.register();
+      return;
+    }
 
       // Web Push Logic (Existing)
       const { initializeApp } = await import('firebase/app');
@@ -1724,7 +1738,7 @@ function App() {
         {user.role !== 'global_admin' && !notificationsEnabled && (
           <div style={{ padding: '0 20px 10px 20px' }}>
             <button
-              onClick={subscribeToPush}
+              onClick={() => subscribeToPush(false)}
               style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
                 background: 'var(--gold-gradient)',
