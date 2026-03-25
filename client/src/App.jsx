@@ -1027,8 +1027,39 @@ function App() {
       });
 
     } catch (err) {
-      console.error('❌ Push registration failed:', err);
+      console.log('❌ Push registration failed:', err);
       alert(`Error activando notificaciones: ${err.message}`);
+    }
+  }
+
+  // Unsubscribe from push notifications
+  async function unsubscribeFromPush() {
+    try {
+      const { initializeApp, getApps } = await import('firebase/app');
+      const { getMessaging, deleteToken } = await import('firebase/messaging');
+      const { firebaseConfig, vapidKey } = await import('./firebase-config');
+
+      const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
+      const messaging = getMessaging(app);
+
+      // Get and delete the local FCM token
+      const registration = await navigator.serviceWorker.ready;
+      const deleted = await deleteToken(messaging);
+      console.log('FCM token deleted locally:', deleted);
+
+      // Remove token from server (best-effort)
+      await safeFetch(`${import.meta.env.VITE_API_URL || ''}/api/unsubscribe`, {
+        method: 'POST',
+        body: JSON.stringify({ userId: user.id, communityId: user.communityId })
+      });
+
+      setNotificationsEnabled(false);
+      alert('✅ Notificaciones desactivadas en este dispositivo.');
+    } catch (err) {
+      console.error('Error unsubscribing:', err);
+      // Even if token deletion fails, reflect in UI
+      setNotificationsEnabled(false);
+      alert('✅ Notificaciones desactivadas.');
     }
   }
 
@@ -1764,8 +1795,16 @@ function App() {
         )}
 
         {notificationsEnabled && (
-          <div style={{ padding: '0 20px 10px 20px', textAlign: 'center' }}>
-            <span style={{ color: '#10b981', fontSize: '0.85em', fontWeight: 'bold' }}>✅ Notificaciones nativas activas</span>
+          <div style={{ padding: '0 20px 10px 20px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.3)', borderRadius: '8px', padding: '10px 14px' }}>
+              <span style={{ color: '#10b981', fontSize: '0.85em', fontWeight: 'bold' }}>✅ Notificaciones activas</span>
+              <button
+                onClick={unsubscribeFromPush}
+                style={{ background: 'none', border: '1px solid rgba(239,68,68,0.5)', color: '#f87171', borderRadius: '6px', padding: '4px 10px', fontSize: '0.75em', cursor: 'pointer' }}
+              >
+                Desactivar
+              </button>
+            </div>
           </div>
         )}
 

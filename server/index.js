@@ -940,6 +940,22 @@ app.post('/api/subscribe', authenticate, checkCommunity, async (req, res) => {
     }
 });
 
+// Remove FCM subscription (unsubscribe)
+app.post('/api/unsubscribe', authenticate, async (req, res) => {
+    const { userId, communityId } = req.body;
+    try {
+        // Delete all subscriptions for this user in this community
+        const result = await Subscription.deleteMany({ userId: userId || req.user.id, communityId: communityId || req.user.communityId });
+        // Also remove from User's fcmTokens array
+        await User.findOneAndUpdate({ id: req.user.id }, { $set: { fcmTokens: [] } });
+        console.log(`🔕 Unsubscribed user ${req.user.id}: removed ${result.deletedCount} tokens`);
+        res.json({ success: true, removed: result.deletedCount });
+    } catch (error) {
+        console.error('Error in /api/unsubscribe:', error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
 // New FCM Token registration (Unified)
 app.post('/api/users/me/fcm-token', authenticate, async (req, res) => {
     const { token } = req.body;
