@@ -57,12 +57,42 @@ const sosWorker = new Worker('SOS_QUEUE', async job => {
         const subs = await Subscription.find({ communityId: alert.communityId });
         if (subs.length > 0) {
             const tokens = subs.map(s => s.token).filter(t => !!t);
+            const title = `🚨 SOS: ${community?.name || 'Comunidad'}`;
+            const body = `¡Atención! ${alert.emergencyTypeLabel.toUpperCase()} en Casa #${alert.houseNumber}.`;
             try {
-                await admin.messaging().sendEachForMulticast({
+                const result = await admin.messaging().sendEachForMulticast({
                     tokens,
-                    notification: { title: `🚨 SOS: ${community?.name || ''}`, body: `¡Atención! ${alert.emergencyTypeLabel.toUpperCase()} en Casa #${alert.houseNumber}.` },
-                    data: { type: 'SOS', communityId: alert.communityId, houseNumber: String(alert.houseNumber), click_action: '/' }
+                    notification: { title, body },
+                    data: { type: 'SOS', communityId: alert.communityId, houseNumber: String(alert.houseNumber), click_action: '/' },
+                    // Web Push config (PWA on Android/Desktop)
+                    webpush: {
+                        headers: { Urgency: 'high' },
+                        notification: {
+                            title,
+                            body,
+                            icon: '/logo_bull.png',
+                            badge: '/logo_bull.png',
+                            requireInteraction: true,
+                            vibrate: [300, 100, 300, 100, 300],
+                            tag: 'patrolhood-sos',
+                            renotify: true,
+                            actions: [{ action: 'open', title: '🗺️ Ver en mapa' }]
+                        },
+                        fcm_options: { link: '/' }
+                    },
+                    // Android native config
+                    android: {
+                        priority: 'high',
+                        notification: { sound: 'default', priority: 'max', channelId: 'patrolhood_sos' }
+                    }
                 });
+                console.log(`[Worker] FCM sent: ${result.successCount} ok, ${result.failureCount} failed`);
+                // Remove invalid tokens
+                const toRemove = result.responses
+                    .map((r, i) => (!r.success && ['messaging/registration-token-not-registered', 'messaging/invalid-registration-token'].includes(r.error?.code)) ? tokens[i] : null)
+                    .filter(Boolean);
+                if (toRemove.length > 0) await Subscription.deleteMany({ token: { $in: toRemove } });
+
                 await ActiveSOS.findByIdAndUpdate(alertId, { 'channels.fcm.status': 'SENT', 'channels.fcm.lastAt': new Date() });
             } catch (e) {
                 await ActiveSOS.findByIdAndUpdate(alertId, { 'channels.fcm.status': 'FAILED', 'channels.fcm.lastError': e.message, $inc: { 'channels.fcm.attempts': 1 } });

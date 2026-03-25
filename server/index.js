@@ -923,11 +923,21 @@ app.delete('/api/contacts/:id', authenticate, checkCommunity, async (req, res) =
 
 // Push & FCM
 app.post('/api/subscribe', authenticate, checkCommunity, async (req, res) => {
-    const { token, userId, role, communityId } = req.body;
+    const { token, userId, role, communityId, communityName } = req.body;
+    if (!token) return res.status(400).json({ success: false, message: 'Token missing' });
     try {
-        await Subscription.findOneAndUpdate({ token }, { token, userId: userId || 'unknown', communityId, role: role || 'user' }, { upsert: true });
-        res.status(201).json({ success: true });
-    } catch (error) { res.status(500).json({ success: false }); }
+        await Subscription.findOneAndUpdate(
+            { token },
+            { $set: { token, userId: userId || req.user.id || 'unknown', communityId, communityName: communityName || '', role: role || 'user' } },
+            { upsert: true, new: true }
+        );
+        res.status(200).json({ success: true });
+    } catch (error) {
+        // E11000 = MongoDB duplicate key (race condition on upsert) – treat as success
+        if (error.code === 11000) return res.status(200).json({ success: true });
+        console.error('Error in /api/subscribe:', error);
+        res.status(500).json({ success: false, message: error.message });
+    }
 });
 
 // New FCM Token registration (Unified)
@@ -950,14 +960,63 @@ async function sendFCMToCommunity(communityId, title, body, data = {}) {
     try {
         const subs = await Subscription.find({ communityId });
         const tokens = subs.map(s => s.token).filter(t => !!t);
-        if (tokens.length === 0) return;
+        if (tokens.length === 0) {
+            console.log(`ℹ️ FCM: No tokens for community ${communityId}`);
+            return;
+        }
 
-        await admin.messaging().sendEachForMulticast({
+        const message = {
             tokens,
             notification: { title, body },
-            data: { ...data, click_action: '/' }
+            data: { ...Object.fromEntries(Object.entries(data).map(([k, v]) => [k, String(v)])), click_action: '/' },
+            // Web Push specific config (PWA on Android/Desktop)
+            webpush: {
+                headers: { Urgency: 'high' },
+                notification: {
+                    title,
+                    body,
+                    icon: '/logo_bull.png',
+                    badge: '/logo_bull.png',
+                    requireInteraction: true,
+                    vibrate: [300, 100, 300, 100, 300],
+                    tag: data.type || 'patrolhood-alert',
+                    renotify: true,
+                    actions: [
+                        { action: 'open', title: '🗺️ Ver en mapa' }
+                    ]
+                },
+                fcm_options: { link: '/' }
+            },
+            // Android native app config
+            android: {
+                priority: 'high',
+                notification: {
+                    sound: 'default',
+                    priority: 'max',
+                    channelId: 'patrolhood_sos'
+                }
+            }
+        };
+
+        const result = await admin.messaging().sendEachForMulticast(message);
+        console.log(`🚀 FCM: Sent to ${tokens.length} devices in community ${communityId}. Success: ${result.successCount}, Failed: ${result.failureCount}`);
+
+        // Remove invalid/expired tokens
+        const toRemove = [];
+        result.responses.forEach((resp, idx) => {
+            if (!resp.success) {
+                const errCode = resp.error?.code;
+                if (errCode === 'messaging/registration-token-not-registered' || errCode === 'messaging/invalid-registration-token') {
+                    toRemove.push(tokens[idx]);
+                    console.log(`🗑️ Removing invalid token: ${tokens[idx].slice(0, 20)}...`);
+                } else {
+                    console.warn(`⚠️ FCM failed for token ${tokens[idx].slice(0, 20)}...: ${resp.error?.message}`);
+                }
+            }
         });
-        console.log(`🚀 FCM: Sent to ${tokens.length} devices in community ${communityId}`);
+        if (toRemove.length > 0) {
+            await Subscription.deleteMany({ token: { $in: toRemove } });
+        }
     } catch (err) {
         console.error('❌ FCM Error:', err.message);
     }

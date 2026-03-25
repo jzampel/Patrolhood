@@ -912,8 +912,16 @@ function App() {
   async function registerServiceWorker() {
     if ('serviceWorker' in navigator) {
       try {
+        // Unregister old SW versions first to ensure fresh registration
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        for (const reg of registrations) {
+          if (reg.active?.scriptURL?.includes('firebase-messaging-sw.js')) {
+            await reg.update(); // Force update check
+          }
+        }
         const register = await navigator.serviceWorker.register('/firebase-messaging-sw.js', { scope: '/' });
-        console.log('FCM Service Worker Registered');
+        await register.update(); // Force update if new version available
+        console.log('FCM Service Worker Registered/Updated');
         return register;
       } catch (err) {
         console.error('Service Worker registration failed:', err);
@@ -995,13 +1003,13 @@ function App() {
       });
 
       if (token) {
-        console.log('✅ FCM Token generated (Web):', token);
+        console.log('✅ FCM Token generated (Web):', token.slice(0, 30) + '...');
         const response = await safeFetch(`${import.meta.env.VITE_API_URL || ''}/api/subscribe`, {
           method: 'POST',
-          body: JSON.stringify({ token, userId: user.id, role: user.role, communityId: user.communityId })
+          body: JSON.stringify({ token, userId: user.id, role: user.role, communityId: user.communityId, communityName: user.communityName })
         });
 
-        if (!response.success) throw new Error(response.error || 'Error al guardar suscripción en el servidor');
+        if (!response.success) throw new Error(response.error || response.message || 'Error al guardar suscripción en el servidor');
 
         console.log('✅ Subscription saved on server');
         alert('✅ Notificaciones Activadas en este dispositivo');
