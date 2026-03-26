@@ -1009,7 +1009,7 @@ async function sendFCMToCommunity(communityId, title, body, data = {}) {
                 notification: {
                     sound: 'default',
                     priority: 'max',
-                    channelId: 'patrolhood_sos'
+                    channelId: 'default'
                 }
             }
         };
@@ -1219,13 +1219,31 @@ if (isRedisAvailable) {
                     .filter(s => !quietUserIds.has(s.userId))
                     .map(s => s.token).filter(t => !!t);
                 try {
+                    const fcmTitle = `🚨 SOS: ${community?.name || ''}`;
+                    const fcmBody = `¡Atención! ${alert.emergencyTypeLabel.toUpperCase()} en Casa #${alert.houseNumber}.`;
                     await admin.messaging().sendEachForMulticast({
                         tokens,
-                        notification: {
-                            title: `🚨 SOS: ${community?.name || ''}`,
-                            body: `¡Atención! ${alert.emergencyTypeLabel.toUpperCase()} en Casa #${alert.houseNumber}.`
+                        notification: { title: fcmTitle, body: fcmBody },
+                        data: { type: 'SOS', communityId: alert.communityId, houseNumber: String(alert.houseNumber), click_action: '/' },
+                        webpush: {
+                            headers: { Urgency: 'high' },
+                            notification: {
+                                title: fcmTitle,
+                                body: fcmBody,
+                                icon: '/logo_bull.png',
+                                badge: '/logo_bull.png',
+                                requireInteraction: true,
+                                vibrate: [300, 100, 300, 100, 300],
+                                tag: 'patrolhood-sos',
+                                renotify: true,
+                                actions: [{ action: 'open', title: '🗺️ Ver en mapa' }]
+                            },
+                            fcm_options: { link: '/' }
                         },
-                        data: { type: 'SOS', communityId: alert.communityId, houseNumber: String(alert.houseNumber), click_action: '/' }
+                        android: {
+                            priority: 'high',
+                            notification: { sound: 'default', priority: 'max', channelId: 'default' }
+                        }
                     });
                     await ActiveSOS.findByIdAndUpdate(alertId, {
                         'channels.fcm.status': 'SENT',

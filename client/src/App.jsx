@@ -889,6 +889,8 @@ function App() {
           }
         } else if (window.Notification && window.Notification.permission === 'granted') {
           setNotificationsEnabled(true);
+          // Silent re-subscription: refresh token and set up foreground handler on every load
+          subscribeToPush(true);
         }
       } catch (e) {
         console.warn('Error checking notifications:', e);
@@ -983,13 +985,14 @@ function App() {
       const messaging = getMessaging(app);
 
       if (!window.Notification) {
-        alert('⚠️ Tu navegador o dispositivo no soporta el sistema de notificaciones. \n\nNota para iPhone: Debes añadir esta web a tu pantalla de inicio ("Compartir" -> "Añadir a la pantalla de inicio") para poder activar las alertas.');
+        if (!isSilent) alert('⚠️ Tu navegador o dispositivo no soporta el sistema de notificaciones. \n\nNota para iPhone: Debes añadir esta web a tu pantalla de inicio ("Compartir" -> "Añadir a la pantalla de inicio") para poder activar las alertas.');
         return;
       }
 
-      const permission = await window.Notification.requestPermission();
+      // In silent mode we already know permission is granted (called from checkPerm)
+      const permission = isSilent ? 'granted' : await window.Notification.requestPermission();
       if (permission !== 'granted') {
-        alert(`⚠️ Permiso de notificaciones: ${permission}.\n\nPara activar las alertas:\n1. Pulsa el icono del candado en la barra de direcciones.\n2. Asegúrate de que las "Notificaciones" estén permitidas.\n3. En Brave: Activa "Usar servicios de Google para mensajería push" en Ajustes > Privacidad.`);
+        if (!isSilent) alert(`⚠️ Permiso de notificaciones: ${permission}.\n\nPara activar las alertas:\n1. Pulsa el icono del candado en la barra de direcciones.\n2. Asegúrate de que las "Notificaciones" estén permitidas.\n3. En Brave: Activa "Usar servicios de Google para mensajería push" en Ajustes > Privacidad.`);
         return;
       }
 
@@ -1012,17 +1015,29 @@ function App() {
         if (!response.success) throw new Error(response.error || response.message || 'Error al guardar suscripción en el servidor');
 
         console.log('✅ Subscription saved on server');
-        alert('✅ Notificaciones Activadas en este dispositivo');
+        if (!isSilent) alert('✅ Notificaciones Activadas en este dispositivo');
         setNotificationsEnabled(true);
       } else {
         throw new Error('No se pudo obtener el token de Firebase (vacío)');
       }
 
-      // Handle foreground messages
-      onMessage(messaging, (payload) => {
-        console.log('Foreground Message received: ', payload);
-        if (payload.notification) {
-          alert(`🔔 NOTIFICACIÓN: ${payload.notification.title}\n\n${payload.notification.body}`);
+      // Handle foreground messages - show real notification (with sound/vibration) instead of alert()
+      onMessage(messaging, async (payload) => {
+        console.log('🔔 Foreground Message received:', payload);
+        const title = payload.notification?.title || '🚨 Alerta PatrolHood';
+        const body = payload.notification?.body || 'Nueva alerta en tu comunidad.';
+        if ('serviceWorker' in navigator) {
+          const reg = await navigator.serviceWorker.ready;
+          reg.showNotification(title, {
+            body,
+            icon: '/logo_bull.png',
+            badge: '/logo_bull.png',
+            tag: payload.data?.type || 'patrolhood-alert',
+            renotify: true,
+            requireInteraction: true,
+            vibrate: [300, 100, 300, 100, 300],
+            data: { url: '/', ...payload.data }
+          });
         }
       });
 
