@@ -993,13 +993,8 @@ async function sendFCMToCommunity(communityId, title, body, data = {}) {
                     body,
                     icon: '/logo_bull.png',
                     badge: '/logo_bull.png',
-                    requireInteraction: true,
-                    vibrate: [300, 100, 300, 100, 300],
                     tag: data.type || 'patrolhood-alert',
-                    renotify: true,
-                    actions: [
-                        { action: 'open', title: '🗺️ Ver en mapa' }
-                    ]
+                    renotify: true
                 },
                 fcm_options: { link: '/' }
             },
@@ -1009,7 +1004,7 @@ async function sendFCMToCommunity(communityId, title, body, data = {}) {
                 notification: {
                     sound: 'default',
                     priority: 'max',
-                    channelId: 'default'
+                    channelId: 'patrolhood_sos'
                 }
             }
         };
@@ -1232,8 +1227,6 @@ if (isRedisAvailable) {
                                 body: fcmBody,
                                 icon: '/logo_bull.png',
                                 badge: '/logo_bull.png',
-                                requireInteraction: true,
-                                vibrate: [300, 100, 300, 100, 300],
                                 tag: 'patrolhood-sos',
                                 renotify: true
                             },
@@ -1241,7 +1234,7 @@ if (isRedisAvailable) {
                         },
                         android: {
                             priority: 'high',
-                            notification: { sound: 'default', priority: 'max', channelId: 'default' }
+                            notification: { sound: 'default', priority: 'max', channelId: 'patrolhood_sos' }
                         }
                     });
                     await ActiveSOS.findByIdAndUpdate(alertId, {

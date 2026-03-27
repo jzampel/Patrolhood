@@ -1044,6 +1044,33 @@ function App() {
         console.log('🔔 Foreground Message received:', payload);
         const title = payload.notification?.title || '🚨 Alerta PatrolHood';
         const body = payload.notification?.body || 'Nueva alerta en tu comunidad.';
+        
+        // SOS Siren Audio
+        if (payload.data?.type === 'SOS') {
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                if (ctx.state === 'suspended') await ctx.resume();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.type = 'square';
+                gain.gain.value = 0.5; // Moderate volume
+                
+                let high = true;
+                const interval = setInterval(() => {
+                    osc.frequency.setValueAtTime(high ? 800 : 500, ctx.currentTime);
+                    high = !high;
+                }, 300);
+                
+                osc.start();
+                setTimeout(() => {
+                    clearInterval(interval);
+                    osc.stop();
+                }, 3000); // 3 seconds
+            } catch (e) { console.warn('Audio Context failed:', e); }
+        }
+
         if ('serviceWorker' in navigator) {
           const reg = await navigator.serviceWorker.ready;
           reg.showNotification(title, {

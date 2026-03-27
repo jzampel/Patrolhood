@@ -64,21 +64,18 @@ const sosWorker = new Worker('SOS_QUEUE', async job => {
                     tokens,
                     notification: { title, body },
                     data: { type: 'SOS', communityId: alert.communityId, houseNumber: String(alert.houseNumber), click_action: '/' },
-                    // Web Push config (PWA on Android/Desktop)
-                    webpush: {
-                        headers: { Urgency: 'high' },
-                        notification: {
-                            title,
-                            body,
-                            icon: '/logo_bull.png',
-                            badge: '/logo_bull.png',
-                            requireInteraction: true,
-                            vibrate: [300, 100, 300, 100, 300],
-                            tag: 'patrolhood-sos',
-                            renotify: true
+                        webpush: {
+                            headers: { Urgency: 'high' },
+                            notification: {
+                                title,
+                                body,
+                                icon: '/logo_bull.png',
+                                badge: '/logo_bull.png',
+                                tag: 'patrolhood-sos',
+                                renotify: true
+                            },
+                            fcm_options: { link: '/' }
                         },
-                        fcm_options: { link: '/' }
-                    },
                     // Android native config
                     android: {
                         priority: 'high',
