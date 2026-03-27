@@ -1235,8 +1235,7 @@ if (isRedisAvailable) {
                                 requireInteraction: true,
                                 vibrate: [300, 100, 300, 100, 300],
                                 tag: 'patrolhood-sos',
-                                renotify: true,
-                                actions: [{ action: 'open', title: '🗺️ Ver en mapa' }]
+                                renotify: true
                             },
                             fcm_options: { link: '/' }
                         },

@@ -32,11 +32,7 @@ messaging.onBackgroundMessage((payload) => {
         data: {
             url: '/',
             ...payload.data
-        },
-        actions: [
-            { action: 'open', title: '🗺️ Ver en mapa' },
-            { action: 'dismiss', title: 'Cerrar' }
-        ]
+        }
     };
 
     self.registration.showNotification(notificationTitle, notificationOptions);
