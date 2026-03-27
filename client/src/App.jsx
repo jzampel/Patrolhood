@@ -950,6 +950,16 @@ function App() {
         return;
       }
 
+      // Explicitly create SOS channel for Android 8.0+
+      await PushNotifications.createChannel({
+        id: 'patrolhood_sos',
+        name: 'Alertas SOS PatrolHood',
+        description: 'Notificaciones de emergencias y SOS vecinales',
+        importance: 5,
+        visibility: 1,
+        vibration: true
+      });
+
       // 1. Setup listeners BEFORE registration
       const regListener = await PushNotifications.addListener('registration', async (token) => {
         console.log('✅ Native registration success, token:', token.value);
@@ -1348,6 +1358,19 @@ function App() {
       audioCtxRef.current = null
     }
   }
+
+  // Auto-play/stop siren based on active alerts
+  useEffect(() => {
+    // We defer the siren slightly to ensure browser AudioContext is allowed if user just interacted
+    const timer = setTimeout(() => {
+      if (activeAlerts && activeAlerts.length > 0) {
+        startSiren();
+      } else {
+        stopSiren();
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [activeAlerts]);
 
   useEffect(() => {
     socket.on('emergency_alert', (data) => {
