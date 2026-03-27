@@ -933,35 +933,43 @@ function App() {
 
   // FCM Register and Logic
   async function subscribeToPush(isSilent = false) {
+    if (!user) return; // Abort if not logged in
+
     try {
       // Check platform first
       const info = await Device.getInfo();
-    const isNative = info.platform === 'android' || info.platform === 'ios';
+      const isNative = info.platform === 'android' || info.platform === 'ios';
 
-    if (isNative) {
-      console.log('📱 Running in Native App (Capacitor)');
-      let permStatus = await PushNotifications.checkPermissions();
-      if (permStatus.receive === 'prompt') {
-        permStatus = await PushNotifications.requestPermissions();
-      }
+      if (isNative) {
+        console.log('📱 Running in Native App (Capacitor)');
+        let permStatus = await PushNotifications.checkPermissions();
+        if (permStatus.receive === 'prompt') {
+          permStatus = await PushNotifications.requestPermissions();
+        }
 
-      if (permStatus.receive !== 'granted') {
-        if (!isSilent) alert('⚠️ Permiso de notificaciones denegado en el sistema del móvil.');
-        return;
-      }
+        if (permStatus.receive !== 'granted') {
+          if (!isSilent) alert('⚠️ Permiso de notificaciones denegado en el sistema del móvil.');
+          return;
+        }
 
-      // Explicitly create SOS channel for Android 8.0+
-      await PushNotifications.createChannel({
-        id: 'patrolhood_sos',
-        name: 'Alertas SOS PatrolHood',
-        description: 'Notificaciones de emergencias y SOS vecinales',
-        importance: 5,
-        visibility: 1,
-        vibration: true
-      });
+        // Explicitly create SOS channel for Android 8.0+ only
+        if (info.platform === 'android') {
+          try {
+            await PushNotifications.createChannel({
+              id: 'patrolhood_sos',
+              name: 'Alertas SOS PatrolHood',
+              description: 'Notificaciones de emergencias y SOS vecinales',
+              importance: 5,
+              visibility: 1,
+              vibration: true
+            });
+          } catch (e) {
+            console.warn('⚠️ No se pudo crear el canal de notificaciones en Android:', e);
+          }
+        }
 
-      // 1. Setup listeners BEFORE registration
-      const regListener = await PushNotifications.addListener('registration', async (token) => {
+        // 1. Setup listeners BEFORE registration
+        const regListener = await PushNotifications.addListener('registration', async (token) => {
         console.log('✅ Native registration success, token:', token.value);
         const response = await safeFetch(`${import.meta.env.VITE_API_URL || ''}/api/users/me/fcm-token`, {
           method: 'POST',
