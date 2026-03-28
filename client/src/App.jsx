@@ -976,7 +976,7 @@ function App() {
         });
         if (response.success) {
           setNotificationsEnabled(true);
-          if (!isSilent) alert('✅ ¡Notificaciones nativas activadas con éxito!');
+          if (!isSilent) alert(`✅ ¡Notificaciones nativas activadas!\nToken: ${token.value.substring(0, 10)}...`);
         }
         regListener.remove();
       });
@@ -1037,7 +1037,7 @@ function App() {
         if (!response.success) throw new Error(response.error || response.message || 'Error al guardar suscripción en el servidor');
 
         console.log('✅ Subscription saved on server');
-        if (!isSilent) alert('✅ Notificaciones Activadas en este dispositivo');
+        if (!isSilent) alert(`✅ Notificaciones Activadas!\nToken: ${token.substring(0, 10)}...`);
         setNotificationsEnabled(true);
       } else {
         throw new Error('No se pudo obtener el token de Firebase (vacío)');

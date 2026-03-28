@@ -1,5 +1,5 @@
-importScripts('https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js');
-importScripts('https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js');
+importScripts('https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js');
+importScripts('https://www.gstatic.com/firebasejs/10.13.2/firebase-messaging-compat.js');
 
 // These values must match your firebase-config.js
 const firebaseConfig = {
@@ -14,5 +14,32 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const messaging = firebase.messaging();
 
-// In background, FCM SDK automatically handles the notification if 'notification' is in the payload.
-// Do not manually call showNotification or notificationclick, as it causes fatal promise crashes on iOS Safari Web Push.
+/**
+ * BACKGROUND MESSAGE HANDLER
+ * This is crucial for Safari and mobile devices when the PWA is closed or in background.
+ */
+messaging.onBackgroundMessage((payload) => {
+    console.log('[firebase-messaging-sw.js] Background message received:', payload);
+    
+    // If the payload already has the 'notification' property, Firebase usually shows it automatically.
+    // However, for maximum reliability on iOS, we provide an explicit fallback if needed.
+    if (!payload.notification && payload.data) {
+        const notificationTitle = payload.data.title || '🚨 Alerta PatrolHood';
+        const notificationOptions = {
+            body: payload.data.body || 'Nueva alerta en tu comunidad.',
+            icon: '/logo_bull.png',
+            badge: '/logo_bull.png',
+            tag: payload.data.type || 'patrolhood-alert',
+            data: { url: '/', ...payload.data }
+        };
+        return self.registration.showNotification(notificationTitle, notificationOptions);
+    }
+});
+
+// Listener for notification clicks
+self.addEventListener('notificationclick', (event) => {
+    event.notification.close();
+    event.waitUntil(
+        clients.openWindow('/')
+    );
+});
