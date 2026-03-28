@@ -944,15 +944,10 @@ function App() {
 
   // FCM Register and Logic
   async function subscribeToPush(isSilent = false) {
-    if (!isSilent) alert('🚨 debug: Paso 1 - Función llamada');
-    if (!user) {
-        if (!isSilent) alert('🚨 debug: Error - User is NULL');
-        return;
-    }
+    if (!user) return;
     
     try {
       const isNative = (typeof Capacitor !== 'undefined') ? Capacitor.isNativePlatform() : false;
-      if (!isSilent) alert('🚨 debug: Paso 2 - isNative: ' + isNative);
 
       if (isNative) {
         // ... (Native logic remains same)
@@ -1674,9 +1669,8 @@ function App() {
   return (
     <div className="app">
       {/* 🛠️ DEBUG OVERLAY 🛠️ */}
-      <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 99999, background: 'rgba(0,0,0,0.92)', color: '#00ff00', fontSize: '9px', padding: '4px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #444', fontFamily: 'monospace' }}>
-        <span>v2.8 | Notif: {String(window.Notification?.permission)} | SW: {String('serviceWorker' in navigator)} | standalone: {String(window.navigator.standalone)} | User: {user?.id?.substring(0,5)}</span>
-        <button onClick={() => alert('✅ INTERACTION TEST OK')} style={{ background: '#333', color: 'white', border: '1px solid #666', padding: '2px 6px', borderRadius: '3px', fontSize: '10px' }}>TEST</button>
+      <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 99999, background: 'rgba(0,0,0,0.95)', color: '#00ff00', fontSize: '8px', padding: '2px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', opacity: 0.8 }}>
+        <span>v2.9 | Notif: {String(window.Notification?.permission)} | Standalone: {String(window.navigator.standalone)}</span>
       </div>
 
       <button className="mobile-menu-toggle" onClick={() => setIsSidebarOpen(true)}>
@@ -1889,7 +1883,7 @@ function App() {
         {user.role !== 'global_admin' && !notificationsEnabled && (
           <div style={{ padding: '0 20px 10px 20px' }}>
             <button
-              onClick={() => { alert('🚨 RAW CLICK: Llamando a subscribe...'); subscribeToPush(false); }}
+              onClick={() => subscribeToPush(false)}
               style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
                 background: 'var(--gold-gradient)',
