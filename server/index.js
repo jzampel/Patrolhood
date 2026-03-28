@@ -991,8 +991,8 @@ async function sendFCMToCommunity(communityId, title, body, data = {}) {
                 notification: {
                     title,
                     body,
-                    icon: '/logo_bull.png',
-                    badge: '/logo_bull.png',
+                    icon: 'https://patrolhood.onrender.com/logo_bull.png',
+                    badge: 'https://patrolhood.onrender.com/logo_bull.png',
                     tag: data.type || 'patrolhood-alert',
                     renotify: true
                 },
@@ -1225,8 +1225,8 @@ if (isRedisAvailable) {
                             notification: {
                                 title: fcmTitle,
                                 body: fcmBody,
-                                icon: '/logo_bull.png',
-                                badge: '/logo_bull.png',
+                                icon: 'https://patrolhood.onrender.com/logo_bull.png',
+                                badge: 'https://patrolhood.onrender.com/logo_bull.png',
                                 tag: 'patrolhood-sos',
                                 renotify: true
                             },
