@@ -10,6 +10,7 @@ import { db, addPendingSOS, getPendingSOS, markSOSAsSent, getPendingCount } from
 import { safeFetch } from './api'
 import { PushNotifications } from '@capacitor/push-notifications'
 import { Device } from '@capacitor/device'
+import { Capacitor } from '@capacitor/core'
 
 const socket = io(import.meta.env.VITE_API_URL || '/')
 
@@ -865,8 +866,7 @@ function App() {
   useEffect(() => {
     const checkPerm = async () => {
       try {
-        const info = await Device.getInfo();
-        if (info.platform === 'android' || info.platform === 'ios') {
+        if (Capacitor.isNativePlatform()) {
           // Listeners for foreground and actions (Global)
           const pushInListener = await PushNotifications.addListener('pushNotificationReceived', (notification) => {
             console.log('🔔 Push received in foreground:', notification);
@@ -936,9 +936,7 @@ function App() {
     if (!user) return; // Abort if not logged in
 
     try {
-      // Check platform first
-      const info = await Device.getInfo();
-      const isNative = info.platform === 'android' || info.platform === 'ios';
+      const isNative = Capacitor.isNativePlatform();
 
       if (isNative) {
         console.log('📱 Running in Native App (Capacitor)');
@@ -953,6 +951,7 @@ function App() {
         }
 
         // Explicitly create SOS channel for Android 8.0+ only
+        const info = await Device.getInfo();
         if (info.platform === 'android') {
           try {
             await PushNotifications.createChannel({
@@ -994,6 +993,23 @@ function App() {
     }
 
       // Web Push Logic (Existing)
+      if (!window.Notification) {
+        if (!isSilent) alert('⚠️ Tu navegador o dispositivo no soporta el sistema de notificaciones. \n\nNota para iPhone: Debes añadir esta web a tu pantalla de inicio ("Compartir" -> "Añadir a la pantalla de inicio") para poder activar las alertas.');
+        return;
+      }
+
+      // CRITICAL FOR IOS: Request permission immediately before any async awaits!
+      let permission = window.Notification.permission;
+      if (!isSilent && permission === 'default') {
+        permission = await window.Notification.requestPermission();
+      }
+
+      if (permission !== 'granted') {
+        if (!isSilent) alert(`⚠️ Permiso de notificaciones: ${permission}.\n\nPara activar las alertas:\n1. Pulsa el icono del candado en la barra de direcciones.\n2. Asegúrate de que las "Notificaciones" estén permitidas.\n3. En Brave: Activa "Usar servicios de Google para mensajería push" en Ajustes > Privacidad.`);
+        return;
+      }
+
+      // Now safe to do async imports
       const { initializeApp } = await import('firebase/app');
       const { getMessaging, getToken, onMessage } = await import('firebase/messaging');
       const { firebaseConfig, vapidKey } = await import('./firebase-config');
@@ -1001,18 +1017,6 @@ function App() {
 
       const app = initializeApp(firebaseConfig);
       const messaging = getMessaging(app);
-
-      if (!window.Notification) {
-        if (!isSilent) alert('⚠️ Tu navegador o dispositivo no soporta el sistema de notificaciones. \n\nNota para iPhone: Debes añadir esta web a tu pantalla de inicio ("Compartir" -> "Añadir a la pantalla de inicio") para poder activar las alertas.');
-        return;
-      }
-
-      // In silent mode we already know permission is granted (called from checkPerm)
-      const permission = isSilent ? 'granted' : await window.Notification.requestPermission();
-      if (permission !== 'granted') {
-        if (!isSilent) alert(`⚠️ Permiso de notificaciones: ${permission}.\n\nPara activar las alertas:\n1. Pulsa el icono del candado en la barra de direcciones.\n2. Asegúrate de que las "Notificaciones" estén permitidas.\n3. En Brave: Activa "Usar servicios de Google para mensajería push" en Ajustes > Privacidad.`);
-        return;
-      }
 
       // Get Service Worker Registration
       const registration = await navigator.serviceWorker.ready;
