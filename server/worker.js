@@ -69,8 +69,8 @@ const sosWorker = new Worker('SOS_QUEUE', async job => {
                             notification: {
                                 title,
                                 body,
-                                icon: '/logo_bull.png',
-                                badge: '/logo_bull.png',
+                                icon: 'https://patrolhood.onrender.com/logo_bull.png',
+                                badge: 'https://patrolhood.onrender.com/logo_bull.png',
                                 tag: 'patrolhood-sos',
                                 renotify: true
                             },
