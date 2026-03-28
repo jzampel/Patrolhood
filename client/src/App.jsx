@@ -934,11 +934,13 @@ function App() {
   // FCM Register and Logic
   async function subscribeToPush(isSilent = false) {
     if (!user) return; // Abort if not logged in
+    if (!isSilent) alert('🔍 Iniciando activación... (Paso 1)');
 
     try {
       const isNative = Capacitor.isNativePlatform();
 
       if (isNative) {
+        // ... (Native logic remains same)
         console.log('📱 Running in Native App (Capacitor)');
         let permStatus = await PushNotifications.checkPermissions();
         if (permStatus.receive === 'prompt') {
@@ -992,34 +994,47 @@ function App() {
       return;
     }
 
-      // Web Push Logic (Existing)
+      // Web Push Logic
       if (!window.Notification) {
-        if (!isSilent) alert('⚠️ Tu navegador o dispositivo no soporta el sistema de notificaciones. \n\nNota para iPhone: Debes añadir esta web a tu pantalla de inicio ("Compartir" -> "Añadir a la pantalla de inicio") para poder activar las alertas.');
+        if (!isSilent) alert('⚠️ Notificaciones no soportadas.\n\nEn iPhone: Asegúrate de añadir esta web a Initio y usar iOS 16.4+');
         return;
       }
 
-      // CRITICAL FOR IOS: Request permission immediately before any async awaits!
+      if (!isSilent) alert(`🔍 Estado actual de permiso: ${window.Notification.permission}`);
+
+      // CRITICAL FOR IOS: Request permission immediately!
       let permission = window.Notification.permission;
-      if (!isSilent && permission === 'default') {
+      if (!isSilent && (permission === 'default' || permission === 'denied')) {
         permission = await window.Notification.requestPermission();
       }
 
       if (permission !== 'granted') {
-        if (!isSilent) alert(`⚠️ Permiso de notificaciones: ${permission}.\n\nPara activar las alertas:\n1. Pulsa el icono del candado en la barra de direcciones.\n2. Asegúrate de que las "Notificaciones" estén permitidas.\n3. En Brave: Activa "Usar servicios de Google para mensajería push" en Ajustes > Privacidad.`);
+        if (!isSilent) alert(`❌ Permiso denegado: ${permission}.\n\nVe a Ajustes -> Notificaciones para activarlo.`);
         return;
       }
+
+      if (!isSilent) alert('🔍 Permiso concedido. Importando Firebase... (Paso 2)');
 
       // Now safe to do async imports
       const { initializeApp } = await import('firebase/app');
       const { getMessaging, getToken, onMessage } = await import('firebase/messaging');
       const { firebaseConfig, vapidKey } = await import('./firebase-config');
-      const token_fcm = localStorage.getItem('token'); 
 
       const app = initializeApp(firebaseConfig);
       const messaging = getMessaging(app);
 
-      // Get Service Worker Registration
-      const registration = await navigator.serviceWorker.ready;
+      if (!isSilent) alert('🔍 Firebase listo. Registrando Service Worker... (Paso 3)');
+
+      // Get Service Worker Registration - Use getRegistration to avoid hanging
+      let registration = await navigator.serviceWorker.getRegistration('/');
+      if (!registration) {
+          if (!isSilent) alert('⚠️ Service Worker no encontrado. Reintentando registro...');
+          registration = await registerServiceWorker();
+      }
+
+      if (!registration) throw new Error('No se pudo registrar/encontrar el Service Worker');
+
+      if (!isSilent) alert('🔍 Pidiendo Token a Google... (Paso 4)');
 
       // Get token
       const token = await getToken(messaging, {
@@ -1036,11 +1051,10 @@ function App() {
 
         if (!response.success) throw new Error(response.error || response.message || 'Error al guardar suscripción en el servidor');
 
-        console.log('✅ Subscription saved on server');
-        if (!isSilent) alert(`✅ Notificaciones Activadas!\nToken: ${token.substring(0, 10)}...`);
+        if (!isSilent) alert(`✅ ¡TODO OK!\nToken: ${token.substring(0, 10)}...`);
         setNotificationsEnabled(true);
       } else {
-        throw new Error('No se pudo obtener el token de Firebase (vacío)');
+        throw new Error('No se pudo obtener el token de Google (llegó vacío)');
       }
 
       // Handle foreground messages - show real notification (with sound/vibration) instead of alert()
