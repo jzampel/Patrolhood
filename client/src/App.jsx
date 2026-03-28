@@ -12,6 +12,17 @@ import { PushNotifications } from '@capacitor/push-notifications'
 import { Device } from '@capacitor/device'
 import { Capacitor } from '@capacitor/core'
 
+// Global error handler for debugging on mobile devices
+if (typeof window !== 'undefined') {
+  window.onerror = function(msg, url, lineNo, columnNo, error) {
+    alert('❌ Error Global:\n' + msg + '\nLínea: ' + lineNo + '\nColumna: ' + columnNo + (error ? '\nStack: ' + error.stack : ''));
+    return false;
+  };
+  window.onunhandledrejection = function(event) {
+    alert('❌ Error de Promesa:\n' + event.reason);
+  };
+}
+
 const socket = io(import.meta.env.VITE_API_URL || '/')
 
 const EMERGENCY_TYPES = [
@@ -933,11 +944,15 @@ function App() {
 
   // FCM Register and Logic
   async function subscribeToPush(isSilent = false) {
-    if (!user) return; // Abort if not logged in
-    if (!isSilent) alert('🔍 Iniciando activación... (Paso 1)');
-
+    if (!isSilent) alert('🚨 debug: Botón clickado OK');
+    if (!user) {
+        if (!isSilent) alert('🚨 debug: Error - No hay usuario');
+        return;
+    }
+    
     try {
-      const isNative = Capacitor.isNativePlatform();
+      const isNative = (typeof Capacitor !== 'undefined') ? Capacitor.isNativePlatform() : false;
+      if (!isSilent) alert('🚨 debug: Platform Native is ' + isNative);
 
       if (isNative) {
         // ... (Native logic remains same)
@@ -1658,6 +1673,12 @@ function App() {
 
   return (
     <div className="app">
+      {/* 🛠️ DEBUG OVERLAY 🛠️ */}
+      <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 99999, background: 'rgba(0,0,0,0.85)', color: '#00ff00', fontSize: '10px', padding: '5px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid #333' }}>
+        <span>v2.7 | Notif: {String(window.Notification?.permission)} | SW: {String('serviceWorker' in navigator)}</span>
+        <button onClick={() => alert('✅ INTERACTION TEST OK')} style={{ background: '#222', color: 'white', border: '1px solid #555', padding: '2px 5px', borderRadius: '3px' }}>TEST</button>
+      </div>
+
       <button className="mobile-menu-toggle" onClick={() => setIsSidebarOpen(true)}>
         ☰
       </button>
