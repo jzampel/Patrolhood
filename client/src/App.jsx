@@ -945,10 +945,10 @@ function App() {
   // FCM Register and Logic
   async function subscribeToPush(isSilent = false) {
     if (!user) return;
-    if (!isSilent) alert('⚙️ Activando notificaciones...');
     
     try {
       const isNative = (typeof Capacitor !== 'undefined') ? Capacitor.isNativePlatform() : false;
+
 
       if (isNative) {
         // ... (Native logic remains same)
@@ -1011,8 +1011,6 @@ function App() {
         return;
       }
 
-      if (!isSilent) alert(`🔍 Estado actual de permiso: ${window.Notification.permission}`);
-
       // CRITICAL FOR IOS: Request permission immediately!
       let permission = window.Notification.permission;
       if (!isSilent && (permission === 'default' || permission === 'denied')) {
@@ -1020,11 +1018,9 @@ function App() {
       }
 
       if (permission !== 'granted') {
-        if (!isSilent) alert(`❌ Permiso denegado: ${permission}.\n\nVe a Ajustes -> Notificaciones para activarlo.`);
-        return;
+          if (!isSilent) alert(`❌ Permiso denegado o bloqueado por Safari (Estado: ${permission}).\n\nSi no sale la pregunta, prueba a pulsar el botón OTRA VEZ.`);
+          return;
       }
-
-      if (!isSilent) alert('🔍 Permiso concedido. Importando Firebase... (Paso 2)');
 
       // Now safe to do async imports
       const { initializeApp } = await import('firebase/app');
@@ -1678,8 +1674,8 @@ function App() {
   return (
     <div className="app">
       {/* 🛠️ DEBUG OVERLAY 🛠️ */}
-      <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 99999, background: 'rgba(0,0,0,0.95)', color: '#00ff00', fontSize: '8px', padding: '2px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', opacity: 0.6 }}>
-        <span>v3.0 | Standalone: {String(window.navigator.standalone)}</span>
+      <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 99999, background: 'rgba(0,0,0,0.95)', color: '#00ff00', fontSize: '8px', padding: '2px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', opacity: 0.5 }}>
+        <span>v3.1 | Notif: {String(window.Notification?.permission)} | Standalone: {String(window.navigator.standalone)}</span>
       </div>
 
       <button className="mobile-menu-toggle" onClick={() => setIsSidebarOpen(true)}>
