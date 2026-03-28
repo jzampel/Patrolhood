@@ -945,6 +945,7 @@ function App() {
   // FCM Register and Logic
   async function subscribeToPush(isSilent = false) {
     if (!user) return;
+    if (!isSilent) alert('⚙️ Activando notificaciones...');
     
     try {
       const isNative = (typeof Capacitor !== 'undefined') ? Capacitor.isNativePlatform() : false;
@@ -1033,18 +1034,26 @@ function App() {
       const app = initializeApp(firebaseConfig);
       const messaging = getMessaging(app);
 
-      if (!isSilent) alert('🔍 Firebase listo. Registrando Service Worker... (Paso 3)');
-
-      // Get Service Worker Registration - Use getRegistration to avoid hanging
+      // Get Service Worker Registration - Robust way
       let registration = await navigator.serviceWorker.getRegistration('/');
-      if (!registration) {
-          if (!isSilent) alert('⚠️ Service Worker no encontrado. Reintentando registro...');
+      if (!registration || !registration.active) {
           registration = await registerServiceWorker();
       }
 
-      if (!registration) throw new Error('No se pudo registrar/encontrar el Service Worker');
+      // Wait for service worker to be ready/active (crucial for getToken)
+      if (registration && !registration.active) {
+          if (!isSilent) alert('⏳ Esperando al sistema (Service Worker)...');
+          let count = 0;
+          while (!registration.active && count < 20) {
+              await new Promise(r => setTimeout(r, 250));
+              registration = await navigator.serviceWorker.getRegistration('/');
+              count++;
+          }
+      }
 
-      if (!isSilent) alert('🔍 Pidiendo Token a Google... (Paso 4)');
+      if (!registration || !registration.active) {
+          throw new Error('El sistema de notificaciones tardó demasiado en responder. Reintenta ahora.');
+      }
 
       // Get token
       const token = await getToken(messaging, {
@@ -1669,8 +1678,8 @@ function App() {
   return (
     <div className="app">
       {/* 🛠️ DEBUG OVERLAY 🛠️ */}
-      <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 99999, background: 'rgba(0,0,0,0.95)', color: '#00ff00', fontSize: '8px', padding: '2px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', opacity: 0.8 }}>
-        <span>v2.9 | Notif: {String(window.Notification?.permission)} | Standalone: {String(window.navigator.standalone)}</span>
+      <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 99999, background: 'rgba(0,0,0,0.95)', color: '#00ff00', fontSize: '8px', padding: '2px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', opacity: 0.6 }}>
+        <span>v3.0 | Standalone: {String(window.navigator.standalone)}</span>
       </div>
 
       <button className="mobile-menu-toggle" onClick={() => setIsSidebarOpen(true)}>
