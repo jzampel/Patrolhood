@@ -60,28 +60,63 @@ const sosWorker = new Worker('SOS_QUEUE', async job => {
             const title = `🚨 SOS: ${community?.name || 'Comunidad'}`;
             const body = `¡Atención! ${alert.emergencyTypeLabel.toUpperCase()} en Casa #${alert.houseNumber}.`;
             try {
-                const result = await admin.messaging().sendEachForMulticast({
+                const message = {
                     tokens,
                     notification: { title, body },
-                    data: { type: 'SOS', communityId: alert.communityId, houseNumber: String(alert.houseNumber), click_action: '/' },
-                        webpush: {
-                            headers: { Urgency: 'high' },
-                            notification: {
-                                title,
-                                body,
-                                icon: 'https://patrolhood.onrender.com/logo_bull.png',
-                                badge: 'https://patrolhood.onrender.com/logo_bull.png',
-                                tag: 'patrolhood-sos',
-                                renotify: true
-                            },
-                            fcm_options: { link: '/' }
+                    data: { 
+                        type: 'SOS', 
+                        communityId: String(alert.communityId), 
+                        houseNumber: String(alert.houseNumber), 
+                        click_action: '/' 
+                    },
+                    webpush: {
+                        headers: {
+                            Urgency: 'high'
                         },
-                    // Android native config
+                        notification: {
+                            title,
+                            body,
+                            icon: 'https://patrolhood.onrender.com/logo_bull.png',
+                            badge: 'https://patrolhood.onrender.com/logo_bull.png',
+                            tag: 'patrolhood-sos',
+                            renotify: true,
+                            requireInteraction: true,
+                            vibrate: [300, 100, 300, 100, 300]
+                        },
+                        fcm_options: {
+                            link: '/'
+                        }
+                    },
+                    apns: {
+                        payload: {
+                            aps: {
+                                alert: {
+                                    title,
+                                    body
+                                },
+                                sound: 'default',
+                                badge: 1,
+                                'content-available': 1,
+                                category: 'SOS_CATEGORY',
+                                mutableContent: 1
+                            }
+                        },
+                        headers: {
+                            'apns-priority': '10',
+                            'apns-topic': 'com.patrolhood' // Update with your actual PWA bundle ID if relevant, but usually not needed for web push
+                        }
+                    },
                     android: {
                         priority: 'high',
-                        notification: { sound: 'default', priority: 'max', channelId: 'patrolhood_sos' }
+                        notification: {
+                            sound: 'default',
+                            priority: 'max',
+                            channelId: 'patrolhood_sos'
+                        }
                     }
-                });
+                };
+                
+                const result = await admin.messaging().sendEachForMulticast(message);
                 console.log(`[Worker] FCM sent: ${result.successCount} ok, ${result.failureCount} failed`);
                 // Remove invalid tokens
                 const toRemove = result.responses
