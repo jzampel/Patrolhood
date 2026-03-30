@@ -1435,24 +1435,71 @@ function App() {
     return () => clearTimeout(timer);
   }, [activeAlerts]);
 
+  // --- REAL-TIME SYNC IMPROVEMENTS (iOS/PWA) ---
   useEffect(() => {
-    socket.on('emergency_alert', (data) => {
+    if (!user?.communityId) return;
+
+    const fetchActiveAlerts = async () => {
+      try {
+        const communityParam = `?communityId=${user.communityId}`;
+        const data = await safeFetch(`${import.meta.env.VITE_API_URL || ''}/api/sos/active${communityParam}`);
+        if (data.success && data.alerts) {
+          setActiveAlerts(data.alerts);
+        }
+      } catch (err) {
+        console.error('Error fetching active SOS on resume:', err);
+      }
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        console.log('📱 App became visible, syncing alerts...');
+        fetchActiveAlerts();
+        // Also ensure socket is healthy
+        if (!socket.connected) {
+          socket.connect();
+        } else {
+          socket.emit('join_community', user.communityId);
+          if (user.role === 'global_admin') socket.emit('join_community', 'global_admins');
+        }
+      }
+    };
+
+    const handleSocketConnect = () => {
+      console.log('✅ Socket connected/reconnected, joining community labels...');
+      socket.emit('join_community', user.communityId);
+      if (user.role === 'global_admin') socket.emit('join_community', 'global_admins');
+      fetchActiveAlerts(); // Re-sync alerts on reconnection
+    };
+
+    const handleEmergencyAlert = (data) => {
       setActiveAlerts(prev => {
         const exists = prev.find(a => (a._id || a.alertId) === (data._id || data.alertId));
         if (exists) return prev;
         return [...prev, data];
       });
-    })
+    };
 
-    socket.on('stop_alert', (data) => {
+    const handleStopAlert = (data) => {
       setActiveAlerts(prev => prev.filter(a => (a._id || a.alertId) !== (data._id || data.alertId)));
-    })
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    socket.on('connect', handleSocketConnect);
+    socket.on('emergency_alert', handleEmergencyAlert);
+    socket.on('stop_alert', handleStopAlert);
+
+    // Periodic shallow poll (every 45s) as a fail-safe
+    const pollInterval = setInterval(fetchActiveAlerts, 45000);
 
     return () => {
-      socket.off('emergency_alert');
-      socket.off('stop_alert');
-    }
-  }, [])
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      socket.off('connect', handleSocketConnect);
+      socket.off('emergency_alert', handleEmergencyAlert);
+      socket.off('stop_alert', handleStopAlert);
+      clearInterval(pollInterval);
+    };
+  }, [user?.communityId, user?.role]);
 
   // --- OFFLINE SYNC LOGIC ---
   useEffect(() => {
