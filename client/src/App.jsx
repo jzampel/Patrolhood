@@ -989,7 +989,6 @@ function App() {
         });
         if (response.success) {
           setNotificationsEnabled(true);
-          if (!isSilent) alert(`✅ ¡Notificaciones nativas activadas!\nToken: ${token.value.substring(0, 10)}...`);
         }
         regListener.remove();
       });
@@ -1038,7 +1037,6 @@ function App() {
 
       // Wait for service worker to be ready/active (crucial for getToken)
       if (registration && !registration.active) {
-          if (!isSilent) alert('⏳ Esperando al sistema (Service Worker)...');
           let count = 0;
           while (!registration.active && count < 20) {
               await new Promise(r => setTimeout(r, 250));
@@ -1066,7 +1064,6 @@ function App() {
 
         if (!response.success) throw new Error(response.error || response.message || 'Error al guardar suscripción en el servidor');
 
-        if (!isSilent) alert(`✅ ¡TODO OK!\nToken: ${token.substring(0, 10)}...`);
         setNotificationsEnabled(true);
       } else {
         throw new Error('No se pudo obtener el token de Google (llegó vacío)');
@@ -1147,12 +1144,10 @@ function App() {
       });
 
       setNotificationsEnabled(false);
-      alert('✅ Notificaciones desactivadas en este dispositivo.');
     } catch (err) {
       console.error('Error unsubscribing:', err);
       // Even if token deletion fails, reflect in UI
       setNotificationsEnabled(false);
-      alert('✅ Notificaciones desactivadas.');
     }
   }
 
@@ -1673,10 +1668,7 @@ function App() {
 
   return (
     <div className="app">
-      {/* 🛠️ DEBUG OVERLAY 🛠️ */}
-      <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 99999, background: 'rgba(0,0,0,0.95)', color: '#00ff00', fontSize: '8px', padding: '2px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', opacity: 0.5 }}>
-        <span>v3.1 | Notif: {String(window.Notification?.permission)} | Standalone: {String(window.navigator.standalone)}</span>
-      </div>
+
 
       <button className="mobile-menu-toggle" onClick={() => setIsSidebarOpen(true)}>
         ☰
@@ -1905,19 +1897,7 @@ function App() {
           </div>
         )}
 
-        {notificationsEnabled && (
-          <div style={{ padding: '0 20px 10px 20px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.3)', borderRadius: '8px', padding: '10px 14px' }}>
-              <span style={{ color: '#10b981', fontSize: '0.85em', fontWeight: 'bold' }}>✅ Notificaciones activas</span>
-              <button
-                onClick={unsubscribeFromPush}
-                style={{ background: 'none', border: '1px solid rgba(239,68,68,0.5)', color: '#f87171', borderRadius: '6px', padding: '4px 10px', fontSize: '0.75em', cursor: 'pointer' }}
-              >
-                Desactivar
-              </button>
-            </div>
-          </div>
-        )}
+
 
 
         {/* Quiet Hours - hidden for global_admin */}
@@ -2173,6 +2153,18 @@ function App() {
               }}
             >
               Desactivar alertas (Telegram)
+            </button>
+          </div>
+        )}
+
+        {notificationsEnabled && (
+          <div style={{ padding: '0 20px 10px 20px', textAlign: 'center' }}>
+            <span style={{ color: '#10b981', fontSize: '0.75em', display: 'block', marginBottom: '4px' }}>🔔 Notificaciones App activas</span>
+            <button
+              onClick={unsubscribeFromPush}
+              style={{ background: 'none', border: 'none', color: '#64748b', textDecoration: 'underline', fontSize: '0.7em', cursor: 'pointer' }}
+            >
+              Desactivar
             </button>
           </div>
         )}
