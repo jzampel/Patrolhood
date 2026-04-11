@@ -983,9 +983,9 @@ async function sendFCMToCommunity(communityId, title, body, data = {}) {
 
         const message = {
             tokens,
-            // ⚠️ NO top-level 'notification' field — this is intentional for iOS PWA!
-            // Firebase bypasses onBackgroundMessage when 'notification' is set.
-            // Data-only ensures our SW handler is called and can show it on iOS.
+            // 'notification' ensures high-priority APNs delivery that wakes iOS SW
+            notification: { title, body },
+            // title+body also in 'data' for our raw push handler to read
             data: {
                 title,
                 body,
@@ -994,7 +994,14 @@ async function sendFCMToCommunity(communityId, title, body, data = {}) {
             },
             webpush: {
                 headers: { Urgency: 'high' },
-                // NO webpush.notification — same reason
+                notification: {
+                    title,
+                    body,
+                    icon: 'https://patrolhood.onrender.com/logo_bull.png',
+                    badge: 'https://patrolhood.onrender.com/logo_bull.png',
+                    tag: data.type || 'patrolhood-alert',
+                    renotify: true
+                },
                 fcm_options: { link: '/' }
             },
             android: {
@@ -1218,7 +1225,7 @@ if (isRedisAvailable) {
                     const fcmBody = `¡Atención! ${alert.emergencyTypeLabel.toUpperCase()} en Casa #${alert.houseNumber}.`;
                     await admin.messaging().sendEachForMulticast({
                         tokens,
-                        // ⚠️ Data-only: no 'notification' field — required for iOS PWA SW to handle it
+                        notification: { title: fcmTitle, body: fcmBody },
                         data: {
                             title: fcmTitle,
                             body: fcmBody,
@@ -1229,6 +1236,14 @@ if (isRedisAvailable) {
                         },
                         webpush: {
                             headers: { Urgency: 'high' },
+                            notification: {
+                                title: fcmTitle,
+                                body: fcmBody,
+                                icon: 'https://patrolhood.onrender.com/logo_bull.png',
+                                badge: 'https://patrolhood.onrender.com/logo_bull.png',
+                                tag: 'patrolhood-sos',
+                                renotify: true
+                            },
                             fcm_options: { link: '/' }
                         },
                         android: {

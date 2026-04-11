@@ -62,28 +62,33 @@ const sosWorker = new Worker('SOS_QUEUE', async job => {
             try {
                 const message = {
                     tokens,
-                    // ⚠️ NO top-level 'notification' field — this is intentional!
-                    // When 'notification' is present, Firebase bypasses onBackgroundMessage
-                    // in the Service Worker on iOS PWA and tries to show it automatically
-                    // (which fails silently on iOS). Data-only messages guarantee our SW
-                    // handler is called and we show the notification explicitly.
-                    data: { 
+                    // 'notification' field ensures high-priority APNs delivery that wakes iOS SW
+                    notification: { title, body },
+                    // title+body also in 'data' so our raw push handler reads them on all platforms
+                    data: {
                         title,
                         body,
-                        type: 'SOS', 
-                        communityId: String(alert.communityId), 
-                        houseNumber: String(alert.houseNumber), 
-                        click_action: '/' 
+                        type: 'SOS',
+                        communityId: String(alert.communityId),
+                        houseNumber: String(alert.houseNumber),
+                        click_action: '/'
                     },
                     webpush: {
                         headers: { Urgency: 'high' },
-                        // NO webpush.notification — same reason as above
+                        notification: {
+                            title,
+                            body,
+                            icon: 'https://patrolhood.onrender.com/logo_bull.png',
+                            badge: 'https://patrolhood.onrender.com/logo_bull.png',
+                            tag: 'patrolhood-sos',
+                            renotify: true,
+                            requireInteraction: true
+                        },
                         fcm_options: { link: '/' }
                     },
                     apns: {
                         payload: {
                             aps: {
-                                // iOS native Capacitor app still needs this
                                 alert: { title, body },
                                 sound: 'default',
                                 badge: 1,
