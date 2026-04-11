@@ -97,13 +97,12 @@ const sosWorker = new Worker('SOS_QUEUE', async job => {
                                 sound: 'default',
                                 badge: 1,
                                 'content-available': 1,
-                                category: 'SOS_CATEGORY',
-                                mutableContent: 1
+                                'mutable-content': 1
                             }
                         },
                         headers: {
                             'apns-priority': '10',
-                            'apns-topic': 'com.patrolhood' // Update with your actual PWA bundle ID if relevant, but usually not needed for web push
+                            'apns-push-type': 'alert'
                         }
                     },
                     android: {

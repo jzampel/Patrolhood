@@ -16,24 +16,30 @@ const messaging = firebase.messaging();
 
 /**
  * BACKGROUND MESSAGE HANDLER
- * This is crucial for Safari and mobile devices when the PWA is closed or in background.
+ * CRITICAL FOR iOS PWA: We ALWAYS call showNotification() explicitly.
+ * On iOS Safari PWA, Firebase does NOT automatically display notifications from the payload.notification
+ * field — we must call showNotification() ourselves or the notification is silently dropped.
  */
 messaging.onBackgroundMessage((payload) => {
     console.log('[firebase-messaging-sw.js] Background message received:', payload);
-    
-    // If the payload already has the 'notification' property, Firebase usually shows it automatically.
-    // However, for maximum reliability on iOS, we provide an explicit fallback if needed.
-    if (!payload.notification && payload.data) {
-        const notificationTitle = payload.data.title || '🚨 Alerta PatrolHood';
-        const notificationOptions = {
-            body: payload.data.body || 'Nueva alerta en tu comunidad.',
-            icon: '/logo_bull.png',
-            badge: '/logo_bull.png',
-            tag: payload.data.type || 'patrolhood-alert',
-            data: { url: '/', ...payload.data }
-        };
-        return self.registration.showNotification(notificationTitle, notificationOptions);
-    }
+
+    // Extract title/body from notification field (server sends it here) OR from data field (fallback)
+    const notificationTitle = payload.notification?.title || payload.data?.title || '🚨 Alerta PatrolHood';
+    const notificationBody = payload.notification?.body || payload.data?.body || 'Nueva alerta en tu comunidad.';
+
+    const notificationOptions = {
+        body: notificationBody,
+        icon: '/logo_bull.png',
+        badge: '/logo_bull.png',
+        tag: payload.data?.type || payload.notification?.tag || 'patrolhood-alert',
+        renotify: true,
+        requireInteraction: true,
+        vibrate: [300, 100, 300, 100, 300],
+        data: { url: '/', ...(payload.data || {}) }
+    };
+
+    // Always show explicitly — required for iOS PWA background/closed state
+    return self.registration.showNotification(notificationTitle, notificationOptions);
 });
 
 // Listener for notification clicks
