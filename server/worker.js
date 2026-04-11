@@ -62,38 +62,29 @@ const sosWorker = new Worker('SOS_QUEUE', async job => {
             try {
                 const message = {
                     tokens,
-                    notification: { title, body },
+                    // ⚠️ NO top-level 'notification' field — this is intentional!
+                    // When 'notification' is present, Firebase bypasses onBackgroundMessage
+                    // in the Service Worker on iOS PWA and tries to show it automatically
+                    // (which fails silently on iOS). Data-only messages guarantee our SW
+                    // handler is called and we show the notification explicitly.
                     data: { 
+                        title,
+                        body,
                         type: 'SOS', 
                         communityId: String(alert.communityId), 
                         houseNumber: String(alert.houseNumber), 
                         click_action: '/' 
                     },
                     webpush: {
-                        headers: {
-                            Urgency: 'high'
-                        },
-                        notification: {
-                            title,
-                            body,
-                            icon: 'https://patrolhood.onrender.com/logo_bull.png',
-                            badge: 'https://patrolhood.onrender.com/logo_bull.png',
-                            tag: 'patrolhood-sos',
-                            renotify: true,
-                            requireInteraction: true,
-                            vibrate: [300, 100, 300, 100, 300]
-                        },
-                        fcm_options: {
-                            link: '/'
-                        }
+                        headers: { Urgency: 'high' },
+                        // NO webpush.notification — same reason as above
+                        fcm_options: { link: '/' }
                     },
                     apns: {
                         payload: {
                             aps: {
-                                alert: {
-                                    title,
-                                    body
-                                },
+                                // iOS native Capacitor app still needs this
+                                alert: { title, body },
                                 sound: 'default',
                                 badge: 1,
                                 'content-available': 1,
@@ -108,6 +99,8 @@ const sosWorker = new Worker('SOS_QUEUE', async job => {
                     android: {
                         priority: 'high',
                         notification: {
+                            title,
+                            body,
                             sound: 'default',
                             priority: 'max',
                             channelId: 'patrolhood_sos'

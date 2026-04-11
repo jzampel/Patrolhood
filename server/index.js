@@ -983,25 +983,25 @@ async function sendFCMToCommunity(communityId, title, body, data = {}) {
 
         const message = {
             tokens,
-            notification: { title, body },
-            data: { ...Object.fromEntries(Object.entries(data).map(([k, v]) => [k, String(v)])), click_action: '/' },
-            // Web Push specific config (PWA on Android/Desktop)
+            // ⚠️ NO top-level 'notification' field — this is intentional for iOS PWA!
+            // Firebase bypasses onBackgroundMessage when 'notification' is set.
+            // Data-only ensures our SW handler is called and can show it on iOS.
+            data: {
+                title,
+                body,
+                ...Object.fromEntries(Object.entries(data).map(([k, v]) => [k, String(v)])),
+                click_action: '/'
+            },
             webpush: {
                 headers: { Urgency: 'high' },
-                notification: {
-                    title,
-                    body,
-                    icon: 'https://patrolhood.onrender.com/logo_bull.png',
-                    badge: 'https://patrolhood.onrender.com/logo_bull.png',
-                    tag: data.type || 'patrolhood-alert',
-                    renotify: true
-                },
+                // NO webpush.notification — same reason
                 fcm_options: { link: '/' }
             },
-            // Android native app config
             android: {
                 priority: 'high',
                 notification: {
+                    title,
+                    body,
                     sound: 'default',
                     priority: 'max',
                     channelId: 'patrolhood_sos'
@@ -1218,23 +1218,22 @@ if (isRedisAvailable) {
                     const fcmBody = `¡Atención! ${alert.emergencyTypeLabel.toUpperCase()} en Casa #${alert.houseNumber}.`;
                     await admin.messaging().sendEachForMulticast({
                         tokens,
-                        notification: { title: fcmTitle, body: fcmBody },
-                        data: { type: 'SOS', communityId: alert.communityId, houseNumber: String(alert.houseNumber), click_action: '/' },
+                        // ⚠️ Data-only: no 'notification' field — required for iOS PWA SW to handle it
+                        data: {
+                            title: fcmTitle,
+                            body: fcmBody,
+                            type: 'SOS',
+                            communityId: String(alert.communityId),
+                            houseNumber: String(alert.houseNumber),
+                            click_action: '/'
+                        },
                         webpush: {
                             headers: { Urgency: 'high' },
-                            notification: {
-                                title: fcmTitle,
-                                body: fcmBody,
-                                icon: 'https://patrolhood.onrender.com/logo_bull.png',
-                                badge: 'https://patrolhood.onrender.com/logo_bull.png',
-                                tag: 'patrolhood-sos',
-                                renotify: true
-                            },
                             fcm_options: { link: '/' }
                         },
                         android: {
                             priority: 'high',
-                            notification: { sound: 'default', priority: 'max', channelId: 'patrolhood_sos' }
+                            notification: { title: fcmTitle, body: fcmBody, sound: 'default', priority: 'max', channelId: 'patrolhood_sos' }
                         }
                     });
                     await ActiveSOS.findByIdAndUpdate(alertId, {
