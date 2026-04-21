@@ -1,5 +1,6 @@
 require('dotenv').config();
 process.env.JWT_SECRET = process.env.JWT_SECRET || 'f98a2c3d5e7b1a4c6e8f0a2d3c4b5e6f7g8h9i0j1k2l3m4n5o6p7q8r9s0t1u2v3w4x5y6z7'; // Fallback to local default for Render
+process.env.ONESIGNAL_APP_ID = process.env.ONESIGNAL_APP_ID || '064d0c75-1f00-42ab-955b-c369d44a114e';
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
@@ -77,7 +78,6 @@ app.use(express.static(path.join(__dirname, '../client/dist')));
 // --- SHARED MODULES ---
 const connectDB = require('./shared/db');
 const { pubClient, subClient, queueConnection, acquireLock, releaseLock, isRedisAvailable } = require('./shared/redis');
-const admin = require('./shared/firebase');
 
 const server = http.createServer(app);
 const io = new Server(server, {
@@ -854,8 +854,22 @@ app.post('/api/forum', authenticate, checkCommunity, async (req, res) => {
         if (channel !== 'ALERTAS') {
             const forumMsgText = text ? text : (image ? "📷 [Imagen]" : "");
             Community.findOne({ id: communityId }).then(community => {
-                if (community) sendTelegramAlert(community.name, `💬 *Foro [${channel}]:* ${user}: ${forumMsgText}`);
-            }).catch(e => console.error('Telegram notification error:', e));
+                if (community) {
+                    sendTelegramAlert(community.name, `💬 *Foro [${channel}]:* ${user}: ${forumMsgText}`);
+                    
+                    // OneSignal Notification via Queue
+                    const title = `💬 Foro [${channel}]`;
+                    const body = `${user}: ${forumMsgText.substring(0, 100)}`;
+                    if (sosQueue) {
+                        sosQueue.add('NOTIFY_FORUM', { 
+                            title, 
+                            body, 
+                            communityId, 
+                            senderId: req.user.id 
+                        }).catch(e => console.error('Forum OneSignal queue error:', e));
+                    }
+                }
+            }).catch(e => console.error('Forum notification error:', e));
         }
 
         res.json({ success: true, message: newMessage });
@@ -921,65 +935,7 @@ app.delete('/api/contacts/:id', authenticate, checkCommunity, async (req, res) =
     } catch (error) { res.status(500).json({ success: false }); }
 });
 
-// Push & FCM
-app.post('/api/subscribe', authenticate, checkCommunity, async (req, res) => {
-    const { token, userId, role, communityId, communityName } = req.body;
-    if (!token) return res.status(400).json({ success: false, message: 'Token missing' });
-    try {
-        await Subscription.findOneAndUpdate(
-            { token },
-            { $set: { token, userId: userId || req.user.id || 'unknown', communityId, communityName: communityName || '', role: role || 'user' } },
-            { upsert: true, new: true }
-        );
-        res.status(200).json({ success: true });
-    } catch (error) {
-        // E11000 = MongoDB duplicate key (race condition on upsert) – treat as success
-        if (error.code === 11000) return res.status(200).json({ success: true });
-        console.error('Error in /api/subscribe:', error);
-        res.status(500).json({ success: false, message: error.message });
-    }
-});
-
-// Remove FCM subscription (unsubscribe)
-app.post('/api/unsubscribe', authenticate, async (req, res) => {
-    const { userId, communityId } = req.body;
-    try {
-        // Delete all subscriptions for this user in this community
-        const result = await Subscription.deleteMany({ userId: userId || req.user.id, communityId: communityId || req.user.communityId });
-        // Also remove from User's fcmTokens array
-        await User.findOneAndUpdate({ id: req.user.id }, { $set: { fcmTokens: [] } });
-        console.log(`🔕 Unsubscribed user ${req.user.id}: removed ${result.deletedCount} tokens`);
-        res.json({ success: true, removed: result.deletedCount });
-    } catch (error) {
-        console.error('Error in /api/unsubscribe:', error);
-        res.status(500).json({ success: false, message: error.message });
-    }
-});
-
-// New FCM Token registration (Unified)
-app.post('/api/users/me/fcm-token', authenticate, async (req, res) => {
-    const { token } = req.body;
-    if (!token) return res.status(400).json({ success: false, message: 'Token missing' });
-    try {
-        // Save both in User (for direct access) and Subscription (for broadcast)
-        await User.findOneAndUpdate({ id: req.user.id }, { $addToSet: { fcmTokens: token } });
-        await Subscription.findOneAndUpdate(
-            { token },
-            { token, userId: req.user.id, communityId: req.user.communityId, role: req.user.role },
-            { upsert: true }
-        );
-        res.json({ success: true });
-    } catch (error) { res.status(500).json({ success: false }); }
-});
-
-async function sendFCMToCommunity(communityId, title, body, data = {}) {
-    try {
-        const subs = await Subscription.find({ communityId });
-        const tokens = subs.map(s => s.token).filter(t => !!t);
-        if (tokens.length === 0) {
-            console.log(`ℹ️ FCM: No tokens for community ${communityId}`);
-            return;
-        }
+// Push & FCM // OneSignal is now the primary notification system
 
         const message = {
             tokens,
@@ -1112,7 +1068,7 @@ app.post('/api/sos', authenticate, checkCommunity, sosLimiter, async (req, res) 
                     backoff: { type: 'exponential', delay: 10000 },
                     removeOnComplete: true
                 };
-                await sosQueue.add('NOTIFY_FCM', { alertId: alert._id }, { jobId: `fcm:${alert._id}`, ...jobOpts });
+                await sosQueue.add('NOTIFY_ONESIGNAL', { alertId: alert._id }, { jobId: `os:${alert._id}`, ...jobOpts });
                 await sosQueue.add('NOTIFY_TELEGRAM', { alertId: alert._id }, { jobId: `tg:${alert._id}`, ...jobOpts });
                 await sosQueue.add('STATUS_UPDATE', { alertId: alert._id, nextStatus: 'DISPATCHED' }, { jobId: `status:${alert._id}`, ...jobOpts });
                 return res.json({ success: true, alertId: alert._id });
@@ -1148,14 +1104,6 @@ app.post('/api/sos', authenticate, checkCommunity, sosLimiter, async (req, res) 
             sendTelegramAlert(community.name, sosText);
         }
 
-        // --- FCM NOTIFICATION (Local Fallback) ---
-        const fcmTitle = `🚨 SOS: ${community?.name || 'Comunidad'}`;
-        const fcmBody = `¡Atención! ${alert.emergencyTypeLabel.toUpperCase()} en Casa #${alert.houseNumber}.`;
-        sendFCMToCommunity(alert.communityId, fcmTitle, fcmBody, {
-            type: 'SOS',
-            alertId: alert._id.toString(),
-            communityId: alert.communityId
-        });
 
         res.json({ success: true, alertId: alert._id });
     } catch (error) {

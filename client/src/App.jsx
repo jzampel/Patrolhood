@@ -8,9 +8,9 @@ import 'leaflet/dist/leaflet.css'
 import './App.css'
 import { db, addPendingSOS, getPendingSOS, markSOSAsSent, getPendingCount } from './db'
 import { safeFetch } from './api'
-import { PushNotifications } from '@capacitor/push-notifications'
-import { Device } from '@capacitor/device'
 import { Capacitor } from '@capacitor/core'
+import { Capacitor } from '@capacitor/core'
+import { onesignalLogin, onesignalLogout, onesignalPrompt, checkPushPermission } from './services/onesignal'
 
 // Global error handler for debugging on mobile devices
 if (typeof window !== 'undefined') {
@@ -873,35 +873,15 @@ function App() {
     }
   }, [])
 
-  // Auto-check notification permission and register if granted
+  // Auto-check notification permission (OneSignal + Capacitor)
   useEffect(() => {
     const checkPerm = async () => {
       try {
-        if (Capacitor.isNativePlatform()) {
-          // Listeners for foreground and actions (Global)
-          const pushInListener = await PushNotifications.addListener('pushNotificationReceived', (notification) => {
-            console.log('🔔 Push received in foreground:', notification);
-            // Optionally show a local notification or alert or just let the system handle it
-          });
-
-          const pushActionListener = await PushNotifications.addListener('pushNotificationActionPerformed', (notification) => {
-            console.log('👆 Push notification action performed', notification.actionId, notification.notification);
-            // Navigate to appropriate tab based on data if needed
-            if (notification.notification.data?.type === 'SOS') {
-              setActiveTab('map');
-            }
-          });
-
-          const perm = await PushNotifications.checkPermissions();
-          if (perm.receive === 'granted') {
-            setNotificationsEnabled(true);
-            // Silent registration to ensure token is synced
-            subscribeToPush(true);
-          }
-        } else if (window.Notification && window.Notification.permission === 'granted') {
-          setNotificationsEnabled(true);
-          // Silent re-subscription: refresh token and set up foreground handler on every load
-          subscribeToPush(true);
+        const hasPermission = await checkPushPermission();
+        setNotificationsEnabled(hasPermission);
+        
+        if (user?.id) {
+          onesignalLogin(user.id);
         }
       } catch (e) {
         console.warn('Error checking notifications:', e);
@@ -921,232 +901,24 @@ function App() {
     return () => clearInterval(interval)
   }, [])
 
-  // Register SW and Logic
-  async function registerServiceWorker() {
-    if ('serviceWorker' in navigator) {
-      try {
-        // Unregister old SW versions first to ensure fresh registration
-        const registrations = await navigator.serviceWorker.getRegistrations();
-        for (const reg of registrations) {
-          if (reg.active?.scriptURL?.includes('firebase-messaging-sw.js')) {
-            await reg.update(); // Force update check
-          }
-        }
-        const register = await navigator.serviceWorker.register('/firebase-messaging-sw.js', { scope: '/' });
-        await register.update(); // Force update if new version available
-        console.log('FCM Service Worker Registered/Updated');
-        return register;
-      } catch (err) {
-        console.error('Service Worker registration failed:', err);
-      }
-    }
-  }
-
-  // FCM Register and Logic
-  async function subscribeToPush(isSilent = false) {
+  // OneSignal Push Registration
+  async function subscribeToPush() {
     if (!user) return;
-    
     try {
-      const isNative = (typeof Capacitor !== 'undefined') ? Capacitor.isNativePlatform() : false;
-
-
-      if (isNative) {
-        // ... (Native logic remains same)
-        console.log('📱 Running in Native App (Capacitor)');
-        let permStatus = await PushNotifications.checkPermissions();
-        if (permStatus.receive === 'prompt') {
-          permStatus = await PushNotifications.requestPermissions();
-        }
-
-        if (permStatus.receive !== 'granted') {
-          if (!isSilent) alert('⚠️ Permiso de notificaciones denegado en el sistema del móvil.');
-          return;
-        }
-
-        // Explicitly create SOS channel for Android 8.0+ only
-        const info = await Device.getInfo();
-        if (info.platform === 'android') {
-          try {
-            await PushNotifications.createChannel({
-              id: 'patrolhood_sos',
-              name: 'Alertas SOS PatrolHood',
-              description: 'Notificaciones de emergencias y SOS vecinales',
-              importance: 5,
-              visibility: 1,
-              vibration: true
-            });
-          } catch (e) {
-            console.warn('⚠️ No se pudo crear el canal de notificaciones en Android:', e);
-          }
-        }
-
-        // 1. Setup listeners BEFORE registration
-        const regListener = await PushNotifications.addListener('registration', async (token) => {
-        console.log('✅ Native registration success, token:', token.value);
-        const response = await safeFetch(`${import.meta.env.VITE_API_URL || ''}/api/users/me/fcm-token`, {
-          method: 'POST',
-          body: JSON.stringify({ token: token.value })
-        });
-        if (response.success) {
-          setNotificationsEnabled(true);
-        }
-        regListener.remove();
-      });
-
-      const errListener = await PushNotifications.addListener('registrationError', (err) => {
-        console.error('❌ Native registration error:', err.error);
-        if (!isSilent) alert('Error al registrar notificaciones: ' + err.error);
-        errListener.remove();
-      });
-
-      // 2. Now register
-      await PushNotifications.register();
-      return;
-    }
-
-      // Web Push Logic
-      if (!window.Notification) {
-        if (!isSilent) alert('⚠️ Notificaciones no soportadas.\n\nEn iPhone: Asegúrate de añadir esta web a Initio y usar iOS 16.4+');
-        return;
-      }
-
-      // CRITICAL FOR IOS: Request permission immediately!
-      let permission = window.Notification.permission;
-      if (!isSilent && (permission === 'default' || permission === 'denied')) {
-        permission = await window.Notification.requestPermission();
-      }
-
-      if (permission !== 'granted') {
-          if (!isSilent) alert(`❌ Permiso denegado o bloqueado por Safari (Estado: ${permission}).\n\nSi no sale la pregunta, prueba a pulsar el botón OTRA VEZ.`);
-          return;
-      }
-
-      // Now safe to do async imports
-      const { initializeApp } = await import('firebase/app');
-      const { getMessaging, getToken, onMessage } = await import('firebase/messaging');
-      const { firebaseConfig, vapidKey } = await import('./firebase-config');
-
-      const app = initializeApp(firebaseConfig);
-      const messaging = getMessaging(app);
-
-      // Get Service Worker Registration - Robust way
-      let registration = await navigator.serviceWorker.getRegistration('/');
-      if (!registration || !registration.active) {
-          registration = await registerServiceWorker();
-      }
-
-      // Wait for service worker to be ready/active (crucial for getToken)
-      if (registration && !registration.active) {
-          let count = 0;
-          while (!registration.active && count < 20) {
-              await new Promise(r => setTimeout(r, 250));
-              registration = await navigator.serviceWorker.getRegistration('/');
-              count++;
-          }
-      }
-
-      if (!registration || !registration.active) {
-          throw new Error('El sistema de notificaciones tardó demasiado en responder. Reintenta ahora.');
-      }
-
-      // Get token
-      const token = await getToken(messaging, {
-        vapidKey,
-        serviceWorkerRegistration: registration
-      });
-
-      if (token) {
-        console.log('✅ FCM Token generated (Web):', token.slice(0, 30) + '...');
-        const response = await safeFetch(`${import.meta.env.VITE_API_URL || ''}/api/subscribe`, {
-          method: 'POST',
-          body: JSON.stringify({ token, userId: user.id, role: user.role, communityId: user.communityId, communityName: user.communityName })
-        });
-
-        if (!response.success) throw new Error(response.error || response.message || 'Error al guardar suscripción en el servidor');
-
-        setNotificationsEnabled(true);
-      } else {
-        throw new Error('No se pudo obtener el token de Google (llegó vacío)');
-      }
-
-      // Handle foreground messages - show real notification (with sound/vibration) instead of alert()
-      onMessage(messaging, async (payload) => {
-        console.log('🔔 Foreground Message received:', payload);
-        const title = payload.notification?.title || '🚨 Alerta PatrolHood';
-        const body = payload.notification?.body || 'Nueva alerta en tu comunidad.';
-        
-        // SOS Siren Audio
-        if (payload.data?.type === 'SOS') {
-            try {
-                const ctx = new (window.AudioContext || window.webkitAudioContext)();
-                if (ctx.state === 'suspended') await ctx.resume();
-                const osc = ctx.createOscillator();
-                const gain = ctx.createGain();
-                osc.connect(gain);
-                gain.connect(ctx.destination);
-                osc.type = 'square';
-                gain.gain.value = 0.5; // Moderate volume
-                
-                let high = true;
-                const interval = setInterval(() => {
-                    osc.frequency.setValueAtTime(high ? 800 : 500, ctx.currentTime);
-                    high = !high;
-                }, 300);
-                
-                osc.start();
-                setTimeout(() => {
-                    clearInterval(interval);
-                    osc.stop();
-                }, 3000); // 3 seconds
-            } catch (e) { console.warn('Audio Context failed:', e); }
-        }
-
-        if ('serviceWorker' in navigator) {
-          const reg = await navigator.serviceWorker.ready;
-          reg.showNotification(title, {
-            body,
-            icon: '/logo_bull.png',
-            badge: '/logo_bull.png',
-            tag: payload.data?.type || 'patrolhood-alert',
-            renotify: true,
-            requireInteraction: true,
-            vibrate: [300, 100, 300, 100, 300],
-            data: { url: '/', ...payload.data }
-          });
-        }
-      });
-
-    } catch (err) {
-      console.log('❌ Push registration failed:', err);
-      alert(`Error activando notificaciones: ${err.message}`);
+      await onesignalPrompt();
+      const hasPermission = await checkPushPermission();
+      setNotificationsEnabled(hasPermission);
+    } catch (error) {
+      console.error('Error in subscribeToPush:', error);
     }
   }
-
-  // Unsubscribe from push notifications
+  // OneSignal Unsubscribe
   async function unsubscribeFromPush() {
     try {
-      const { initializeApp, getApps } = await import('firebase/app');
-      const { getMessaging, deleteToken } = await import('firebase/messaging');
-      const { firebaseConfig, vapidKey } = await import('./firebase-config');
-
-      const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
-      const messaging = getMessaging(app);
-
-      // Get and delete the local FCM token
-      const registration = await navigator.serviceWorker.ready;
-      const deleted = await deleteToken(messaging);
-      console.log('FCM token deleted locally:', deleted);
-
-      // Remove token from server (best-effort)
-      await safeFetch(`${import.meta.env.VITE_API_URL || ''}/api/unsubscribe`, {
-        method: 'POST',
-        body: JSON.stringify({ userId: user.id, communityId: user.communityId })
-      });
-
+      await onesignalLogout();
       setNotificationsEnabled(false);
     } catch (err) {
       console.error('Error unsubscribing:', err);
-      // Even if token deletion fails, reflect in UI
       setNotificationsEnabled(false);
     }
   }
@@ -2204,19 +1976,55 @@ function App() {
           </div>
         )}
 
-        {notificationsEnabled && (
-          <div style={{ padding: '0 20px 10px 20px', textAlign: 'center' }}>
-            <span style={{ color: '#10b981', fontSize: '0.75em', display: 'block', marginBottom: '4px' }}>🔔 Notificaciones App activas</span>
+        {!notificationsEnabled && user.role !== 'global_admin' && (
+          <div style={{ padding: '0 20px 20px 20px' }}>
             <button
-              onClick={unsubscribeFromPush}
-              style={{ background: 'none', border: 'none', color: '#64748b', textDecoration: 'underline', fontSize: '0.7em', cursor: 'pointer' }}
+              onClick={async () => {
+                await onesignalPrompt();
+                const hasPerm = await checkPushPermission();
+                setNotificationsEnabled(hasPerm);
+              }}
+              style={{
+                width: '100%',
+                padding: '12px',
+                background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+                color: 'white',
+                border: 'none',
+                borderRadius: '12px',
+                fontWeight: 'bold',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '10px',
+                boxShadow: '0 4px 15px rgba(37, 99, 235, 0.3)',
+                transition: 'all 0.3s ease',
+                fontSize: '0.9em',
+                animation: 'pulse-blue 2s infinite'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 6px 20px rgba(37, 99, 235, 0.4)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 4px 15px rgba(37, 99, 235, 0.3)';
+              }}
             >
-              Desactivar
+              <span>🔔</span> Activar Notificaciones
             </button>
+            <style>{`
+              @keyframes pulse-blue {
+                0% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.7); }
+                70% { box-shadow: 0 0 0 10px rgba(37, 99, 235, 0); }
+                100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); }
+              }
+            `}</style>
           </div>
         )}
 
         <button className="logout-btn" onClick={() => {
+          onesignalLogout();
           localStorage.removeItem('user')
           setUser(null)
         }}>Salir</button>

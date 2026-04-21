@@ -7,6 +7,7 @@ const Subscription = require('./models/Subscription');
 const ForumMessage = require('./models/ForumMessage');
 const admin = require('./shared/firebase');
 const { sendAlert } = require('./services/telegram');
+const { sendNotification } = require('./services/onesignal');
 const express = require('express');
 
 // Health Check
@@ -51,95 +52,70 @@ const sosWorker = new Worker('SOS_QUEUE', async job => {
         }
     }
 
-    if (job.name === 'NOTIFY_FCM') {
-        if (alert.channels?.fcm?.status === 'SENT') return;
+
+    if (job.name === 'NOTIFY_ONESIGNAL') {
         const community = await Community.findOne({ id: alert.communityId });
-        const subs = await Subscription.find({ communityId: alert.communityId });
-        if (subs.length > 0) {
-            const tokens = subs.map(s => s.token).filter(t => !!t);
+        const users = await User.find({ communityId: alert.communityId }, 'id'); // Get all users in community
+        const userIds = users.map(u => String(u.id));
+
+        if (userIds.length > 0) {
             const title = `🚨 SOS: ${community?.name || 'Comunidad'}`;
             const body = `¡Atención! ${alert.emergencyTypeLabel.toUpperCase()} en Casa #${alert.houseNumber}.`;
             try {
-                const message = {
-                    tokens,
-                    // 'notification' field ensures high-priority APNs delivery that wakes iOS SW
-                    notification: { title, body },
-                    // title+body also in 'data' so our raw push handler reads them on all platforms
+                await sendNotification({
+                    title,
+                    body,
+                    userIds,
                     data: {
-                        title,
-                        body,
                         type: 'SOS',
-                        communityId: String(alert.communityId),
-                        houseNumber: String(alert.houseNumber),
-                        click_action: '/'
-                    },
-                    webpush: {
-                        headers: { Urgency: 'high' },
-                        notification: {
-                            title,
-                            body,
-                            icon: 'https://patrolhood.onrender.com/logo_bull.png',
-                            badge: 'https://patrolhood.onrender.com/logo_bull.png',
-                            tag: 'patrolhood-sos',
-                            renotify: true,
-                            requireInteraction: true
-                        },
-                        fcm_options: { link: '/' }
-                    },
-                    apns: {
-                        payload: {
-                            aps: {
-                                alert: { title, body },
-                                sound: 'default',
-                                badge: 1,
-                                'content-available': 1,
-                                'mutable-content': 1
-                            }
-                        },
-                        headers: {
-                            'apns-priority': '10',
-                            'apns-push-type': 'alert'
-                        }
-                    },
-                    android: {
-                        priority: 'high',
-                        notification: {
-                            title,
-                            body,
-                            sound: 'default',
-                            priority: 'max',
-                            channelId: 'patrolhood_sos'
-                        }
+                        alertId: alert._id.toString(),
+                        communityId: String(alert.communityId)
                     }
-                };
-                
-                const result = await admin.messaging().sendEachForMulticast(message);
-                console.log(`[Worker] FCM sent: ${result.successCount} ok, ${result.failureCount} failed`);
-                // Remove invalid tokens
-                const toRemove = result.responses
-                    .map((r, i) => (!r.success && ['messaging/registration-token-not-registered', 'messaging/invalid-registration-token'].includes(r.error?.code)) ? tokens[i] : null)
-                    .filter(Boolean);
-                if (toRemove.length > 0) await Subscription.deleteMany({ token: { $in: toRemove } });
-
-                await ActiveSOS.findByIdAndUpdate(alertId, { 'channels.fcm.status': 'SENT', 'channels.fcm.lastAt': new Date() });
+                });
+                await ActiveSOS.findByIdAndUpdate(alertId, { 'channels.onesignal.status': 'SENT', 'channels.onesignal.lastAt': new Date() });
             } catch (e) {
-                await ActiveSOS.findByIdAndUpdate(alertId, { 'channels.fcm.status': 'FAILED', 'channels.fcm.lastError': e.message, $inc: { 'channels.fcm.attempts': 1 } });
+                await ActiveSOS.findByIdAndUpdate(alertId, { 'channels.onesignal.status': 'FAILED', 'channels.onesignal.lastError': e.message, $inc: { 'channels.onesignal.attempts': 1 } });
                 throw e;
             }
         }
     }
 
-    if (job.name === 'NOTIFY_TELEGRAM') {
-        if (alert.channels?.telegram?.status === 'SENT') return;
-        const community = await Community.findOne({ id: alert.communityId });
-        if (community?.telegramBotToken) {
-            const text = `🚨 *¡ALERTA VECINAL!* 🚨\n\n🔴 *Tipo:* ${alert.emergencyTypeLabel.toUpperCase()}\n🏠 *Casa:* #${alert.houseNumber}\n👤 *Vecino:* ${alert.userName}`;
+    if (job.name === 'NOTIFY_FORUM') {
+        const { title, body, communityId, senderId } = job.data;
+        const users = await User.find({ communityId, id: { $ne: senderId } }, 'id');
+        const userIds = users.map(u => String(u.id));
+
+        if (userIds.length > 0) {
             try {
-                await sendAlert(community.name, text);
-                await ActiveSOS.findByIdAndUpdate(alertId, { 'channels.telegram.status': 'SENT', 'channels.telegram.lastAt': new Date() });
+                await sendNotification({
+                    title,
+                    body,
+                    userIds,
+                    data: {
+                        type: 'FORUM',
+                        communityId: String(communityId)
+                    }
+                });
             } catch (e) {
-                await ActiveSOS.findByIdAndUpdate(alertId, { 'channels.telegram.status': 'FAILED', 'channels.telegram.lastError': e.message, $inc: { 'channels.telegram.attempts': 1 } });
-                throw e;
+                console.error('Error sending forum notification:', e);
+            }
+        }
+        return;
+    }
+
+    if (alert) {
+        if (job.name === 'NOTIFY_TELEGRAM') {
+            if (alert.channels?.telegram?.status === 'SENT') return;
+            const community = await Community.findOne({ id: alert.communityId });
+            if (community?.telegramBotToken) {
+                const text = `🚨 *¡ALERTA VECINAL!* 🚨\n\n🔴 *Tipo:* ${alert.emergencyTypeLabel.toUpperCase()}\n🏠 *Casa:* #${alert.houseNumber}\n👤 *Vecino:* ${alert.userName}`;
+                try {
+                    await sendAlert(community.name, text);
+                    await ActiveSOS.findByIdAndUpdate(alertId, { 'channels.telegram.status': 'SENT', 'channels.telegram.lastAt': new Date() });
+                } catch (e) {
+                    await ActiveSOS.findByIdAndUpdate(alertId, { 'channels.telegram.status': 'FAILED', 'channels.telegram.lastError': e.message, $inc: { 'channels.telegram.attempts': 1 } });
+                    throw e;
+                }
             }
         }
     }

@@ -14,6 +14,51 @@
     href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Lora:ital,wght@1,400;1,500;1,600&display=swap"
     rel="stylesheet">
   <title>PatrolHood Premium</title>
+
+  <!-- OneSignal SDK -->
+  <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+  <script>
+    window.OneSignalDeferred = window.OneSignalDeferred || [];
+    
+    window._oneSignalReady = new Promise(function(resolve) {
+      OneSignalDeferred.push(async function(OneSignal) {
+        await OneSignal.init({
+          appId: "064d0c75-1f00-42ab-955b-c369d44a114e",
+          safari_web_id: "web.onesignal.auto.01ea4289-b460-45e4-8d90-838752554827",
+          serviceWorkerParam: { scope: "/" },
+          serviceWorkerPath: "OneSignalSDKWorker.js",
+          notifyButton: { enable: false },
+        });
+        resolve(OneSignal);
+      });
+    });
+
+    window.loginToOneSignal = async function(userId) {
+      const OS = await window._oneSignalReady;
+      await OS.login(String(userId));
+    };
+
+    window.logoutFromOneSignal = async function() {
+      const OS = await window._oneSignalReady;
+      await OS.logout();
+    };
+
+    window.promptOneSignal = async function() {
+      const OS = await window._oneSignalReady;
+      if (OS.Notifications && OS.Notifications.requestPermission) {
+        await OS.Notifications.requestPermission();
+      }
+    };
+
+    window.isPushEnabled = async function() {
+      try {
+        const OS = await window._oneSignalReady;
+        return OS.Notifications ? OS.Notifications.permission : false;
+      } catch (e) {
+        return false;
+      }
+    };
+  </script>
 </head>
 
 <body>
