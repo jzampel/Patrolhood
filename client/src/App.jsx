@@ -9,7 +9,6 @@ import './App.css'
 import { db, addPendingSOS, getPendingSOS, markSOSAsSent, getPendingCount } from './db'
 import { safeFetch } from './api'
 import { Capacitor } from '@capacitor/core'
-import { Capacitor } from '@capacitor/core'
 import { onesignalLogin, onesignalLogout, onesignalPrompt, checkPushPermission } from './services/onesignal'
 
 // Global error handler for debugging on mobile devices
