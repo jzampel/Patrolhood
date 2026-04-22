@@ -34,13 +34,25 @@
     });
 
     window.loginToOneSignal = async function (userId) {
-      const OS = await window._oneSignalReady;
-      await OS.login(String(userId));
+      console.log('🆔 OneSignal: intentando login...', userId);
+      try {
+        const OS = await window._oneSignalReady;
+        await OS.login(String(userId));
+        console.log('✅ OneSignal: login exitoso para', userId);
+      } catch (e) {
+        console.error('❌ OneSignal: error en login', e);
+      }
     };
 
     window.logoutFromOneSignal = async function () {
-      const OS = await window._oneSignalReady;
-      await OS.logout();
+      console.log('🆔 OneSignal: intentando logout...');
+      try {
+        const OS = await window._oneSignalReady;
+        await OS.logout();
+        console.log('✅ OneSignal: logout exitoso');
+      } catch (e) {
+        console.error('❌ OneSignal: error en logout', e);
+      }
     };
 
     window.promptOneSignal = async function () {

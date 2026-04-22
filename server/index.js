@@ -985,13 +985,13 @@ app.post('/api/sos/test-notification', authenticate, async (req, res) => {
     const { userId } = req.body;
     try {
         const { sendNotification } = require('./services/onesignal');
-        await sendNotification({
+        const result = await sendNotification({
             title: '🧪 Prueba de Notificación',
             body: 'Si recibes esto, las notificaciones de PatrolHood funcionan correctamente.',
             userIds: [String(userId)],
             data: { type: 'TEST' }
         });
-        res.json({ success: true });
+        res.json({ success: true, result });
     } catch (error) {
         console.error('Error in test-notification:', error);
         res.status(500).json({ success: false, error: error.message });

@@ -932,8 +932,18 @@ function App() {
         method: 'POST',
         body: JSON.stringify({ userId: user.id })
       });
-      if (res.success) alert('🧪 Prueba enviada. Debería llegarte en unos segundos.');
-      else alert('❌ Error al enviar prueba: ' + (res.error || 'Error desconocido'));
+      if (res.success && res.result) {
+        const { result } = res;
+        if (result.errors && result.errors.length > 0) {
+          alert('❌ OneSignal dice: ' + result.errors.join(', '));
+        } else if (result.recipients === 0) {
+          alert('⚠️ Tu dispositivo no está registrado correctamente en OneSignal (Recipients: 0). Reintenta activar notificaciones.');
+        } else {
+          alert('🧪 Prueba enviada correctamente. Recipients: ' + result.recipients);
+        }
+      } else {
+        alert('❌ Error al enviar prueba: ' + (res.error || 'Error desconocido'));
+      }
     } catch (e) { alert('Error: ' + e.message); }
   }
 
