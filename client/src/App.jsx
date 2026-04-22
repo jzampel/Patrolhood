@@ -1138,6 +1138,15 @@ function App() {
   }, [user?.id, user?.communityId])
 
 
+  // OneSignal Session Management
+  useEffect(() => {
+    if (user?.id) {
+      onesignalLogin(user.id);
+    } else {
+      onesignalLogout();
+    }
+  }, [user?.id]);
+
   // ... rest of effects ...
 
   // --- SIREN SOUND LOGIC (Web Audio API) ---
@@ -1412,6 +1421,7 @@ function App() {
         const regs = await navigator.serviceWorker.getRegistrations();
         for (const reg of regs) await reg.unregister();
       }
+      onesignalLogout();
       setUser(null);
       setDeletedMsg(true);
       setTimeout(() => setDeletedMsg(false), 8000);
@@ -1473,6 +1483,7 @@ function App() {
   if (!user) return <AuthOverlay deletedMsg={deletedMsg} onLogin={(userData) => {
     localStorage.setItem('user', JSON.stringify(userData))
     setUser(userData)
+    onesignalLogin(userData.id)
     setDeletedMsg(false)
   }} />
 
