@@ -913,15 +913,36 @@ function App() {
       await onesignalPrompt();
       const hasPermission = await checkPushPermission();
       setNotificationsEnabled(hasPermission);
+
+      // Refresh debug info
+      if (window._oneSignalReady) {
+        const OS = await window._oneSignalReady;
+        const ext = await OS.User.ExternalId;
+        setOsDebugInfo({ subscribed: hasPermission, externalId: ext });
+      }
     } catch (error) {
       console.error('Error in subscribeToPush:', error);
     }
   }
+
+  const sendTestNotification = async () => {
+    if (!user?.id) return;
+    try {
+      const res = await safeFetch(`${import.meta.env.VITE_API_URL || ''}/api/sos/test-notification`, {
+        method: 'POST',
+        body: JSON.stringify({ userId: user.id })
+      });
+      if (res.success) alert('🧪 Prueba enviada. Debería llegarte en unos segundos.');
+      else alert('❌ Error al enviar prueba: ' + (res.error || 'Error desconocido'));
+    } catch (e) { alert('Error: ' + e.message); }
+  }
+
   // OneSignal Unsubscribe
   async function unsubscribeFromPush() {
     try {
       await onesignalLogout();
       setNotificationsEnabled(false);
+      setOsDebugInfo({ subscribed: false, externalId: null });
     } catch (err) {
       console.error('Error unsubscribing:', err);
       setNotificationsEnabled(false);
