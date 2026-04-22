@@ -948,37 +948,55 @@ app.post('/api/sos', authenticate, checkCommunity, sosLimiter, async (req, res) 
         }
 
         // Local fallback for monolithic deployments or Redis/Queue failures
-        console.log('ℹ️ Running notifications in local/monolithic mode');
-        await ActiveSOS.findByIdAndUpdate(alert._id, { status: 'DISPATCHED' });
+        console.log('📢 SOS using local fallback:', alert._id);
+        return res.json({ success: true, alertId: alert._id });
+    } catch (error) { res.status(500).json({ success: false, error: error.message }); }
+});
 
-        // Final logging to forum (local/fallback)
-        ForumMessage.create({
-            id: Date.now().toString(),
-            channel: 'ALERTAS',
-            communityId: alert.communityId,
-            communityName: communityName || 'SISTEMA',
-            user: alert.userName || 'SISTEMA',
-            text: `🚨 ${alert.emergencyTypeLabel.toUpperCase()} en Casa #${alert.houseNumber}`,
-            type: 'alert'
-        }).then(alertMsg => io.to(alert.communityId).emit('forum_message', alertMsg))
-            .catch(e => console.error('Local forum alert error:', e));
+app.post('/api/sos/test-notification', authenticate, async (req, res) => {
+    const { userId } = req.body;
+    try {
+        const { sendNotification } = require('./services/onesignal');
+        await sendNotification({
+            title: '🧪 Prueba de Notificación',
+            body: 'Si recibes esto, las notificaciones funcionan correctamente.',
+            userIds: [String(userId)],
+            data: { type: 'TEST' }
+        });
+        res.json({ success: true });
+    } catch (error) { res.status(500).json({ success: false, error: error.message }); }
+});
+console.log('ℹ️ Running notifications in local/monolithic mode');
+await ActiveSOS.findByIdAndUpdate(alert._id, { status: 'DISPATCHED' });
 
-        const community = await Community.findOne({ id: communityId });
-        if (community && community.telegramBotToken) {
-            const sosText = `🚨 *¡ALERTA VECINAL!* 🚨\n\n` +
-                `🔴 *Tipo:* ${alert.emergencyTypeLabel.toUpperCase()}\n` +
-                `🏠 *Casa:* #${alert.houseNumber}\n` +
-                `👤 *Vecino:* ${alert.userName}\n\n` +
-                `⚠️ _Atención inmediata requerida_`;
-            sendTelegramAlert(community.name, sosText);
-        }
+// Final logging to forum (local/fallback)
+ForumMessage.create({
+    id: Date.now().toString(),
+    channel: 'ALERTAS',
+    communityId: alert.communityId,
+    communityName: communityName || 'SISTEMA',
+    user: alert.userName || 'SISTEMA',
+    text: `🚨 ${alert.emergencyTypeLabel.toUpperCase()} en Casa #${alert.houseNumber}`,
+    type: 'alert'
+}).then(alertMsg => io.to(alert.communityId).emit('forum_message', alertMsg))
+    .catch(e => console.error('Local forum alert error:', e));
+
+const community = await Community.findOne({ id: communityId });
+if (community && community.telegramBotToken) {
+    const sosText = `🚨 *¡ALERTA VECINAL!* 🚨\n\n` +
+        `🔴 *Tipo:* ${alert.emergencyTypeLabel.toUpperCase()}\n` +
+        `🏠 *Casa:* #${alert.houseNumber}\n` +
+        `👤 *Vecino:* ${alert.userName}\n\n` +
+        `⚠️ _Atención inmediata requerida_`;
+    sendTelegramAlert(community.name, sosText);
+}
 
 
-        res.json({ success: true, alertId: alert._id });
+res.json({ success: true, alertId: alert._id });
     } catch (error) {
-        console.error('Error in POST /api/sos (Producer):', error);
-        res.status(500).json({ success: false, message: error.message });
-    }
+    console.error('Error in POST /api/sos (Producer):', error);
+    res.status(500).json({ success: false, message: error.message });
+}
 });
 
 // GET /api/sos/active - Fetch all currently active alerts for a community
