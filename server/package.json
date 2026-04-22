@@ -19,8 +19,7 @@
         "node-telegram-bot-api": "^0.67.0",
         "redis": "^5.11.0",
         "sharp": "^0.34.5",
-        "socket.io": "^4.6.1",
-        "web-push": "^3.6.7"
+        "socket.io": "^4.6.1"
     },
     "overrides": {
         "node-telegram-bot-api": {
