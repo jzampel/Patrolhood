@@ -786,16 +786,27 @@ app.post('/api/forum', authenticate, checkCommunity, async (req, res) => {
                 if (community) {
                     sendTelegramAlert(community.name, `💬 *Foro [${channel}]:* ${user}: ${forumMsgText}`);
 
-                    // OneSignal Notification via Queue
+                    // OneSignal Notification (Queue if available, else direct)
                     const title = `💬 Foro [${channel}]`;
                     const body = `${user}: ${forumMsgText.substring(0, 100)}`;
-                    if (sosQueue) {
-                        sosQueue.add('NOTIFY_FORUM', {
-                            title,
-                            body,
-                            communityId,
-                            senderId: req.user.id
-                        }).catch(e => console.error('Forum OneSignal queue error:', e));
+                    const { sendNotification } = require('./services/onesignal');
+
+                    if (isRedisAvailable && sosQueue) {
+                        sosQueue.add('NOTIFY_FORUM', { title, body, communityId, senderId: req.user.id })
+                            .catch(e => console.error('Forum OneSignal queue error:', e));
+                    } else {
+                        // Local/Monolithic fallback
+                        User.find({ communityId, id: { $ne: req.user.id } }, 'id').then(users => {
+                            const userIds = users.map(u => String(u.id));
+                            if (userIds.length > 0) {
+                                sendNotification({
+                                    title,
+                                    body,
+                                    userIds,
+                                    data: { type: 'FORUM', communityId: String(communityId) }
+                                }).catch(e => console.error('Local forum notification error:', e));
+                            }
+                        }).catch(e => console.error('Local forum users lookup error:', e));
                     }
                 }
             }).catch(e => console.error('Forum notification error:', e));
@@ -950,6 +961,25 @@ app.post('/api/sos', authenticate, checkCommunity, sosLimiter, async (req, res) 
         // Local fallback for monolithic deployments or Redis/Queue failures
         console.log('ℹ️ Running notifications in local/monolithic mode');
         await ActiveSOS.findByIdAndUpdate(alert._id, { status: 'DISPATCHED' });
+
+        // Push Notifications (OneSignal) - Local Fallback
+        try {
+            const users = await User.find({ communityId: alert.communityId }, 'id');
+            const userIds = users.map(u => String(u.id));
+            if (userIds.length > 0) {
+                const { sendNotification } = require('./services/onesignal');
+                await sendNotification({
+                    title: `🚨 SOS: ${communityName || 'Comunidad'}`,
+                    body: `¡Atención! ${alert.emergencyTypeLabel.toUpperCase()} en Casa #${alert.houseNumber}.`,
+                    userIds,
+                    data: {
+                        type: 'SOS',
+                        alertId: alert._id.toString(),
+                        communityId: String(alert.communityId)
+                    }
+                });
+            }
+        } catch (osErr) { console.error('Local OneSignal alert error:', osErr); }
 
         // Final logging to forum (local/fallback)
         ForumMessage.create({
