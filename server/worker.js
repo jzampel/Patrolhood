@@ -5,6 +5,7 @@ const ActiveSOS = require('./models/ActiveSOS');
 const Community = require('./models/Community');
 const Subscription = require('./models/Subscription');
 const ForumMessage = require('./models/ForumMessage');
+const User = require('./models/User');
 const { sendAlert } = require('./services/telegram');
 const { sendNotification } = require('./services/onesignal');
 const express = require('express');
