@@ -18,6 +18,10 @@ if (typeof window !== 'undefined') {
     return false;
   };
   window.onunhandledrejection = function (event) {
+    if (event.reason && (
+      String(event.reason).includes("Registration does not have an active worker") ||
+      String(event.reason).includes("Script error.")
+    )) return;
     alert('❌ Error de Promesa:\n' + event.reason);
   };
 }
