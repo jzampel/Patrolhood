@@ -1740,32 +1740,42 @@ function App() {
           </div>
         )} */}
 
-        {/* FCM Native Notifications Button */}
-        {user.role !== 'global_admin' && !notificationsEnabled && (
+        {/* FCM Native Notifications Section */}
+        {user.role !== 'global_admin' && (
           <div style={{ padding: '0 20px 10px 20px' }}>
-            <button
-              onClick={subscribeToPush}
-              style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
-                background: notificationsEnabled ? '#22c55e' : 'var(--gold-gradient)',
-                color: notificationsEnabled ? '#fff' : '#000', padding: '10px', borderRadius: '8px',
-                border: 'none', width: '100%', fontWeight: 'bold', fontSize: '0.9em',
-                cursor: notificationsEnabled ? 'default' : 'pointer',
-                boxShadow: notificationsEnabled ? '0 0 15px rgba(34, 197, 94, 0.3)' : 'none'
-              }}
-              disabled={notificationsEnabled}
-            >
-              {notificationsEnabled ? '✅ Notificaciones Activas' : '🔔 Activar Notificaciones App'}
-            </button>
-            <p style={{ fontSize: '0.7em', color: '#94a3b8', textAlign: 'center', marginTop: '5px' }}>
-              Recibe alertas directas sin necesidad de Telegram.
-            </p>
+            {!notificationsEnabled ? (
+              <>
+                <button
+                  onClick={subscribeToPush}
+                  style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                    background: 'var(--gold-gradient)',
+                    color: '#000', padding: '10px', borderRadius: '8px',
+                    border: 'none', width: '100%', fontWeight: 'bold', fontSize: '0.9em',
+                    cursor: 'pointer'
+                  }}
+                >
+                  🔔 Activar Notificaciones App
+                </button>
+                <p style={{ fontSize: '0.7em', color: '#94a3b8', textAlign: 'center', marginTop: '5px', marginBottom: '12px' }}>
+                  Recibe alertas directas sin necesidad de Telegram.
+                </p>
+              </>
+            ) : (
+              <div style={{
+                background: '#22c55e22', color: '#22c55e', padding: '8px', borderRadius: '8px',
+                fontSize: '0.85em', textAlign: 'center', fontWeight: 'bold', marginBottom: '12px',
+                border: '1px solid #22c55e44'
+              }}>
+                ✅ Notificaciones Activas
+              </div>
+            )}
 
-            {/* Debug Info */}
-            <div style={{ marginTop: '12px', padding: '10px', background: 'rgba(0,0,0,0.3)', borderRadius: '8px', fontSize: '0.75em' }}>
+            {/* Debug Info Area */}
+            <div style={{ padding: '10px', background: 'rgba(0,0,0,0.3)', borderRadius: '8px', fontSize: '0.75em' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', color: '#94a3b8' }}>
-                <span>Estado:</span>
-                <span style={{ color: notificationsEnabled ? '#22c55e' : '#f87171' }}>{notificationsEnabled ? 'Conectado' : 'Desconectado'}</span>
+                <span>Suscripción:</span>
+                <span style={{ color: notificationsEnabled ? '#22c55e' : '#f87171' }}>{notificationsEnabled ? 'ACTIVA' : 'INACTIVA'}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', color: '#94a3b8' }}>
                 <span>ID Usuario:</span>
@@ -1773,7 +1783,10 @@ function App() {
               </div>
               <button
                 onClick={sendTestNotification}
-                style={{ width: '100%', padding: '8px', background: '#334155', border: 'none', color: '#fff', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}
+                style={{
+                  width: '100%', padding: '8px', background: '#334155', border: 'none',
+                  color: '#fff', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold'
+                }}
               >
                 🧪 Enviar Alerta de Prueba
               </button>
