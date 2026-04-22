@@ -984,7 +984,7 @@ app.post('/api/sos', authenticate, checkCommunity, sosLimiter, async (req, res) 
 app.post('/api/sos/test-notification', authenticate, async (req, res) => {
     const { userId } = req.body;
     if (!process.env.ONESIGNAL_API_KEY || !process.env.ONESIGNAL_APP_ID) {
-        return res.status(500).json({ success: false, error: 'Configuración OneSignal incompleta en el servidor.' });
+        return res.status(500).json({ success: false, message: 'Configuración OneSignal incompleta en el servidor.' });
     }
     try {
         const { sendNotification } = require('./services/onesignal');
@@ -995,12 +995,12 @@ app.post('/api/sos/test-notification', authenticate, async (req, res) => {
             data: { type: 'TEST' }
         });
         if (!result) {
-            return res.status(500).json({ success: false, error: 'OneSignal no devolvió ninguna respuesta.' });
+            return res.status(500).json({ success: false, message: 'OneSignal no devolvió ninguna respuesta.' });
         }
         res.json({ success: true, result });
     } catch (error) {
         console.error('Error in test-notification:', error);
-        res.status(500).json({ success: false, error: error.message });
+        res.status(500).json({ success: false, message: error.message });
     }
 });
 
