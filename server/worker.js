@@ -57,6 +57,7 @@ const sosWorker = new Worker('SOS_QUEUE', async job => {
         const community = await Community.findOne({ id: alert.communityId });
         const users = await User.find({ communityId: alert.communityId }, 'id'); // Get all users in community
         const userIds = users.map(u => String(u.id));
+        console.log(`🔔 [Worker] Found ${userIds.length} recipients for SOS Alert in community ${alert.communityId}:`, userIds);
 
         if (userIds.length > 0) {
             const title = `🚨 SOS: ${community?.name || 'Comunidad'}`;
@@ -84,6 +85,7 @@ const sosWorker = new Worker('SOS_QUEUE', async job => {
         const { title, body, communityId, senderId } = job.data;
         const users = await User.find({ communityId, id: { $ne: senderId } }, 'id');
         const userIds = users.map(u => String(u.id));
+        console.log(`🔔 [Worker] Found ${userIds.length} recipients for Forum message in community ${communityId}:`, userIds);
 
         if (userIds.length > 0) {
             try {

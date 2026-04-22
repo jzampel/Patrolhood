@@ -26,6 +26,7 @@ async function sendNotification({ title, body, userIds, data }) {
         ]
     };
 
+    console.log(`📡 [OneSignal] Sending notification to ${userIds.length} users...`);
     try {
         const response = await fetch('https://onesignal.com/api/v1/notifications', {
             method: 'POST',
