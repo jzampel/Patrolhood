@@ -983,6 +983,9 @@ app.post('/api/sos', authenticate, checkCommunity, sosLimiter, async (req, res) 
 // New endpoint for testing OneSignal directly from the App
 app.post('/api/sos/test-notification', authenticate, async (req, res) => {
     const { userId } = req.body;
+    if (!process.env.ONESIGNAL_API_KEY || !process.env.ONESIGNAL_APP_ID) {
+        return res.status(500).json({ success: false, error: 'Configuración OneSignal incompleta en el servidor.' });
+    }
     try {
         const { sendNotification } = require('./services/onesignal');
         const result = await sendNotification({
@@ -991,6 +994,9 @@ app.post('/api/sos/test-notification', authenticate, async (req, res) => {
             userIds: [String(userId)],
             data: { type: 'TEST' }
         });
+        if (!result) {
+            return res.status(500).json({ success: false, error: 'OneSignal no devolvió ninguna respuesta.' });
+        }
         res.json({ success: true, result });
     } catch (error) {
         console.error('Error in test-notification:', error);
