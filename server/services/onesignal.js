@@ -1,5 +1,5 @@
 const api_key = process.env.ONESIGNAL_API_KEY;
-const app_id = process.env.ONESIGNAL_APP_ID;
+const app_id = process.env.ONESIGNAL_APP_ID || "064d0c75-1f00-42ab-955b-c369d44a114e";
 
 /**
  * Sends a push notification using OneSignal REST API

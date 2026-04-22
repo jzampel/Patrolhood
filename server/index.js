@@ -983,8 +983,8 @@ app.post('/api/sos', authenticate, checkCommunity, sosLimiter, async (req, res) 
 // New endpoint for testing OneSignal directly from the App
 app.post('/api/sos/test-notification', authenticate, async (req, res) => {
     const { userId } = req.body;
-    if (!process.env.ONESIGNAL_API_KEY || !process.env.ONESIGNAL_APP_ID) {
-        return res.status(500).json({ success: false, message: 'Configuración OneSignal incompleta en el servidor.' });
+    if (!process.env.ONESIGNAL_API_KEY) {
+        return res.status(500).json({ success: false, message: 'Falta la ONESIGNAL_API_KEY en las variables de entorno de Render.' });
     }
     try {
         const { sendNotification } = require('./services/onesignal');
