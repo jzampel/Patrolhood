@@ -1832,7 +1832,7 @@ function App() {
                 <button onClick={generateInvite} className="invite-btn">Generar Código de Invitación (Vecino)</button>
                 {generatedInvite && <div className="invite-code">{generatedInvite}</div>}
 
-                {!user.telegramBotUsername && (
+                {/* {!user.telegramBotUsername && (
                   <div style={{ marginTop: '20px', paddingTop: '15px', borderTop: '1px solid rgba(251, 191, 36, 0.3)' }}>
                     <h4 style={{ color: '#fbbf24', fontSize: '0.85rem', marginBottom: '10px' }}>🤖 Configurar Bot de Telegram</h4>
 
@@ -1865,7 +1865,7 @@ function App() {
                     />
                     <button onClick={updateTelegramBotToken} className="invite-btn" style={{ background: '#0088cc', color: 'white' }}>Guardar Token de Bot</button>
                   </div>
-                )}
+                )} */}
               </div>
             )}
           </>
