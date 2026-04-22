@@ -21,19 +21,6 @@ if (typeof window !== 'undefined') {
   };
 }
 
-async function registerServiceWorker() {
-  if ('serviceWorker' in navigator) {
-    try {
-      // Standard registration for background sync/PWA features
-      const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js', {
-        scope: '/'
-      });
-      console.log('✅ Service Worker registered with scope:', registration.scope);
-    } catch (error) {
-      console.error('❌ Service Worker registration failed:', error);
-    }
-  }
-}
 
 const socket = io(import.meta.env.VITE_API_URL || '/')
 
@@ -1015,7 +1002,6 @@ function App() {
   }, [user?.role])
 
   useEffect(() => {
-    registerServiceWorker();
 
     // Join community socket room
     if (user?.communityId) {
