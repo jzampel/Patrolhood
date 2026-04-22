@@ -268,7 +268,7 @@ function AuthOverlay({ onLogin, deletedMsg }) {
               <input name="inviteCode" placeholder="Código de Invitación" onChange={handleChange} required />
             )}
 
-            {formData.role === 'admin' && (
+            {/* {formData.role === 'admin' && (
               <div style={{ marginBottom: '10px' }}>
                 <input
                   name="telegramBotToken"
@@ -280,7 +280,7 @@ function AuthOverlay({ onLogin, deletedMsg }) {
                   Pega aquí el token de @BotFather si quieres un bot propio para tu barrio.
                 </small>
               </div>
-            )}
+            )} */}
 
             <div className="password-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
               <div className="password-wrapper">
@@ -1676,7 +1676,7 @@ function App() {
         </div>
 
         {/* Telegram Connect Button - Only show if NOT connected and NOT global_admin */}
-        {!user.telegramChatId && user.role !== 'global_admin' && (
+        {/* {!user.telegramChatId && user.role !== 'global_admin' && (
           <div style={{ padding: '10px 20px' }}>
             {user.telegramBotUsername ? (
               <a
@@ -1704,22 +1704,24 @@ function App() {
               Únete al bot para recibir alertas fiables en tu móvil.
             </p>
           </div>
-        )}
+        )} */}
 
         {/* FCM Native Notifications Button */}
         {user.role !== 'global_admin' && !notificationsEnabled && (
           <div style={{ padding: '0 20px 10px 20px' }}>
             <button
-              onClick={() => subscribeToPush(false)}
+              onClick={subscribeToPush}
               style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
-                background: 'var(--gold-gradient)',
-                color: '#000', padding: '10px', borderRadius: '8px',
+                background: notificationsEnabled ? '#10b981' : 'var(--gold-gradient)',
+                color: notificationsEnabled ? '#fff' : '#000', padding: '10px', borderRadius: '8px',
                 border: 'none', width: '100%', fontWeight: 'bold', fontSize: '0.9em',
-                cursor: 'pointer'
+                cursor: notificationsEnabled ? 'default' : 'pointer',
+                boxShadow: notificationsEnabled ? '0 0 15px rgba(16, 185, 129, 0.3)' : 'none'
               }}
+              disabled={notificationsEnabled}
             >
-              🔔 Activar Notificaciones App
+              {notificationsEnabled ? '✅ Notificaciones Activadas' : '🔔 Activar Notificaciones App'}
             </button>
             <p style={{ fontSize: '0.7em', color: '#94a3b8', textAlign: 'center', marginTop: '5px' }}>
               Recibe alertas directas sin necesidad de Telegram.
@@ -1973,7 +1975,7 @@ function App() {
           </div>
         )}
 
-        {user.telegramChatId && user.role !== 'global_admin' && (
+        {/* {user.telegramChatId && user.role !== 'global_admin' && (
           <div style={{ textAlign: 'center', marginBottom: '15px' }}>
             <button
               onClick={deactivateTelegram}
@@ -1985,7 +1987,7 @@ function App() {
               Desactivar alertas (Telegram)
             </button>
           </div>
-        )}
+        )} */}
 
         {!notificationsEnabled && user.role !== 'global_admin' && (
           <div style={{ padding: '0 20px 20px 20px' }}>
@@ -2302,9 +2304,6 @@ function App() {
             user={user}
             onGenerateInvite={generateInvite}
             inviteCode={generatedInvite}
-            onUpdateBotToken={updateTelegramBotToken}
-            telegramBotTokenInput={telegramBotTokenInput}
-            setTelegramBotTokenInput={setTelegramBotTokenInput}
             onClearHouses={clearHouses}
             onDeleteHouse={onDeleteHouse}
             onAddHouse={onAddHouse}

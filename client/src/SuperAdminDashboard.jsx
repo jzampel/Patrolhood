@@ -54,7 +54,7 @@ const SuperAdminDashboard = ({ user, initialTab = 0, onSwitchCommunity, activeAl
         const data = await safeFetch(`${import.meta.env.VITE_API_URL || ''}/api/superadmin/users?q=${q}`);
         if (data.success) {
             // Filter out global_admins as requested
-            setUsers(data.users.filter(u => u.role !== 'global_admin')); 
+            setUsers(data.users.filter(u => u.role !== 'global_admin'));
         }
         setLoading(false);
     };
@@ -106,10 +106,10 @@ const SuperAdminDashboard = ({ user, initialTab = 0, onSwitchCommunity, activeAl
 
     const handleUserSubmit = async (e) => {
         e.preventDefault();
-        const url = editingUser 
+        const url = editingUser
             ? `${import.meta.env.VITE_API_URL || ''}/api/superadmin/users/${editingUser.id}`
             : `${import.meta.env.VITE_API_URL || ''}/api/superadmin/users`;
-        
+
         const comm = communities.find(c => c.id === userForm.communityId);
         const payload = { ...userForm, communityName: comm?.name || '' };
 
@@ -129,7 +129,7 @@ const SuperAdminDashboard = ({ user, initialTab = 0, onSwitchCommunity, activeAl
 
     const handleCommSubmit = async (e) => {
         e.preventDefault();
-        const url = editingComm 
+        const url = editingComm
             ? `${import.meta.env.VITE_API_URL || ''}/api/superadmin/communities/${editingComm.id}`
             : `${import.meta.env.VITE_API_URL || ''}/api/superadmin/communities`;
 
@@ -175,7 +175,7 @@ const SuperAdminDashboard = ({ user, initialTab = 0, onSwitchCommunity, activeAl
         if (!targetCommunityId) return;
         const comm = communities.find(c => c.id === targetCommunityId);
         if (!comm) return;
-        
+
         if (!window.confirm(`¿Mover esta casa a la comunidad "${comm.name}"?`)) return;
 
         try {
@@ -214,11 +214,11 @@ const SuperAdminDashboard = ({ user, initialTab = 0, onSwitchCommunity, activeAl
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }} className="sa-header-alignment">
                 <div>
                     <h1 style={{ color: '#fbbf24', margin: 0, display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.5rem', textTransform: 'uppercase' }}>
-                        {activeTab === 0 ? '🏘️ Comunidades' : 
-                         activeTab === 1 ? '👥 Usuarios' : 
-                         activeTab === 2 ? '🚨 Alertas' : 
-                         activeTab === 3 ? '📊 Auditoría' : 
-                         activeTab === 4 ? '🚩 Reportados' : 'Super Admin'}
+                        {activeTab === 0 ? '🏘️ Comunidades' :
+                            activeTab === 1 ? '👥 Usuarios' :
+                                activeTab === 2 ? '🚨 Alertas' :
+                                    activeTab === 3 ? '📊 Auditoría' :
+                                        activeTab === 4 ? '🚩 Reportados' : 'Super Admin'}
                     </h1>
                     <p style={{ color: '#94a3b8', fontSize: '0.9rem' }}>Super Admin: {user.name}</p>
                 </div>
@@ -241,10 +241,10 @@ const SuperAdminDashboard = ({ user, initialTab = 0, onSwitchCommunity, activeAl
                     <div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
                             <p style={{ color: '#94a3b8', fontSize: '0.85em', margin: 0 }}>Toca en una comunidad para ver y administrar sus casas.</p>
-                            <button style={styles.btn('#3b82f6')} onClick={() => { 
-                                setEditingComm(null); 
-                                setCommForm({ name: '', telegramBotToken: '', center: [40.4168, -3.7038] }); 
-                                setShowCommModal(true); 
+                            <button style={styles.btn('#3b82f6')} onClick={() => {
+                                setEditingComm(null);
+                                setCommForm({ name: '', telegramBotToken: '', center: [40.4168, -3.7038] });
+                                setShowCommModal(true);
                             }}>+ Nueva Comunidad</button>
                         </div>
                         {communities.map(c => {
@@ -253,7 +253,7 @@ const SuperAdminDashboard = ({ user, initialTab = 0, onSwitchCommunity, activeAl
 
                             return (
                                 <div key={c.id} style={styles.card}>
-                                    <div 
+                                    <div
                                         style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', paddingBottom: isExpanded ? '10px' : '0', borderBottom: isExpanded ? '1px solid #334155' : 'none', marginBottom: isExpanded ? '10px' : '0' }}
                                         onClick={() => setExpandedCommId(isExpanded ? null : c.id)}
                                     >
@@ -275,10 +275,10 @@ const SuperAdminDashboard = ({ user, initialTab = 0, onSwitchCommunity, activeAl
                                                 <p style={{ fontSize: '0.85em', color: '#64748b' }}>No hay casas en esta comunidad.</p>
                                             ) : (
                                                 <div style={{ display: 'grid', gap: '8px' }}>
-                                                    {commHouses.sort((a,b) => a.number && b.number ? a.number.localeCompare(b.number, undefined, {numeric:true}) : 0).map(h => {
+                                                    {commHouses.sort((a, b) => a.number && b.number ? a.number.localeCompare(b.number, undefined, { numeric: true }) : 0).map(h => {
                                                         const inhabitants = users.filter(u => u.mapLabel === h.number || u.phone === h.owner);
                                                         const statusColor = h.status === 'admin' ? '#22c55e' : (h.status === 'inhabited' ? '#3b82f6' : '#64748b');
-                                                        
+
                                                         return (
                                                             <div key={h.id || h._id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#0f172a', padding: '10px', borderRadius: '8px', borderLeft: `4px solid ${statusColor}` }}>
                                                                 <div>
@@ -292,7 +292,7 @@ const SuperAdminDashboard = ({ user, initialTab = 0, onSwitchCommunity, activeAl
                                                                     )}
                                                                 </div>
                                                                 <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                                                                    <select 
+                                                                    <select
                                                                         style={{ ...styles.input, marginBottom: 0, padding: '4px 8px', width: 'auto', fontSize: '0.8em', height: 'auto' }}
                                                                         value={""}
                                                                         onChange={(e) => changeHouseCommunity(h.id || h._id, e.target.value)}
@@ -321,23 +321,23 @@ const SuperAdminDashboard = ({ user, initialTab = 0, onSwitchCommunity, activeAl
                 {activeTab === 1 && (
                     <div>
                         <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
-                            <input style={{...styles.input, marginBottom: 0}} placeholder="Buscar usuarios..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} onKeyDown={e => e.key === 'Enter' && fetchUsers(searchQuery)} />
-                            <button style={{...styles.btn('#059669'), whiteSpace: 'nowrap'}} onClick={() => { 
-                                setEditingUser(null); 
-                                setUserForm({ name: '', surname: '', phone: '', email: '', password: '', role: 'user', communityId: communities[0]?.id || '', mapLabel: '', address: '' }); 
-                                setShowUserModal(true); 
+                            <input style={{ ...styles.input, marginBottom: 0 }} placeholder="Buscar usuarios..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} onKeyDown={e => e.key === 'Enter' && fetchUsers(searchQuery)} />
+                            <button style={{ ...styles.btn('#059669'), whiteSpace: 'nowrap' }} onClick={() => {
+                                setEditingUser(null);
+                                setUserForm({ name: '', surname: '', phone: '', email: '', password: '', role: 'user', communityId: communities[0]?.id || '', mapLabel: '', address: '' });
+                                setShowUserModal(true);
                             }}>+ Nuevo Usuario</button>
                         </div>
-                        
+
                         {communities.map(c => {
                             const commUsers = users.filter(u => u.communityId === c.id && u.name.toLowerCase().includes(searchQuery.toLowerCase()));
                             if (commUsers.length === 0 && !searchQuery) return null; // Hide empty if not searching
-                            
+
                             const isExpanded = expandedUserCommId === c.id;
 
                             return (
                                 <div key={c.id} style={{ ...styles.card, marginBottom: '8px', padding: '12px' }}>
-                                    <div 
+                                    <div
                                         style={{ display: 'flex', justifyContent: 'space-between', cursor: 'pointer', paddingBottom: isExpanded ? '8px' : '0', borderBottom: isExpanded ? '1px solid #334155' : 'none', marginBottom: isExpanded ? '8px' : '0' }}
                                         onClick={() => setExpandedUserCommId(isExpanded ? null : c.id)}
                                     >
@@ -349,15 +349,15 @@ const SuperAdminDashboard = ({ user, initialTab = 0, onSwitchCommunity, activeAl
                                             {commUsers.map(u => (
                                                 <div key={u.id} style={{ background: '#0f172a', padding: '10px', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                                     <div>
-                                                        <span style={{ fontWeight: 'bold' }}>{u.name} {u.surname}</span> 
+                                                        <span style={{ fontWeight: 'bold' }}>{u.name} {u.surname}</span>
                                                         <span style={{ fontSize: '0.7em', background: '#334155', padding: '2px 6px', borderRadius: '4px', marginLeft: '6px' }}>{u.role}</span>
                                                         <p style={{ fontSize: '0.85em', color: '#94a3b8', margin: '4px 0 0' }}>{u.phone} | Casa: {u.mapLabel || '?'}</p>
                                                     </div>
                                                     <div style={{ display: 'flex', gap: '6px' }}>
-                                                        <button style={styles.smallBtn('#64748b')} onClick={() => { 
-                                                            setEditingUser(u); 
-                                                            setUserForm({ name: u.name, surname: u.surname, phone: u.phone, email: u.email, role: u.role, communityId: u.communityId, mapLabel: u.mapLabel || '', address: u.address || '' }); 
-                                                            setShowUserModal(true); 
+                                                        <button style={styles.smallBtn('#64748b')} onClick={() => {
+                                                            setEditingUser(u);
+                                                            setUserForm({ name: u.name, surname: u.surname, phone: u.phone, email: u.email, role: u.role, communityId: u.communityId, mapLabel: u.mapLabel || '', address: u.address || '' });
+                                                            setShowUserModal(true);
                                                         }}>✏️</button>
                                                         <button style={styles.smallBtn('#ef4444')} onClick={() => deleteUser(u.id)}>🗑️</button>
                                                     </div>
@@ -375,10 +375,10 @@ const SuperAdminDashboard = ({ user, initialTab = 0, onSwitchCommunity, activeAl
                             const orphanUsers = users.filter(u => !communities.find(c => c.id === u.communityId) && u.name.toLowerCase().includes(searchQuery.toLowerCase()));
                             if (orphanUsers.length === 0) return null;
                             const isExpanded = expandedUserCommId === 'orphan';
-                            
+
                             return (
                                 <div style={{ ...styles.card, marginBottom: '8px', padding: '12px' }}>
-                                    <div 
+                                    <div
                                         style={{ display: 'flex', justifyContent: 'space-between', cursor: 'pointer', paddingBottom: isExpanded ? '8px' : '0', borderBottom: isExpanded ? '1px solid #334155' : 'none', marginBottom: isExpanded ? '8px' : '0' }}
                                         onClick={() => setExpandedUserCommId(isExpanded ? null : 'orphan')}
                                     >
@@ -389,15 +389,15 @@ const SuperAdminDashboard = ({ user, initialTab = 0, onSwitchCommunity, activeAl
                                             {orphanUsers.map(u => (
                                                 <div key={u.id} style={{ background: '#0f172a', padding: '10px', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                                     <div>
-                                                        <span style={{ fontWeight: 'bold' }}>{u.name} {u.surname}</span> 
+                                                        <span style={{ fontWeight: 'bold' }}>{u.name} {u.surname}</span>
                                                         <span style={{ fontSize: '0.7em', background: '#334155', padding: '2px 6px', borderRadius: '4px', marginLeft: '6px' }}>{u.role}</span>
                                                         <p style={{ fontSize: '0.85em', color: '#94a3b8', margin: '4px 0 0' }}>{u.phone} | Casa: {u.mapLabel || '?'}</p>
                                                     </div>
                                                     <div style={{ display: 'flex', gap: '6px' }}>
-                                                        <button style={styles.smallBtn('#64748b')} onClick={() => { 
-                                                            setEditingUser(u); 
-                                                            setUserForm({ name: u.name, surname: u.surname, phone: u.phone, email: u.email, role: u.role, communityId: u.communityId, mapLabel: u.mapLabel || '', address: u.address || '' }); 
-                                                            setShowUserModal(true); 
+                                                        <button style={styles.smallBtn('#64748b')} onClick={() => {
+                                                            setEditingUser(u);
+                                                            setUserForm({ name: u.name, surname: u.surname, phone: u.phone, email: u.email, role: u.role, communityId: u.communityId, mapLabel: u.mapLabel || '', address: u.address || '' });
+                                                            setShowUserModal(true);
                                                         }}>✏️</button>
                                                         <button style={styles.smallBtn('#ef4444')} onClick={() => deleteUser(u.id)}>🗑️</button>
                                                     </div>
@@ -431,8 +431,8 @@ const SuperAdminDashboard = ({ user, initialTab = 0, onSwitchCommunity, activeAl
                                             <div style={{ fontWeight: 'bold', fontSize: '1.1rem' }}>Casa #{alert.houseNumber} - {alert.userName}</div>
                                             <div style={{ fontSize: '0.8em', color: '#64748b', marginTop: '5px' }}>⏰ {new Date(alert.timestamp).toLocaleString()}</div>
                                         </div>
-                                        <button 
-                                            style={styles.btn(alert.emergencyType === 'lost_pet' ? '#fbbf24' : '#ef4444')} 
+                                        <button
+                                            style={styles.btn(alert.emergencyType === 'lost_pet' ? '#fbbf24' : '#ef4444')}
                                             onClick={() => onSwitchCommunity(alert.communityId, alert.communityName, alert.location ? [alert.location.lat, alert.location.lng] : null)}
                                         >
                                             📍 Ver en Mapa
@@ -460,33 +460,33 @@ const SuperAdminDashboard = ({ user, initialTab = 0, onSwitchCommunity, activeAl
                             {communities.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                         </select>
                         <hr style={{ border: '0.5px solid #334155', margin: '15px 0' }} />
-                        
+
                         {activeTab === 3 && (
                             logsLoading ? <p>Cargando registros...</p> : (
                                 logs.length === 0 ? <p>Sin registros.</p> :
-                                logs.map(l => (
-                                    <div key={l._id} style={{ ...styles.card, borderLeft: '4px solid #fbbf24' }}>
-                                        <div style={{ fontWeight: 'bold' }}>{l.action}</div>
-                                        <div style={{ fontSize: '0.8em', color: '#94a3b8' }}>{l.adminName} - {new Date(l.timestamp).toLocaleString()}</div>
-                                        {l.details && <pre style={{ fontSize: '0.7em', background: '#0f172a', padding: '5px', marginTop: '5px' }}>{JSON.stringify(l.details, null, 2)}</pre>}
-                                    </div>
-                                ))
+                                    logs.map(l => (
+                                        <div key={l._id} style={{ ...styles.card, borderLeft: '4px solid #fbbf24' }}>
+                                            <div style={{ fontWeight: 'bold' }}>{l.action}</div>
+                                            <div style={{ fontSize: '0.8em', color: '#94a3b8' }}>{l.adminName} - {new Date(l.timestamp).toLocaleString()}</div>
+                                            {l.details && <pre style={{ fontSize: '0.7em', background: '#0f172a', padding: '5px', marginTop: '5px' }}>{JSON.stringify(l.details, null, 2)}</pre>}
+                                        </div>
+                                    ))
                             )
                         )}
 
                         {activeTab === 4 && (
                             reportedLoading ? <p>Cargando reportes...</p> : (
                                 reported.length === 0 ? <p>Sin reportes.</p> :
-                                reported.map(r => (
-                                    <div key={r._id} style={{ ...styles.card, borderLeft: '4px solid #ef4444' }}>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                                            <strong>{r.user}</strong>
-                                            <span style={{ color: '#ef4444' }}>⚠️ {r.reports?.length} reportes</span>
+                                    reported.map(r => (
+                                        <div key={r._id} style={{ ...styles.card, borderLeft: '4px solid #ef4444' }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                                <strong>{r.user}</strong>
+                                                <span style={{ color: '#ef4444' }}>⚠️ {r.reports?.length} reportes</span>
+                                            </div>
+                                            <p style={{ margin: '8px 0' }}>{r.text}</p>
+                                            <div style={{ fontSize: '0.8em', color: '#64748b' }}>#{r.channel}</div>
                                         </div>
-                                        <p style={{ margin: '8px 0' }}>{r.text}</p>
-                                        <div style={{ fontSize: '0.8em', color: '#64748b' }}>#{r.channel}</div>
-                                    </div>
-                                ))
+                                    ))
                             )
                         )}
                     </div>
@@ -499,26 +499,26 @@ const SuperAdminDashboard = ({ user, initialTab = 0, onSwitchCommunity, activeAl
                     <form style={styles.modalContent} onSubmit={handleUserSubmit}>
                         <h2 style={{ color: '#fbbf24' }}>{editingUser ? 'Editar Usuario' : 'Nuevo Usuario'}</h2>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                            <input style={styles.input} placeholder="Nombre" value={userForm.name} onChange={e => setUserForm({...userForm, name: e.target.value})} required />
-                            <input style={styles.input} placeholder="Apellido" value={userForm.surname} onChange={e => setUserForm({...userForm, surname: e.target.value})} />
+                            <input style={styles.input} placeholder="Nombre" value={userForm.name} onChange={e => setUserForm({ ...userForm, name: e.target.value })} required />
+                            <input style={styles.input} placeholder="Apellido" value={userForm.surname} onChange={e => setUserForm({ ...userForm, surname: e.target.value })} />
                         </div>
-                        <input style={styles.input} placeholder="Teléfono" value={userForm.phone} onChange={e => setUserForm({...userForm, phone: e.target.value})} required />
-                        {!editingUser && <input style={styles.input} type="password" placeholder="Contraseña" value={userForm.password} onChange={e => setUserForm({...userForm, password: e.target.value})} required />}
-                        <input style={styles.input} placeholder="Email" value={userForm.email} onChange={e => setUserForm({...userForm, email: e.target.value})} />
-                        
+                        <input style={styles.input} placeholder="Teléfono" value={userForm.phone} onChange={e => setUserForm({ ...userForm, phone: e.target.value })} required />
+                        {!editingUser && <input style={styles.input} type="password" placeholder="Contraseña" value={userForm.password} onChange={e => setUserForm({ ...userForm, password: e.target.value })} required />}
+                        <input style={styles.input} placeholder="Email" value={userForm.email} onChange={e => setUserForm({ ...userForm, email: e.target.value })} />
+
                         <label style={{ fontSize: '0.8em', color: '#94a3b8' }}>Comunidad</label>
-                        <select style={styles.input} value={userForm.communityId} onChange={e => setUserForm({...userForm, communityId: e.target.value})}>
+                        <select style={styles.input} value={userForm.communityId} onChange={e => setUserForm({ ...userForm, communityId: e.target.value })}>
                             {communities.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                         </select>
 
                         <label style={{ fontSize: '0.8em', color: '#94a3b8' }}>Rol</label>
-                        <select style={styles.input} value={userForm.role} onChange={e => setUserForm({...userForm, role: e.target.value})}>
+                        <select style={styles.input} value={userForm.role} onChange={e => setUserForm({ ...userForm, role: e.target.value })}>
                             <option value="user">Vecino</option>
                             <option value="admin">Administrador</option>
                             <option value="moderator">Moderador</option>
                         </select>
 
-                        <input style={styles.input} placeholder="Nº Casa (Label en mapa)" value={userForm.mapLabel} onChange={e => setUserForm({...userForm, mapLabel: e.target.value})} />
+                        <input style={styles.input} placeholder="Nº Casa (Label en mapa)" value={userForm.mapLabel} onChange={e => setUserForm({ ...userForm, mapLabel: e.target.value })} />
 
                         <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
                             <button type="button" style={styles.btn('#475569')} onClick={() => setShowUserModal(false)}>Cancelar</button>
@@ -533,9 +533,9 @@ const SuperAdminDashboard = ({ user, initialTab = 0, onSwitchCommunity, activeAl
                 <div style={styles.modal}>
                     <form style={styles.modalContent} onSubmit={handleCommSubmit}>
                         <h2 style={{ color: '#fbbf24' }}>{editingComm ? 'Editar Comunidad' : 'Nueva Comunidad'}</h2>
-                        <input style={styles.input} placeholder="Nombre Comunidad" value={commForm.name} onChange={e => setCommForm({...commForm, name: e.target.value})} required />
-                        <input style={styles.input} placeholder="Telegram Bot Token (Opcional, configurar más tarde)" value={commForm.telegramBotToken} onChange={e => setCommForm({...commForm, telegramBotToken: e.target.value})} />
-                        
+                        <input style={styles.input} placeholder="Nombre Comunidad" value={commForm.name} onChange={e => setCommForm({ ...commForm, name: e.target.value })} required />
+                        {/* <input style={styles.input} placeholder="Telegram Bot Token (Opcional, configurar más tarde)" value={commForm.telegramBotToken} onChange={e => setCommForm({...commForm, telegramBotToken: e.target.value})} /> */}
+
                         <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
                             <button type="button" style={styles.btn('#475569')} onClick={() => setShowCommModal(false)}>Cancelar</button>
                             <button type="submit" style={styles.btn('#fbbf24')}>Guardar Cambios</button>
