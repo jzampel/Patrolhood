@@ -13,6 +13,7 @@ import { onesignalLogin, onesignalLogout, onesignalPrompt, checkPushPermission }
 // Global error handler for debugging on mobile devices
 if (typeof window !== 'undefined') {
   window.onerror = function (msg, url, lineNo, columnNo, error) {
+    if (msg === "Script error." && !url) return;
     alert('❌ Error Global:\n' + msg + '\nLínea: ' + lineNo + '\nColumna: ' + columnNo + (error ? '\nStack: ' + error.stack : ''));
     return false;
   };

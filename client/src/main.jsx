@@ -22,6 +22,7 @@ const reportError = (msg, extra = '') => {
 }
 
 window.onerror = (msg, url, line, col, error) => {
+  if (msg === "Script error." && !url) return;
   reportError(`${msg}`, `URL: ${url}\nLínea: ${line}, Col: ${col}\nStack: ${error?.stack || 'No stack'}`)
 }
 
