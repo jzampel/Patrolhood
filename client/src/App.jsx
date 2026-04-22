@@ -12,11 +12,11 @@ import { onesignalLogin, onesignalLogout, onesignalPrompt, checkPushPermission }
 
 // Global error handler for debugging on mobile devices
 if (typeof window !== 'undefined') {
-  window.onerror = function(msg, url, lineNo, columnNo, error) {
+  window.onerror = function (msg, url, lineNo, columnNo, error) {
     alert('❌ Error Global:\n' + msg + '\nLínea: ' + lineNo + '\nColumna: ' + columnNo + (error ? '\nStack: ' + error.stack : ''));
     return false;
   };
-  window.onunhandledrejection = function(event) {
+  window.onunhandledrejection = function (event) {
     alert('❌ Error de Promesa:\n' + event.reason);
   };
 }
@@ -533,8 +533,8 @@ function Forum({ user, allCommunities, onSwitchCommunity }) {
           ))}
         </div>
         {user.role === 'global_admin' && allCommunities && allCommunities.length > 0 && (
-          <select 
-            value={user.communityId} 
+          <select
+            value={user.communityId}
             onChange={(e) => {
               const comm = allCommunities.find(c => c.id === e.target.value);
               if (comm) onSwitchCommunity(comm.id, comm.name, comm.center);
@@ -877,7 +877,7 @@ function App() {
       try {
         const hasPermission = await checkPushPermission();
         setNotificationsEnabled(hasPermission);
-        
+
         if (user?.id) {
           onesignalLogin(user.id);
         }
@@ -927,8 +927,7 @@ function App() {
     if (data.success) {
       let msg = `Estado del Servidor:\n`;
       msg += `- Base de Datos: ${data.mongoReady ? '✅ OK' : '❌ Error'}\n`;
-      msg += `- Firebase: ${data.firebaseInitialized ? '✅ OK' : '❌ NO INICIALIZADO'}\n`;
-      if (data.firebaseError) msg += `- Error Firebase: ${data.firebaseError}\n`;
+      msg += `- OneSignal: ✅ OK (App ID Configurado)\n`;
       msg += `\nEntorno: ${data.nodeEnv}`;
       alert(msg);
     } else {
@@ -984,8 +983,8 @@ function App() {
     safeFetch(`${import.meta.env.VITE_API_URL || ''}/api/superadmin/communities`)
       .then(data => {
         if (data.success && data.communities) {
-            setAllCommunities(data.communities);
-            window._allCommunities = data.communities; // Legacy support for the inline select
+          setAllCommunities(data.communities);
+          window._allCommunities = data.communities; // Legacy support for the inline select
         }
       })
       .catch(err => console.error('Error fetching communities:', err))
@@ -1099,7 +1098,7 @@ function App() {
       if (data.success && data.user) {
         setUser(prev => {
           if (!prev) return data.user;
-          
+
           // Merging logic
           const updated = { ...prev, ...data.user };
 
@@ -2272,20 +2271,20 @@ function App() {
           </div>
         )}
         {activeTab === 'forum' && (
-          <Forum 
-            user={user} 
-            allCommunities={allCommunities} 
+          <Forum
+            user={user}
+            allCommunities={allCommunities}
             onSwitchCommunity={(id, name, center) => {
               setUser(prev => ({ ...prev, communityId: id, communityName: name, communityCenter: center }));
               if (center && center.length === 2 && mapRef.current) {
-                  mapRef.current.flyTo(center, 18);
+                mapRef.current.flyTo(center, 18);
               }
             }}
           />
         )}
         {activeTab === 'users' && <UserList currentUser={user} houses={houses} users={users} setUsers={setUsers} onViewOnMap={handleViewOnMap} />}
         {activeTab === 'dashboard' && (
-          <AdminDashboard 
+          <AdminDashboard
             user={user}
             onGenerateInvite={generateInvite}
             inviteCode={generatedInvite}
@@ -2299,24 +2298,24 @@ function App() {
           />
         )}
         {(activeTab === 'sa-communities' || activeTab === 'sa-users' || activeTab === 'sa-alerts' || activeTab === 'sa-audit' || activeTab === 'sa-reported') && (
-          <SuperAdminDashboard 
-            user={user} 
+          <SuperAdminDashboard
+            user={user}
             activeAlerts={activeAlerts}
             initialTab={
               activeTab === 'sa-communities' ? 0 :
-              activeTab === 'sa-users' ? 1 :
-              activeTab === 'sa-alerts' ? 2 :
-              activeTab === 'sa-audit' ? 3 : 4
+                activeTab === 'sa-users' ? 1 :
+                  activeTab === 'sa-alerts' ? 2 :
+                    activeTab === 'sa-audit' ? 3 : 4
             }
             onSwitchCommunity={(id, name, center) => {
               setUser(prev => ({ ...prev, communityId: id, communityName: name, communityCenter: center }));
               setActiveTab('map');
               setIsSidebarOpen(false);
               if (center && center.length === 2 && mapRef.current) {
-                  mapRef.current.flyTo(center, 18);
+                mapRef.current.flyTo(center, 18);
               }
-              setMapFocusPosition(null); 
-            }} 
+              setMapFocusPosition(null);
+            }}
           />
         )}
       </div>

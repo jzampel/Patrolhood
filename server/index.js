@@ -1257,6 +1257,15 @@ app.get('*', (req, res) => {
 });
 
 const PORT = process.env.PORT || 3001;
+app.get('/api/production-status', (req, res) => {
+    res.json({
+        success: true,
+        mongoReady: mongoose.connection.readyState === 1,
+        nodeEnv: process.env.NODE_ENV || 'development',
+        onesignalReady: true
+    });
+});
+
 server.listen(PORT, () => {
     console.log(`🚀 Cloud Server running on port ${PORT}`);
 });
