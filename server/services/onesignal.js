@@ -28,11 +28,12 @@ async function sendNotification({ title, body, userIds, data }) {
 
     console.log(`📡 [OneSignal] Sending notification to ${userIds.length} users...`);
     try {
+        const authHeader = api_key.startsWith('os_v2_') ? `Key ${api_key}` : `Basic ${api_key}`;
         const response = await fetch('https://onesignal.com/api/v1/notifications', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json; charset=utf-8',
-                'Authorization': `Basic ${api_key}`
+                'Authorization': authHeader
             },
             body: JSON.stringify(payload)
         });
