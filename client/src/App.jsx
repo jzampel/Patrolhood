@@ -925,27 +925,7 @@ function App() {
     }
   }
 
-  const sendTestNotification = async () => {
-    if (!user?.id) return;
-    try {
-      const res = await safeFetch(`${import.meta.env.VITE_API_URL || ''}/api/sos/test-notification`, {
-        method: 'POST',
-        body: JSON.stringify({ userId: user.id })
-      });
-      if (res.success && res.result) {
-        const { result } = res;
-        if (result.errors && result.errors.length > 0) {
-          alert('❌ OneSignal dice: ' + result.errors.join(', '));
-        } else if (result.recipients === 0) {
-          alert('⚠️ Tu dispositivo no está registrado correctamente en OneSignal (Recipients: 0). Reintenta activar notificaciones.');
-        } else {
-          alert('🧪 Prueba enviada correctamente. Recipients: ' + result.recipients);
-        }
-      } else {
-        alert('❌ Error al enviar prueba: ' + (res.error || 'Error desconocido'));
-      }
-    } catch (e) { alert('Error: ' + e.message); }
-  }
+
 
   // OneSignal Unsubscribe
   async function unsubscribeFromPush() {
@@ -1771,26 +1751,7 @@ function App() {
               </div>
             )}
 
-            {/* Debug Info Area */}
-            <div style={{ padding: '10px', background: 'rgba(0,0,0,0.3)', borderRadius: '8px', fontSize: '0.75em' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', color: '#94a3b8' }}>
-                <span>Suscripción:</span>
-                <span style={{ color: notificationsEnabled ? '#22c55e' : '#f87171' }}>{notificationsEnabled ? 'ACTIVA' : 'INACTIVA'}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', color: '#94a3b8' }}>
-                <span>ID Usuario:</span>
-                <span style={{ color: '#fff' }}>{String(user?.id).slice(-6)}</span>
-              </div>
-              <button
-                onClick={sendTestNotification}
-                style={{
-                  width: '100%', padding: '8px', background: '#334155', border: 'none',
-                  color: '#fff', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold'
-                }}
-              >
-                🧪 Enviar Alerta de Prueba
-              </button>
-            </div>
+
           </div>
         )}
 

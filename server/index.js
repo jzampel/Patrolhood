@@ -1010,29 +1010,7 @@ app.post('/api/sos', authenticate, checkCommunity, sosLimiter, async (req, res) 
     }
 });
 
-// New endpoint for testing OneSignal directly from the App
-app.post('/api/sos/test-notification', authenticate, async (req, res) => {
-    const { userId } = req.body;
-    if (!process.env.ONESIGNAL_API_KEY) {
-        return res.status(500).json({ success: false, message: 'Falta la ONESIGNAL_API_KEY en las variables de entorno de Render.' });
-    }
-    try {
-        const { sendNotification } = require('./services/onesignal');
-        const result = await sendNotification({
-            title: '🧪 Prueba de Notificación',
-            body: 'Si recibes esto, las notificaciones de PatrolHood funcionan correctamente.',
-            userIds: [String(userId)],
-            data: { type: 'TEST' }
-        });
-        if (!result) {
-            return res.status(500).json({ success: false, message: 'OneSignal no devolvió ninguna respuesta.' });
-        }
-        res.json({ success: true, result });
-    } catch (error) {
-        console.error('Error in test-notification:', error);
-        res.status(500).json({ success: false, message: error.message });
-    }
-});
+
 
 // GET /api/sos/active - Fetch all currently active alerts for a community
 app.get('/api/sos/active', authenticate, checkCommunity, async (req, res) => {
