@@ -1913,11 +1913,6 @@ function App() {
 
         {activeTab === 'map' && (
           <>
-            {user.role === 'admin' && (
-              <div className="admin-section" style={{ marginTop: '15px' }}>
-                {/* Telegram bot section (hidden for now) */}
-              </div>
-            )}
           </>
         )}
 
@@ -1933,7 +1928,7 @@ function App() {
           </div>
         )}
 
-        {user.role === 'admin' && (
+        {(user.role === 'admin' || user.role === 'moderator') && (
           <div className="admin-section" style={{ padding: '0 20px', marginTop: '15px', marginBottom: '20px', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '15px' }}>
             <h4 style={{ color: '#fbbf24', fontSize: '0.85rem', marginBottom: '10px' }}>🔐 Código de Invitación</h4>
             <p style={{ fontSize: '0.75rem', color: '#cbd5e1', marginBottom: '12px' }}>Crea un código para que nuevos vecinos se unan a esta comunidad.</p>
