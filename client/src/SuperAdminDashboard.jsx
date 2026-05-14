@@ -465,10 +465,38 @@ const SuperAdminDashboard = ({ user, initialTab = 0, onSwitchCommunity, activeAl
                             logsLoading ? <p>Cargando registros...</p> : (
                                 logs.length === 0 ? <p>Sin registros.</p> :
                                     logs.map(l => (
-                                        <div key={l._id} style={{ ...styles.card, borderLeft: '4px solid #fbbf24' }}>
-                                            <div style={{ fontWeight: 'bold' }}>{l.action}</div>
-                                            <div style={{ fontSize: '0.8em', color: '#94a3b8' }}>{l.adminName} - {new Date(l.timestamp).toLocaleString()}</div>
-                                            {l.details && <pre style={{ fontSize: '0.7em', background: '#0f172a', padding: '5px', marginTop: '5px' }}>{JSON.stringify(l.details, null, 2)}</pre>}
+                                        <div key={l._id} style={{ ...styles.card, borderLeft: l.action === 'SOS_START' ? '4px solid #ef4444' : l.action === 'SOS_STOP' ? '4px solid #22c55e' : '4px solid #fbbf24' }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                                <div style={{ fontWeight: 'bold', color: l.action === 'SOS_START' ? '#f87171' : l.action === 'SOS_STOP' ? '#4ade80' : '#fbbf24' }}>
+                                                    {l.action === 'SOS_START' ? '🔴 ALERTA INICIADA' : l.action === 'SOS_STOP' ? '🟢 ALERTA FINALIZADA' : l.action}
+                                                </div>
+                                                <div style={{ fontSize: '0.75em', color: '#64748b' }}>{new Date(l.timestamp).toLocaleString()}</div>
+                                            </div>
+                                            <div style={{ fontSize: '0.85em', marginTop: '5px' }}>
+                                                <strong>Admin/Usuario:</strong> {l.adminName}
+                                            </div>
+                                            {l.details && (
+                                                <div style={{ marginTop: '8px', padding: '10px', background: '#0f172a', borderRadius: '8px', fontSize: '0.9em' }}>
+                                                    {l.action === 'SOS_START' && (
+                                                        <>
+                                                            <div>🏠 <strong>Casa:</strong> #{l.details.house}</div>
+                                                            <div>🚨 <strong>Tipo:</strong> {l.details.type}</div>
+                                                            <div>👤 <strong>Vecino:</strong> {l.details.userName}</div>
+                                                        </>
+                                                    )}
+                                                    {l.action === 'SOS_STOP' && (
+                                                        <>
+                                                            <div>🏠 <strong>Casa:</strong> #{l.details.house}</div>
+                                                            <div>⏱️ <strong>Duración:</strong> {l.details.duration}</div>
+                                                            <div>📅 <strong>Inicio:</strong> {new Date(l.details.startedAt).toLocaleTimeString()}</div>
+                                                            <div>📅 <strong>Fin:</strong> {new Date(l.details.endedAt).toLocaleTimeString()}</div>
+                                                        </>
+                                                    )}
+                                                    {!['SOS_START', 'SOS_STOP'].includes(l.action) && (
+                                                        <pre style={{ margin: 0, whiteSpace: 'pre-wrap', fontSize: '0.8em' }}>{JSON.stringify(l.details, null, 2)}</pre>
+                                                    )}
+                                                </div>
+                                            )}
                                         </div>
                                     ))
                             )

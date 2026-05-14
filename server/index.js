@@ -947,6 +947,14 @@ app.post('/api/sos', authenticate, checkCommunity, sosLimiter, async (req, res) 
             ...(petInfo && { petInfo })
         });
 
+        // AUDIT LOG: Log the SOS activation
+        await logAction(communityId, req.user, 'SOS_START', {
+            alertId: alert._id,
+            type: emergencyTypeLabel,
+            house: houseNumber,
+            userName
+        });
+
         if (isRedisAvailable) {
             try {
                 await pubClient.set(dedupeKey, alert._id.toString(), { EX: 120 });
@@ -1214,6 +1222,18 @@ app.post('/api/sos/stop', authenticate, checkCommunity, async (req, res) => {
 
         // 1. Update DB (Machine state: RESOLVED)
         await ActiveSOS.updateOne({ _id: alertId }, { isActive: false, status: 'RESOLVED', closedAt: new Date() });
+
+        // AUDIT LOG: Log the SOS stop
+        const durationMs = new Date() - new Date(alert.createdAt);
+        const durationMin = Math.round(durationMs / 60000);
+        await logAction(communityId, req.user, 'SOS_STOP', {
+            alertId,
+            type: alert.emergencyTypeLabel,
+            house: alert.houseNumber,
+            startedAt: alert.createdAt,
+            endedAt: new Date(),
+            duration: `${durationMin} min`
+        });
 
         // 2. Clear Redis Dedupe Key
         const dedupeKey = `dedupe:sos:${communityId}:${alert.houseNumber}`;

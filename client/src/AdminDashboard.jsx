@@ -130,13 +130,35 @@ function AdminDashboard({ user }) {
                             <div>
                                 {logs.length === 0 ? <p style={{ color: '#64748b' }}>Sin actividad registrada.</p> :
                                     logs.map(log => (
-                                        <div key={log._id} style={{ ...styles.card, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                                            <div>
-                                                <div style={{ fontWeight: 'bold' }}>{log.action.replace(/_/g, ' ')}</div>
-                                                <div style={{ fontSize: '0.85em', color: '#94a3b8' }}>Por: <strong>{log.adminName}</strong></div>
-                                                {log.details && <div style={{ fontSize: '0.78em', background: '#0f172a', padding: '6px', borderRadius: '4px', marginTop: '6px', color: '#cbd5e1' }}>{JSON.stringify(log.details)}</div>}
+                                        <div key={log._id} style={{ ...styles.card, borderLeft: log.action === 'SOS_START' ? '4px solid #ef4444' : log.action === 'SOS_STOP' ? '4px solid #22c55e' : '4px solid #fbbf24', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                            <div style={{ flex: 1 }}>
+                                                <div style={{ fontWeight: 'bold', color: log.action === 'SOS_START' ? '#f87171' : log.action === 'SOS_STOP' ? '#4ade80' : '#fbbf24' }}>
+                                                    {log.action === 'SOS_START' ? '🔴 ALERTA INICIADA' : log.action === 'SOS_STOP' ? '🟢 ALERTA FINALIZADA' : log.action.replace(/_/g, ' ')}
+                                                </div>
+                                                <div style={{ fontSize: '0.85em', color: '#94a3b8', margin: '4px 0' }}>Por: <strong>{log.adminName}</strong></div>
+                                                
+                                                {log.details && (
+                                                    <div style={{ fontSize: '0.8em', background: '#0f172a', padding: '8px', borderRadius: '4px', marginTop: '6px', color: '#cbd5e1' }}>
+                                                        {log.action === 'SOS_START' && (
+                                                            <>
+                                                                <div>🏠 Casa: #{log.details.house}</div>
+                                                                <div>🚨 Tipo: {log.details.type}</div>
+                                                            </>
+                                                        )}
+                                                        {log.action === 'SOS_STOP' && (
+                                                            <>
+                                                                <div>🏠 Casa: #{log.details.house}</div>
+                                                                <div>⏱️ Duración: {log.details.duration}</div>
+                                                                <div>📅 Fin: {new Date(log.details.endedAt).toLocaleTimeString()}</div>
+                                                            </>
+                                                        )}
+                                                        {!['SOS_START', 'SOS_STOP'].includes(log.action) && JSON.stringify(log.details)}
+                                                    </div>
+                                                )}
                                             </div>
-                                            <div style={{ fontSize: '0.75em', color: '#64748b', textAlign: 'right', whiteSpace: 'nowrap' }}>{new Date(log.timestamp).toLocaleString()}</div>
+                                            <div style={{ fontSize: '0.75em', color: '#64748b', textAlign: 'right', whiteSpace: 'nowrap', marginLeft: '10px' }}>
+                                                {new Date(log.timestamp).toLocaleString()}
+                                            </div>
                                         </div>
                                     ))
                                 }

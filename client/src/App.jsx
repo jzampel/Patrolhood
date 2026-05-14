@@ -39,6 +39,7 @@ if (typeof window !== 'undefined') {
 const socket = io(import.meta.env.VITE_API_URL || '/')
 
 const EMERGENCY_TYPES = [
+  { id: 'panic', label: 'Botón de Pánico', emoji: '🚨' },
   { id: 'fire', label: 'Incendio', emoji: '🔥' },
   { id: 'flood', label: 'Inundación', emoji: '💧' },
   { id: 'robbery', label: 'Robo', emoji: '👤' },
@@ -1266,14 +1267,18 @@ function App() {
   useEffect(() => {
     // We defer the siren slightly to ensure browser AudioContext is allowed if user just interacted
     const timer = setTimeout(() => {
-      if (activeAlerts && activeAlerts.length > 0) {
+      // User requested: Panic button sounds for everyone EXCEPT the one who activated it.
+      // We'll extend this to all SOS alerts: only sound if there's an alert NOT from me.
+      const hasOtherAlerts = activeAlerts.some(a => a.userId !== user?.id && a.emergencyType !== 'lost_pet');
+      
+      if (hasOtherAlerts) {
         startSiren();
       } else {
         stopSiren();
       }
     }, 500);
     return () => clearTimeout(timer);
-  }, [activeAlerts]);
+  }, [activeAlerts, user?.id]);
 
   // --- REAL-TIME SYNC IMPROVEMENTS (iOS/PWA) ---
   useEffect(() => {
@@ -1395,7 +1400,7 @@ function App() {
 
     const sosData = {
       emergencyType: pendingSOS.id,
-      emergencyTypeLabel: pendingSOS.label,
+      emergencyTypeLabel: pendingSOS.id === 'panic' ? 'MI CASA ESTÁ SIENDO ASALTADA' : pendingSOS.label,
       houseNumber: myHouse.number,
       communityId: user.communityId,
       communityName: user.communityName,
