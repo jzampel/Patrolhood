@@ -1671,8 +1671,8 @@ function App() {
             </button>
           </div>
         )}
-        {user.role === 'admin' && <span className="admin-badge">Admin</span>}
-        {user.role === 'moderator' && <span className="admin-badge" style={{ background: '#3b82f6', color: 'white' }}>Moderador</span>}
+        {user.role === 'admin' && <span className="admin-badge" style={{ marginBottom: '25px' }}>Admin</span>}
+        {user.role === 'moderator' && <span className="admin-badge" style={{ background: '#3b82f6', color: 'white', marginBottom: '25px' }}>Moderador</span>}
 
 
         <div className="nav-tabs">
@@ -1896,17 +1896,17 @@ function App() {
 
         {(user.role === 'admin' || user.role === 'moderator') && (
           <div className="admin-section" style={{ 
-            padding: '15px', 
-            margin: '20px 0', 
+            padding: '12px 15px', 
+            margin: '15px 10px', 
             borderTop: '1px solid rgba(255,255,255,0.1)', 
-            paddingTop: '20px',
+            paddingTop: '15px',
             background: 'rgba(251, 191, 36, 0.05)',
             borderRadius: '12px',
             border: '1px solid rgba(251, 191, 36, 0.1)'
           }}>
-            <h4 style={{ color: '#fbbf24', fontSize: '0.85rem', marginBottom: '10px' }}>🔐 Código de Invitación</h4>
-            <p style={{ fontSize: '0.75rem', color: '#cbd5e1', marginBottom: '12px' }}>Crea un código para que nuevos vecinos se unan a esta comunidad.</p>
-            <button onClick={generateInvite} className="invite-btn" style={{ background: '#fbbf24', color: 'black', width: '100%', padding: '12px', borderRadius: '10px', border: 'none', fontWeight: 'bold', cursor: 'pointer', boxShadow: '0 4px 12px rgba(251, 191, 36, 0.2)' }}>Generar Código de Invitado</button>
+            <h4 style={{ color: '#fbbf24', fontSize: '0.8rem', marginBottom: '6px' }}>🔐 Código de Invitación</h4>
+            <p style={{ fontSize: '0.7rem', color: '#cbd5e1', marginBottom: '10px', lineHeight: '1.2' }}>Crea un código para que nuevos vecinos se unan a esta comunidad.</p>
+            <button onClick={generateInvite} className="invite-btn" style={{ background: '#fbbf24', color: 'black', width: '100%', padding: '10px', borderRadius: '8px', border: 'none', fontWeight: 'bold', cursor: 'pointer', boxShadow: '0 4px 12px rgba(251, 191, 36, 0.2)', fontSize: '0.85rem' }}>Generar Código</button>
             {generatedInvite && (
               <div className="invite-code-container" style={{ marginTop: '12px', background: 'rgba(0,0,0,0.4)', padding: '10px', borderRadius: '8px', border: '1px dashed #fbbf24', textAlign: 'center' }}>
                 <div style={{ color: '#fbbf24', fontSize: '0.65rem', textTransform: 'uppercase', marginBottom: '4px' }}>Tu código es:</div>
