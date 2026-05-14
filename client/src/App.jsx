@@ -39,25 +39,25 @@ if (typeof window !== 'undefined') {
 const socket = io(import.meta.env.VITE_API_URL || '/')
 
 const EMERGENCY_TYPES = [
-  { id: 'fire', label: 'Incendio', icon: <Flame size={24} /> },
-  { id: 'flood', label: 'Inundación', icon: <Droplets size={24} /> },
-  { id: 'robbery', label: 'Robo', icon: <UserX size={24} /> },
-  { id: 'occupation', label: 'Ocupación', icon: <Lock size={24} /> },
-  { id: 'medical', label: 'Urgencia Médica', icon: <Activity size={24} /> },
-  { id: 'collapse', label: 'Derrumbamiento', icon: <Home size={24} /> },
-  { id: 'explosion', label: 'Explosión', icon: <Bomb size={24} /> },
-  { id: 'smoke', label: 'Humo', icon: <Wind size={24} /> },
-  { id: 'suspicious', label: 'Actividad Sospechosa', icon: <EyeIcon size={24} /> },
-  { id: 'violence', label: 'Violencia', icon: <AlertCircle size={24} /> },
-  { id: 'lost_pet', label: 'Mascota Perdida', icon: <Dog size={24} />, isPetAlert: true },
-  { id: 'other', label: 'Otra Emergencia', icon: <Megaphone size={24} /> }
+  { id: 'fire', label: 'Incendio', emoji: '🔥' },
+  { id: 'flood', label: 'Inundación', emoji: '💧' },
+  { id: 'robbery', label: 'Robo', emoji: '👤' },
+  { id: 'occupation', label: 'Ocupación', emoji: '🔒' },
+  { id: 'medical', label: 'Urgencia Médica', emoji: '🚑' },
+  { id: 'collapse', label: 'Derrumbamiento', emoji: '🏚️' },
+  { id: 'explosion', label: 'Explosión', emoji: '💥' },
+  { id: 'smoke', label: 'Humo', emoji: '💨' },
+  { id: 'suspicious', label: 'Actividad Sospechosa', emoji: '👁️' },
+  { id: 'violence', label: 'Violencia', emoji: '⚠️' },
+  { id: 'lost_pet', label: 'Mascota Perdida', emoji: '🐾', isPetAlert: true },
+  { id: 'other', label: 'Otra Emergencia', emoji: '📢' }
 ]
 
 const FORUM_CHANNELS = [
-  { id: 'General', label: 'General', icon: <MessageSquare size={18} /> },
-  { id: 'Eventos', label: 'Eventos', icon: <Calendar size={18} /> },
-  { id: 'Compra-Venta', label: 'Compra-Venta', icon: <ShoppingBag size={18} /> },
-  { id: 'ALERTAS', label: 'ALERTAS', icon: <Bell size={18} /> }
+  { id: 'General', label: 'General', emoji: '💬' },
+  { id: 'Eventos', label: 'Eventos', emoji: '📅' },
+  { id: 'Compra-Venta', label: 'Compra-Venta', emoji: '🛍️' },
+  { id: 'ALERTAS', label: 'ALERTAS', emoji: '🔔' }
 ]
 
 // Zoom Effect on Alert
@@ -174,6 +174,14 @@ function AuthOverlay({ onLogin, deletedMsg }) {
   const [showLegal, setShowLegal] = useState(false)
   const [acceptedTerms, setAcceptedTerms] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [rememberMe, setRememberMe] = useState(true)
+
+  useEffect(() => {
+    const savedUsername = localStorage.getItem('remembered_username')
+    if (savedUsername) {
+      setFormData(prev => ({ ...prev, username: savedUsername }))
+    }
+  }, [])
 
   const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value })
 
@@ -187,6 +195,11 @@ function AuthOverlay({ onLogin, deletedMsg }) {
     })
 
     if (data.success) {
+      if (rememberMe) {
+        localStorage.setItem('remembered_username', formData.username)
+      } else {
+        localStorage.removeItem('remembered_username')
+      }
       localStorage.setItem('user', JSON.stringify(data.user))
       localStorage.setItem('token', data.token)
       onLogin(data.user)
@@ -344,18 +357,18 @@ function AuthOverlay({ onLogin, deletedMsg }) {
                   <input name="inviteCode" placeholder="Código de Invitación" value={formData.inviteCode} onChange={handleChange} required />
                 )}
                 
-                <div className="password-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                <div className="password-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
                   <div className="password-wrapper">
-                    <input name="password" type={showPassword ? "text" : "password"} placeholder="Contraseña" value={formData.password} onChange={handleChange} required />
+                    <input name="password" type={showPassword ? "text" : "password"} placeholder="Clave" value={formData.password} onChange={handleChange} required style={{ fontSize: '0.9em' }} />
                   </div>
                   <div className="password-wrapper">
-                    <input name="confirmPassword" type={showPassword ? "text" : "password"} placeholder="Confirmar" value={formData.confirmPassword} onChange={handleChange} required />
+                    <input name="confirmPassword" type={showPassword ? "text" : "password"} placeholder="Repetir" value={formData.confirmPassword} onChange={handleChange} required style={{ fontSize: '0.9em' }} />
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.75rem', color: '#94a3b8' }}>
-                  <input type="checkbox" checked={acceptedTerms} onChange={(e) => setAcceptedTerms(e.target.checked)} />
-                  <label>Acepto los <button type="button" onClick={() => setShowLegal(true)} className="link-btn" style={{ display: 'inline', margin: 0, padding: 0 }}>términos legales</button></label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.75rem', color: '#94a3b8', background: 'rgba(0,0,0,0.2)', padding: '10px', borderRadius: '8px' }}>
+                  <input type="checkbox" checked={acceptedTerms} onChange={(e) => setAcceptedTerms(e.target.checked)} style={{ width: '18px', height: '18px' }} />
+                  <label style={{ flex: 1, lineHeight: '1.2' }}>Acepto los <button type="button" onClick={() => setShowLegal(true)} className="link-btn" style={{ display: 'inline', margin: 0, padding: 0, fontSize: 'inherit' }}>términos legales</button></label>
                 </div>
 
                 <div className="step-nav-buttons">
@@ -413,7 +426,11 @@ function AuthOverlay({ onLogin, deletedMsg }) {
               {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
             </button>
           </div>
-          <button type="submit" className="btn-premium" style={{ width: '100%', marginTop: '20px' }} disabled={loading}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '15px', fontSize: '0.9em', color: '#94a3b8' }}>
+            <input type="checkbox" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)} id="rememberMe" style={{ width: '16px', height: '16px' }} />
+            <label htmlFor="rememberMe">Recordar usuario</label>
+          </div>
+          <button type="submit" className="btn-premium" style={{ width: '100%' }} disabled={loading}>
             {loading ? 'Entrando...' : 'Entrar'}
           </button>
           <button type="button" className="link-btn" onClick={() => setIsRegistering(true)}>¿No tienes cuenta? Regístrate</button>
@@ -559,7 +576,7 @@ function Forum({ user, allCommunities, onSwitchCommunity }) {
               onClick={() => setActiveChannel(ch.id)}
             >
               <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                {ch.icon} {ch.label}
+                <span style={{ fontSize: '1.2em' }}>{ch.emoji}</span> {ch.label}
               </span>
             </button>
           ))}
@@ -1670,22 +1687,22 @@ function App() {
 
         <div className="nav-tabs">
           <button className={`nav-btn ${activeTab === 'map' ? 'active' : ''}`} onClick={() => { setActiveTab('map'); setIsSidebarOpen(false); }}>
-            <span className="nav-icon"><MapIcon size={20} /></span>
+            <span className="nav-icon">🗺️</span>
             <span className="nav-label">Mapa</span>
           </button>
           <button className={`nav-btn ${activeTab === 'forum' ? 'active' : ''}`} onClick={() => { setActiveTab('forum'); setIsSidebarOpen(false); }}>
-            <span className="nav-icon"><MessageSquare size={20} /></span>
+            <span className="nav-icon">💬</span>
             <span className="nav-label">Foro</span>
           </button>
           {user.role !== 'global_admin' && (
             <button className={`nav-btn ${activeTab === 'users' ? 'active' : ''}`} onClick={() => { setActiveTab('users'); setIsSidebarOpen(false); }}>
-              <span className="nav-icon"><User size={20} /></span>
+              <span className="nav-icon">👥</span>
               <span className="nav-label">Vecinos</span>
             </button>
           )}
           {(user.role === 'admin' || user.role === 'moderator') && (
             <button className={`nav-btn ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => { setActiveTab('dashboard'); setIsSidebarOpen(false); }}>
-              <span className="nav-icon"><Settings size={20} /></span>
+              <span className="nav-icon">⚙️</span>
               <span className="nav-label">Dashboard</span>
             </button>
           )}
@@ -1693,23 +1710,23 @@ function App() {
             {user.role === 'global_admin' && (
               <>
                 <button className={`nav-btn ${activeTab === 'sa-communities' ? 'active' : ''}`} onClick={() => { setActiveTab('sa-communities'); setIsSidebarOpen(false); }}>
-                  <span className="nav-icon"><Shield size={20} /></span>
+                  <span className="nav-icon">🏘️</span>
                   <span className="nav-label">Comunidades</span>
                 </button>
                 <button className={`nav-btn ${activeTab === 'sa-users' ? 'active' : ''}`} onClick={() => { setActiveTab('sa-users'); setIsSidebarOpen(false); }}>
-                  <span className="nav-icon"><User size={20} /></span>
+                  <span className="nav-icon">👥</span>
                   <span className="nav-label">Usuarios</span>
                 </button>
                 <button className={`nav-btn ${activeTab === 'sa-alerts' ? 'active' : ''}`} onClick={() => { setActiveTab('sa-alerts'); setIsSidebarOpen(false); }}>
-                  <span className="nav-icon"><AlertTriangle size={20} /></span>
+                  <span className="nav-icon">🚨</span>
                   <span className="nav-label">Alertas</span>
                 </button>
                 <button className={`nav-btn ${activeTab === 'sa-audit' ? 'active' : ''}`} onClick={() => { setActiveTab('sa-audit'); setIsSidebarOpen(false); }}>
-                  <span className="nav-icon"><Activity size={20} /></span>
+                  <span className="nav-icon">📊</span>
                   <span className="nav-label">Auditoría</span>
                 </button>
                 <button className={`nav-btn ${activeTab === 'sa-reported' ? 'active' : ''}`} onClick={() => { setActiveTab('sa-reported'); setIsSidebarOpen(false); }}>
-                  <span className="nav-icon"><AlertCircle size={20} /></span>
+                  <span className="nav-icon">🚩</span>
                   <span className="nav-label">Reportados</span>
                 </button>
               </>
@@ -1882,10 +1899,6 @@ function App() {
           <>
             {user.role === 'admin' && (
               <div className="admin-section" style={{ marginTop: '15px' }}>
-                <h4 style={{ color: '#fbbf24', fontSize: '0.85rem', marginBottom: '10px' }}>📦 Gestión de Vecinos</h4>
-                <button onClick={generateInvite} className="invite-btn">Generar Código de Invitación (Vecino)</button>
-                {generatedInvite && <div className="invite-code">{generatedInvite}</div>}
-
                 {/* {!user.telegramBotUsername && (
                   <div style={{ marginTop: '20px', paddingTop: '15px', borderTop: '1px solid rgba(251, 191, 36, 0.3)' }}>
                     <h4 style={{ color: '#fbbf24', fontSize: '0.85rem', marginBottom: '10px' }}>🤖 Configurar Bot de Telegram</h4>
@@ -1954,11 +1967,11 @@ function App() {
             </div>
 
             <ul className="contacts-list">
-              <li><strong><AlertTriangle size={18} style={{ verticalAlign: 'middle', marginRight: '5px' }} /> Emergencia General:</strong> <a href="tel:112">112</a></li>
-              <li><strong><Shield size={18} style={{ verticalAlign: 'middle', marginRight: '5px' }} /> Policía Nacional:</strong> <a href="tel:091">091</a></li>
-              <li><strong><Shield size={18} style={{ verticalAlign: 'middle', marginRight: '5px' }} /> Guardia Civil:</strong> <a href="tel:062">062</a></li>
-              <li><strong><Flame size={18} style={{ verticalAlign: 'middle', marginRight: '5px' }} /> Bomberos:</strong> <a href="tel:080">080</a></li>
-              <li><strong><Shield size={18} style={{ verticalAlign: 'middle', marginRight: '5px' }} /> Policía Local:</strong> <a href="tel:092">092</a></li>
+              <li><strong>🚨 Emergencia General:</strong> <a href="tel:112">112</a></li>
+              <li><strong>👮 Policía Nacional:</strong> <a href="tel:091">091</a></li>
+              <li><strong>🚔 Guardia Civil:</strong> <a href="tel:062">062</a></li>
+              <li><strong>🚒 Bomberos:</strong> <a href="tel:080">080</a></li>
+              <li><strong>🚓 Policía Local:</strong> <a href="tel:092">092</a></li>
               {communityContacts.map(contact => (
                 <li key={contact._id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div>
@@ -2156,9 +2169,7 @@ function App() {
 
             {/* Banner for other active alerts I can't control */}
             {activeAlerts.some(a => a.userId !== user.id && user.role !== 'admin' && user.role !== 'global_admin') && (
-              <div className="sos-active-banner">
-                <AlertTriangle size={18} /> ALERTA ACTIVA
-              </div>
+              <div className="sos-active-banner">🚨 ALERTA ACTIVA</div>
             )}
           </div>
         )
@@ -2199,8 +2210,8 @@ function App() {
                     >
                       <Popup className="house-popup">
                         <div className="popup-content">
-                          <strong><Home size={16} style={{ verticalAlign: 'middle', marginRight: '5px' }} /> #{h.number}</strong>
-                          <p style={{ fontSize: '0.8em', color: '#888' }}><MapPin size={12} style={{ verticalAlign: 'middle', marginRight: '4px' }} /> {h.communityName}</p>
+                          <strong>🏠 #{h.number}</strong>
+                          <p style={{ fontSize: '0.8em', color: '#888' }}>📍 {h.communityName}</p>
                           <p style={{ fontSize: '0.8em', color: '#fbbf24' }}>Status: {status}</p>
                           {activeAlert && (
                             <div className={activeAlert.emergencyType === 'lost_pet' ? "popup-alert pet" : "popup-alert"} style={{ marginBottom: '10px' }}>
@@ -2242,14 +2253,14 @@ function App() {
                   >
                     <Popup className="house-popup">
                       <div className="popup-content">
-                        <strong><Home size={16} style={{ verticalAlign: 'middle', marginRight: '5px' }} /> Casa #{h.number}</strong>
+                        <strong>🏠 Casa #{h.number}</strong>
 
                         {inhabitants.length > 0 ? (
                           <div className="inhabitants-list" style={{ marginTop: '5px' }}>
                             {inhabitants.map(person => (
                               <div key={person.id} style={{ marginBottom: '8px', borderBottom: '1px solid #eee', paddingBottom: '4px' }}>
-                                <div style={{ fontWeight: 'bold' }}><User size={14} style={{ verticalAlign: 'middle', marginRight: '5px' }} /> {person.name} {person.surname}</div>
-                                <div style={{ fontSize: '0.85em', color: '#666' }}><MapPin size={12} style={{ verticalAlign: 'middle', marginRight: '5px' }} /> {person.address}</div>
+                                <div style={{ fontWeight: 'bold' }}>👤 {person.name} {person.surname}</div>
+                                <div style={{ fontSize: '0.85em', color: '#666' }}>📍 {person.address}</div>
                               </div>
                             ))}
                           </div>
@@ -2399,7 +2410,7 @@ function App() {
               <div className="emergency-grid">
                 {EMERGENCY_TYPES.map(e => (
                   <button key={e.id} className="emergency-option" onClick={() => triggerSOS(e.id)}>
-                    <span className="emergency-icon">{e.icon}</span>
+                    <span className="emergency-icon" style={{ fontSize: '1.8em' }}>{e.emoji}</span>
                     <span>{e.label}</span>
                   </button>
                 ))}
@@ -2417,8 +2428,8 @@ function App() {
               <h2 style={{ color: '#ef4444' }}>⚠️ ¿CONFIRMAR ALERTA?</h2>
               <div style={{ fontSize: '1.2em', margin: '20px 0' }}>
                 Has seleccionado:<br />
-                <strong style={{ fontSize: '1.5em', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
-                  {pendingSOS.icon} {pendingSOS.label.toUpperCase()}
+                <strong style={{ fontSize: '1.8em', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', marginTop: '10px' }}>
+                  {pendingSOS.emoji} {pendingSOS.label.toUpperCase()}
                 </strong>
               </div>
               <p style={{ color: '#94a3b8', marginBottom: '20px' }}>Esta acción notificará a todos tus vecinos de inmediato.</p>
