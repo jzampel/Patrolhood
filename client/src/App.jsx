@@ -1674,17 +1674,6 @@ function App() {
         {user.role === 'admin' && <span className="admin-badge">Admin</span>}
         {user.role === 'moderator' && <span className="admin-badge" style={{ background: '#3b82f6', color: 'white' }}>Moderador</span>}
 
-        <button
-          className="refresh-btn"
-          onClick={() => window.location.reload()}
-          style={{
-            background: 'transparent', border: '1px solid #fbbf24', color: '#fbbf24',
-            padding: '5px 10px', borderRadius: '5px', cursor: 'pointer', marginTop: '10px', marginBottom: '10px',
-            fontSize: '0.9em', display: 'flex', alignItems: 'center', gap: '5px', alignSelf: 'center'
-          }}
-        >
-          <RefreshCw size={16} /> Refrescar
-        </button>
 
         <div className="nav-tabs">
           <button className={`nav-btn ${activeTab === 'map' ? 'active' : ''}`} onClick={() => { setActiveTab('map'); setIsSidebarOpen(false); }}>
@@ -1787,14 +1776,6 @@ function App() {
                   Recibe alertas directas sin necesidad de Telegram.
                 </p>
               </>
-            ) : (
-              <div style={{
-                background: '#22c55e22', color: '#22c55e', padding: '8px', borderRadius: '8px',
-                fontSize: '0.85em', textAlign: 'center', fontWeight: 'bold', marginBottom: '12px',
-                border: '1px solid #22c55e44'
-              }}>
-                ✅ Notificaciones Activas
-              </div>
             )}
 
 
@@ -1914,10 +1895,18 @@ function App() {
         )}
 
         {(user.role === 'admin' || user.role === 'moderator') && (
-          <div className="admin-section" style={{ padding: '0 20px', marginTop: '15px', marginBottom: '20px', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '15px' }}>
+          <div className="admin-section" style={{ 
+            padding: '15px', 
+            margin: '20px 0', 
+            borderTop: '1px solid rgba(255,255,255,0.1)', 
+            paddingTop: '20px',
+            background: 'rgba(251, 191, 36, 0.05)',
+            borderRadius: '12px',
+            border: '1px solid rgba(251, 191, 36, 0.1)'
+          }}>
             <h4 style={{ color: '#fbbf24', fontSize: '0.85rem', marginBottom: '10px' }}>🔐 Código de Invitación</h4>
             <p style={{ fontSize: '0.75rem', color: '#cbd5e1', marginBottom: '12px' }}>Crea un código para que nuevos vecinos se unan a esta comunidad.</p>
-            <button onClick={generateInvite} className="invite-btn" style={{ background: '#fbbf24', color: 'black', width: '100%', padding: '10px', borderRadius: '8px', border: 'none', fontWeight: 'bold', cursor: 'pointer' }}>Generar Código de Invitado</button>
+            <button onClick={generateInvite} className="invite-btn" style={{ background: '#fbbf24', color: 'black', width: '100%', padding: '12px', borderRadius: '10px', border: 'none', fontWeight: 'bold', cursor: 'pointer', boxShadow: '0 4px 12px rgba(251, 191, 36, 0.2)' }}>Generar Código de Invitado</button>
             {generatedInvite && (
               <div className="invite-code-container" style={{ marginTop: '12px', background: 'rgba(0,0,0,0.4)', padding: '10px', borderRadius: '8px', border: '1px dashed #fbbf24', textAlign: 'center' }}>
                 <div style={{ color: '#fbbf24', fontSize: '0.65rem', textTransform: 'uppercase', marginBottom: '4px' }}>Tu código es:</div>
@@ -2083,7 +2072,7 @@ function App() {
           </div>
         )}
 
-        <button className="logout-btn" onClick={() => {
+        <button className="logout-btn" style={{ marginTop: '25px', width: '100%' }} onClick={() => {
           onesignalLogout();
           localStorage.removeItem('user')
           setUser(null)
