@@ -1758,7 +1758,7 @@ function App() {
         {/* FCM Native Notifications Section */}
         {user.role !== 'global_admin' && (
           <div style={{ padding: '0 20px 10px 20px' }}>
-            {!notificationsEnabled ? (
+            {!notificationsEnabled && (
               <>
                 <button
                   onClick={subscribeToPush}
