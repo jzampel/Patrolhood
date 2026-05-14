@@ -1386,21 +1386,6 @@ function App() {
     setShowEmergencyMenu(false)
   }
 
-  const generateInvite = async () => {
-    try {
-      const data = await safeFetch(`${import.meta.env.VITE_API_URL || ''}/api/invite`, {
-        method: 'POST',
-        body: JSON.stringify({ communityId: user.communityId })
-      });
-      if (data.success && data.code) {
-        setGeneratedInvite(data.code);
-      } else {
-        alert('Error al generar código: ' + (data.error || 'Desconocido'));
-      }
-    } catch (err) {
-      console.error('Invite error:', err);
-    }
-  };
 
   const confirmSOS = () => {
     if (!pendingSOS) return
