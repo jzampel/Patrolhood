@@ -1386,6 +1386,22 @@ function App() {
     setShowEmergencyMenu(false)
   }
 
+  const generateInvite = async () => {
+    try {
+      const data = await safeFetch(`${import.meta.env.VITE_API_URL || ''}/api/invite`, {
+        method: 'POST',
+        body: JSON.stringify({ communityId: user.communityId })
+      });
+      if (data.success && data.code) {
+        setGeneratedInvite(data.code);
+      } else {
+        alert('Error al generar código: ' + (data.error || 'Desconocido'));
+      }
+    } catch (err) {
+      console.error('Invite error:', err);
+    }
+  };
+
   const confirmSOS = () => {
     if (!pendingSOS) return
 
@@ -1899,40 +1915,7 @@ function App() {
           <>
             {user.role === 'admin' && (
               <div className="admin-section" style={{ marginTop: '15px' }}>
-                {/* {!user.telegramBotUsername && (
-                  <div style={{ marginTop: '20px', paddingTop: '15px', borderTop: '1px solid rgba(251, 191, 36, 0.3)' }}>
-                    <h4 style={{ color: '#fbbf24', fontSize: '0.85rem', marginBottom: '10px' }}>🤖 Configurar Bot de Telegram</h4>
-
-                    <button
-                      onClick={() => setShowTelegramHelp(!showTelegramHelp)}
-                      style={{ background: 'transparent', border: '1px solid #94a3b8', color: '#94a3b8', padding: '4px 8px', borderRadius: '4px', fontSize: '0.75rem', cursor: 'pointer', marginBottom: '10px', width: '100%' }}
-                    >
-                      {showTelegramHelp ? '📖 Ocultar Instrucciones' : '📖 Cómo crear el bot'}
-                    </button>
-
-                    {showTelegramHelp && (
-                      <div style={{ background: 'rgba(0,0,0,0.3)', padding: '10px', borderRadius: '8px', fontSize: '0.75rem', color: '#cbd5e1', marginBottom: '10px', lineHeight: '1.4' }}>
-                        <p><strong>Pasos para crear tu bot:</strong></p>
-                        <ol style={{ paddingLeft: '15px', marginTop: '5px' }}>
-                          <li>Busca a <strong>@BotFather</strong> en Telegram y pulsa "Iniciar".</li>
-                          <li>Envía el comando <code>/newbot</code>.</li>
-                          <li>Elige un nombre para tu bot (ej: Patrol Condesa).</li>
-                          <li>Elige un usuario que termine en 'bot' (ej: PatrolCondesaBot).</li>
-                          <li>BotFather te dará un <strong>Token (API Key)</strong>. Cópialo y pégalo aquí debajo.</li>
-                        </ol>
-                      </div>
-                    )}
-
-                    <input
-                      type="text"
-                      placeholder="Pega el Token de Telegram aquí"
-                      value={telegramBotTokenInput}
-                      onChange={(e) => setTelegramBotTokenInput(e.target.value)}
-                      style={{ width: '100%', padding: '10px', borderRadius: '8px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.2)', color: 'white', marginBottom: '8px', fontSize: '0.8rem' }}
-                    />
-                    <button onClick={updateTelegramBotToken} className="invite-btn" style={{ background: '#0088cc', color: 'white' }}>Guardar Token de Bot</button>
-                  </div>
-                )} */}
+                {/* Telegram bot section (hidden for now) */}
               </div>
             )}
           </>
@@ -1947,6 +1930,21 @@ function App() {
         {activeTab === 'users' && (
           <div className="forum-sidebar-info">
             <p>Listado oficial de vecinos registrados.</p>
+          </div>
+        )}
+
+        {user.role === 'admin' && (
+          <div className="admin-section" style={{ padding: '0 20px', marginTop: '15px', marginBottom: '20px', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '15px' }}>
+            <h4 style={{ color: '#fbbf24', fontSize: '0.85rem', marginBottom: '10px' }}>🔐 Código de Invitación</h4>
+            <p style={{ fontSize: '0.75rem', color: '#cbd5e1', marginBottom: '12px' }}>Crea un código para que nuevos vecinos se unan a esta comunidad.</p>
+            <button onClick={generateInvite} className="invite-btn" style={{ background: '#fbbf24', color: 'black', width: '100%', padding: '10px', borderRadius: '8px', border: 'none', fontWeight: 'bold', cursor: 'pointer' }}>Generar Código de Invitado</button>
+            {generatedInvite && (
+              <div className="invite-code-container" style={{ marginTop: '12px', background: 'rgba(0,0,0,0.4)', padding: '10px', borderRadius: '8px', border: '1px dashed #fbbf24', textAlign: 'center' }}>
+                <div style={{ color: '#fbbf24', fontSize: '0.65rem', textTransform: 'uppercase', marginBottom: '4px' }}>Tu código es:</div>
+                <div style={{ fontSize: '1.4rem', fontWeight: 'bold', letterSpacing: '2px', color: 'white' }}>{generatedInvite}</div>
+                <div style={{ fontSize: '0.6rem', color: '#888', marginTop: '4px' }}>Válido por 24 horas</div>
+              </div>
+            )}
           </div>
         )}
 
