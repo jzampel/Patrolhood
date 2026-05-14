@@ -1,7 +1,14 @@
 require('dotenv').config();
-process.env.JWT_SECRET = process.env.JWT_SECRET || 'f98a2c3d5e7b1a4c6e8f0a2d3c4b5e6f7g8h9i0j1k2l3m4n5o6p7q8r9s0t1u2v3w4x5y6z7'; // Fallback to local default for Render
+const crypto = require('crypto');
+// SECURITY FIX: Never use hardcoded fallbacks for JWT_SECRET.
+// If it's not provided, we generate a random one (forces logout on restart but keeps it secure)
+if (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'f98a2c3d5e7b1a4c6e8f0a2d3c4b5e6f7g8h9i0j1k2l3m4n5o6p7q8r9s0t1u2v3w4x5y6z7') {
+    console.warn("⚠️ WARNING: JWT_SECRET not found or is default. Generating a random secure secret...");
+    process.env.JWT_SECRET = crypto.randomBytes(64).toString('hex');
+}
 process.env.ONESIGNAL_APP_ID = process.env.ONESIGNAL_APP_ID || '064d0c75-1f00-42ab-955b-c369d44a114e';
 const express = require('express');
+const bcrypt = require('bcrypt');
 const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
@@ -134,11 +141,13 @@ const checkCommunity = (req, res, next) => {
     // Priority: Body > Query
     const reqCommunityId = req.body.communityId || req.query.communityId;
 
-    // If communityId is expected but missing, and user is not global admin, block it
-    // For now, if missing, we continue (legacy behavior), but we'll add it to more routes
-    if (!reqCommunityId) return next();
-
     if (req.user.role === 'global_admin') return next();
+
+    // SECURITY FIX: Do not allow bypass if communityId is missing.
+    // Endpoints that use this middleware EXPECT a communityId.
+    if (!reqCommunityId) {
+        return res.status(400).json({ success: false, message: 'Bad Request: communityId is required' });
+    }
 
     if (req.user.communityId !== reqCommunityId) {
         return res.status(403).json({ success: false, message: 'Access denied: Community mismatch' });
@@ -164,13 +173,14 @@ const logAction = async (communityId, admin, action, details) => {
 app.post('/api/login', loginLimiter, async (req, res) => {
     const { username, password } = req.body;
     try {
+        // SECURITY FIX: Prevent NoSQL Injection by ensuring username is a string
+        const safeUsername = String(username);
         const user = await User.findOne({
-            $and: [
-                { $or: [{ phone: username }, { name: username }, { email: username }] },
-                { password: password }
-            ]
+            $or: [{ phone: safeUsername }, { name: safeUsername }, { email: safeUsername }]
         });
-        if (user) {
+        
+        // SECURITY FIX: Use bcrypt to compare password
+        if (user && await bcrypt.compare(String(password), user.password)) {
             // Check if user is banned
             const now = new Date();
             if (user.banned && (!user.bannedUntil || user.bannedUntil > now)) {
@@ -228,7 +238,9 @@ app.post('/api/register', loginLimiter, async (req, res) => {
             if (adminExists) return res.status(400).json({ success: false, message: 'Esta comunidad ya tiene un administrador' });
 
             const communityId = crypto.randomUUID();
-            const newUser = new User({ id: Date.now().toString(), name, surname, address, phone, email, password, communityName, communityId, role });
+            // SECURITY FIX: Hash password
+            const hashedPassword = await bcrypt.hash(String(password), 10);
+            const newUser = new User({ id: Date.now().toString(), name, surname, address, phone, email, password: hashedPassword, communityName, communityId, role });
             await newUser.save();
 
             const newCommunity = new Community({ id: communityId, name: communityName, telegramBotToken, adminId: newUser.id });
@@ -249,7 +261,9 @@ app.post('/api/register', loginLimiter, async (req, res) => {
             invite.used = true;
             await invite.save();
 
-            const newUser = new User({ id: Date.now().toString(), name, surname, address, phone, email, password, communityName, communityId: community.id, role });
+            // SECURITY FIX: Hash password
+            const hashedPassword = await bcrypt.hash(String(password), 10);
+            const newUser = new User({ id: Date.now().toString(), name, surname, address, phone, email, password: hashedPassword, communityName, communityId: community.id, role });
             await newUser.save();
 
             const tokenPayload = {
@@ -440,9 +454,11 @@ app.post('/api/superadmin/users', authenticate, async (req, res) => {
         const existing = await User.findOne({ $or: [{ phone }, { email }] });
         if (existing) return res.status(400).json({ success: false, message: 'Usuario ya existe' });
 
+        // SECURITY FIX: Hash password
+        const hashedPassword = await bcrypt.hash(String(password), 10);
         const newUser = new User({
             id: Date.now().toString(),
-            name, surname, address, phone, email, password, role,
+            name, surname, address, phone, email, password: hashedPassword, role,
             communityId, communityName, mapLabel
         });
         await newUser.save();
@@ -454,7 +470,12 @@ app.post('/api/superadmin/users', authenticate, async (req, res) => {
 app.put('/api/superadmin/users/:id', authenticate, async (req, res) => {
     if (req.user.role !== 'global_admin') return res.status(403).json({ success: false });
     try {
-        const user = await User.findOneAndUpdate({ id: req.params.id }, req.body, { new: true });
+        const updateData = { ...req.body };
+        // SECURITY FIX: Hash password if being updated
+        if (updateData.password) {
+            updateData.password = await bcrypt.hash(String(updateData.password), 10);
+        }
+        const user = await User.findOneAndUpdate({ id: req.params.id }, updateData, { new: true });
         if (!user) return res.status(404).json({ success: false });
         res.json({ success: true, user });
     } catch (error) { res.status(500).json({ success: false }); }
@@ -554,6 +575,9 @@ async function seedSuperAdmin() {
         const adminPhone = 'superadmin';
         const adminPass = 'Tuningcroom88';
         const existing = await User.findOne({ phone: adminPhone });
+        
+        // SECURITY FIX: Hash superadmin password
+        const hashedPass = await bcrypt.hash(adminPass, 10);
 
         const adminData = {
             id: 'super-admin-001',
@@ -561,7 +585,7 @@ async function seedSuperAdmin() {
             surname: 'Admin',
             phone: adminPhone,
             email: 'admin@patrolhood.com',
-            password: adminPass,
+            password: hashedPass,
             role: 'global_admin',
             communityId: 'global',
             communityName: 'Patrolhood Global',
@@ -569,7 +593,7 @@ async function seedSuperAdmin() {
         };
 
         if (existing) {
-            existing.password = adminPass;
+            existing.password = hashedPass;
             existing.role = 'global_admin';
             await existing.save();
             console.log('💎 Super Admin updated');
@@ -692,7 +716,9 @@ app.delete('/api/users/me/delete', authenticate, async (req, res) => {
         if (!user) return res.status(404).json({ success: false, message: 'Usuario no encontrado' });
 
         // Require password confirmation for security
-        if (user.password !== password) {
+        // SECURITY FIX: Use bcrypt to compare password
+        const isValid = await bcrypt.compare(String(password), user.password);
+        if (!isValid) {
             return res.status(401).json({ success: false, message: 'Contraseña incorrecta. Confirma tu contraseña para eliminar la cuenta.' });
         }
 
