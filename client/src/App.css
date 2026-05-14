@@ -663,17 +663,34 @@ textarea {
 .house-label {
   background: rgba(15, 23, 42, 0.95);
   color: white;
-  padding: 6px 12px;
-  border-radius: 8px;
+  width: 36px;
+  height: 36px;
+  border-radius: 6px;
   border: 2px solid white;
-  font-weight: bold;
-  white-space: nowrap;
+  font-weight: 800;
+  font-size: 1.1rem;
   display: flex;
   align-items: center;
-  gap: 6px;
+  justify-content: center;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
   z-index: 1000;
   pointer-events: auto;
+  position: relative;
+}
+
+.house-label .emergency-icon {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  font-size: 1.2rem;
+  background: white;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.3);
 }
 
 .house-marker.my-house .house-label {
@@ -775,22 +792,23 @@ textarea {
 
 /* NAV TABS */
 .nav-tabs {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   margin-bottom: 20px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   padding-bottom: 15px;
+  justify-content: center;
   width: 100%;
 }
 
 .nav-btn {
-  width: 100%;
-  height: 75px;
+  width: 68px;
+  height: 68px;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.1);
   color: #94a3b8;
-  padding: 8px 4px;
+  padding: 5px;
   cursor: pointer;
   font-weight: bold;
   border-radius: 12px;
@@ -800,7 +818,7 @@ textarea {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
+  gap: 2px;
 }
 
 .nav-icon {
