@@ -9,6 +9,15 @@ import './App.css'
 import { db, addPendingSOS, getPendingSOS, markSOSAsSent, getPendingCount } from './db'
 import { safeFetch } from './api'
 import { onesignalLogin, onesignalLogout, onesignalPrompt, checkPushPermission } from './services/onesignal'
+import { motion, AnimatePresence } from 'framer-motion'
+import { 
+  Shield, User, Phone, Mail, Home, MapPin, 
+  Lock, Eye, EyeOff, CheckCircle, ChevronRight, ChevronLeft,
+  AlertTriangle, Flame, Droplets, UserX, Activity, Bomb, 
+  Wind, Eye as EyeIcon, AlertCircle, Dog, Megaphone,
+  MessageSquare, Calendar, ShoppingBag, Bell, Settings,
+  LogOut, RefreshCw, Trash2, Map as MapIcon, Plus, X
+} from 'lucide-react'
 
 // Global error handler for debugging on mobile devices
 if (typeof window !== 'undefined') {
@@ -30,25 +39,25 @@ if (typeof window !== 'undefined') {
 const socket = io(import.meta.env.VITE_API_URL || '/')
 
 const EMERGENCY_TYPES = [
-  { id: 'fire', label: '🔥 Incendio', emoji: '🔥' },
-  { id: 'flood', label: '💧 Inundación', emoji: '💧' },
-  { id: 'robbery', label: '🦹 Robo', emoji: '🦹' },
-  { id: 'occupation', label: '⛔ Ocupación', emoji: '⛔' },
-  { id: 'medical', label: '🚑 Urgencia Médica', emoji: '🚑' },
-  { id: 'collapse', label: '🏚️ Derrumbamiento', emoji: '🏚️' },
-  { id: 'explosion', label: '💥 Explosión', emoji: '💥' },
-  { id: 'smoke', label: '🌫️ Humo', emoji: '🌫️' },
-  { id: 'suspicious', label: '👁️ Actividad Sospechosa', emoji: '👁️' },
-  { id: 'violence', label: '⚠️ Violencia', emoji: '⚠️' },
-  { id: 'lost_pet', label: '🐾 Mascota Perdida', emoji: '🐾', isPetAlert: true },
-  { id: 'other', label: '📢 Otra Emergencia', emoji: '📢' }
+  { id: 'fire', label: 'Incendio', icon: <Flame size={24} /> },
+  { id: 'flood', label: 'Inundación', icon: <Droplets size={24} /> },
+  { id: 'robbery', label: 'Robo', icon: <UserX size={24} /> },
+  { id: 'occupation', label: 'Ocupación', icon: <Lock size={24} /> },
+  { id: 'medical', label: 'Urgencia Médica', icon: <Activity size={24} /> },
+  { id: 'collapse', label: 'Derrumbamiento', icon: <Home size={24} /> },
+  { id: 'explosion', label: 'Explosión', icon: <Bomb size={24} /> },
+  { id: 'smoke', label: 'Humo', icon: <Wind size={24} /> },
+  { id: 'suspicious', label: 'Actividad Sospechosa', icon: <EyeIcon size={24} /> },
+  { id: 'violence', label: 'Violencia', icon: <AlertCircle size={24} /> },
+  { id: 'lost_pet', label: 'Mascota Perdida', icon: <Dog size={24} />, isPetAlert: true },
+  { id: 'other', label: 'Otra Emergencia', icon: <Megaphone size={24} /> }
 ]
 
 const FORUM_CHANNELS = [
-  { id: 'General', label: '💬 General' },
-  { id: 'Eventos', label: '📅 Eventos' },
-  { id: 'Compra-Venta', label: '🤝 Compra-Venta' },
-  { id: 'ALERTAS', label: '🚨 ALERTAS' }
+  { id: 'General', label: 'General', icon: <MessageSquare size={18} /> },
+  { id: 'Eventos', label: 'Eventos', icon: <Calendar size={18} /> },
+  { id: 'Compra-Venta', label: 'Compra-Venta', icon: <ShoppingBag size={18} /> },
+  { id: 'ALERTAS', label: 'ALERTAS', icon: <Bell size={18} /> }
 ]
 
 // Zoom Effect on Alert
@@ -145,25 +154,18 @@ function AutoCenter({ houses, userMapLabel, communityCenter, user }) {
     } else if (user?.role === 'global_admin') {
       // 3. For global admin with no community selected, show Iberia
       map.setView([40.4168, -3.7038], 6)
-      hasCentered.current = true
-    }
-  }, [houses, map, userMapLabel, communityCenter, user?.role])
-
-  return null
-}
-
-function AuthOverlay({ onLogin, deletedMsg }) {
+ function AuthOverlay({ onLogin, deletedMsg }) {
   const [isRegistering, setIsRegistering] = useState(false)
+  const [currentStep, setCurrentStep] = useState(1)
   const [showPassword, setShowPassword] = useState(false)
   const [formData, setFormData] = useState({
     username: '', password: '',
     name: '', surname: '', address: '', phone: '', email: '', confirmPassword: '', inviteCode: '',
-    communityName: '', role: 'user', telegramBotToken: '' // Default to member
+    communityName: '', role: 'user', telegramBotToken: '' 
   })
   const [error, setError] = useState('')
   const [showLegal, setShowLegal] = useState(false)
   const [acceptedTerms, setAcceptedTerms] = useState(false)
-
   const [loading, setLoading] = useState(false)
 
   const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value })
@@ -188,213 +190,228 @@ function AuthOverlay({ onLogin, deletedMsg }) {
   }
 
   const handleRegister = async (e) => {
-    e.preventDefault()
+    if (e) e.preventDefault()
     if (!acceptedTerms) { setError('Debes aceptar los términos y condiciones para registrarte'); return; }
     if (formData.password !== formData.confirmPassword) { setError('Las contraseñas no coinciden'); return; }
+    
+    setLoading(true)
     const data = await safeFetch(`${import.meta.env.VITE_API_URL || ''}/api/register`, {
       method: 'POST',
       body: JSON.stringify(formData)
     })
+    setLoading(false)
+
     if (data.success) {
-      alert('Registro exitoso'); setIsRegistering(false); setError('');
+      alert('Registro exitoso. Ahora puedes iniciar sesión.');
+      setIsRegistering(false);
+      setCurrentStep(1);
+      setError('');
     } else {
       setError(data.error || 'Error desconocido')
     }
   }
 
+  const nextStep = () => {
+    if (currentStep === 1) {
+      if (!formData.name || !formData.surname || !formData.role) {
+        setError('Por favor rellena tu nombre y rol.');
+        return;
+      }
+    } else if (currentStep === 2) {
+      if (!formData.email || !formData.phone) {
+        setError('El email y teléfono son obligatorios.');
+        return;
+      }
+    }
+    setError('')
+    setCurrentStep(prev => prev + 1)
+  }
+
+  const prevStep = () => {
+    setError('')
+    setCurrentStep(prev => prev - 1)
+  }
+
+  const renderStepper = () => (
+    <div className="stepper-container">
+      <div className="stepper-line"></div>
+      <div className="stepper-line-active" style={{ width: `${((currentStep - 1) / 2) * 100}%` }}></div>
+      {[1, 2, 3].map(step => (
+        <div key={step} className={`step-item ${currentStep === step ? 'active' : ''} ${currentStep > step ? 'completed' : ''}`}>
+          <div className="step-circle">
+            {currentStep > step ? <CheckCircle size={16} /> : step}
+          </div>
+          <span className="step-label">
+            {step === 1 ? 'Identidad' : step === 2 ? 'Contacto' : 'Comunidad'}
+          </span>
+        </div>
+      ))}
+    </div>
+  )
+
   if (isRegistering) {
     return (
       <div className="auth-overlay">
-        <div className="auth-box" style={{ maxWidth: '450px', position: 'relative' }}>
-          <button
-            onClick={() => setIsRegistering(false)}
-            style={{
-              position: 'absolute', top: '15px', right: '15px',
-              background: 'none', border: 'none', color: '#94a3b8',
-              fontSize: '1.5rem', cursor: 'pointer', lineHeight: '1'
-            }}
-          >
-            ✕
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="auth-box"
+        >
+          <button onClick={() => { setIsRegistering(false); setCurrentStep(1); }} className="password-toggle" style={{ position: 'absolute', top: '20px', right: '20px' }}>
+            <X size={24} />
           </button>
+          
           <div className="premium-header">
-            <span className="welcome-label" style={{ marginBottom: '5px' }}>SOLICITUD DE</span>
-            <h2 className="user-display-name" style={{ fontSize: '2rem', marginBottom: '5px' }}>REGISTRO</h2>
+            <span className="welcome-label">REGISTRO DE VECINO</span>
+            <h2 className="user-display-name">PATROLHOOD</h2>
             <div className="premium-divider"></div>
           </div>
-          {error && <p className="error-msg">{error}</p>}
 
-          <div className="role-selector" style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
-            <button
-              type="button"
-              className={`tab-btn ${formData.role === 'admin' ? 'active' : ''}`}
-              onClick={() => setFormData({ ...formData, role: 'admin' })}
-              style={{ flex: 1, padding: '10px', borderRadius: '8px', border: '1px solid #fbbf24', background: formData.role === 'admin' ? '#fbbf24' : 'transparent', color: formData.role === 'admin' ? '#000' : '#fbbf24', cursor: 'pointer' }}
-            >
-              👑 Ser Admin
-            </button>
-            <button
-              type="button"
-              className={`tab-btn ${formData.role === 'user' ? 'active' : ''}`}
-              onClick={() => setFormData({ ...formData, role: 'user' })}
-              style={{ flex: 1, padding: '10px', borderRadius: '8px', border: '1px solid #fbbf24', background: formData.role === 'user' ? '#fbbf24' : 'transparent', color: formData.role === 'user' ? '#000' : '#fbbf24', cursor: 'pointer' }}
-            >
-              🏠 Ser Miembro
-            </button>
-          </div>
+          {renderStepper()}
 
-          <form onSubmit={handleRegister}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-              <input name="name" placeholder="Nombre" onChange={handleChange} required />
-              <input name="surname" placeholder="Apellidos" onChange={handleChange} required />
-            </div>
-            <input name="email" type="email" placeholder="Email" onChange={handleChange} required />
-            <input name="phone" placeholder="Teléfono" onChange={handleChange} required />
-            <input name="address" placeholder="Dirección Personal" onChange={handleChange} required />
+          {error && <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="error-msg">{error}</motion.p>}
 
-            <div style={{ padding: '10px', background: '#1e293b', borderRadius: '8px', margin: '5px 0' }}>
-              <label style={{ color: '#fbbf24', fontSize: '0.85em', fontWeight: 'bold' }}>🏙️ COMUNIDAD VECINAL</label>
-              <input name="communityName" placeholder="Nombre de tu barrio/comunidad" onChange={handleChange} required style={{ marginTop: '5px' }} />
-            </div>
-
-            {formData.role === 'user' && (
-              <input name="inviteCode" placeholder="Código de Invitación" onChange={handleChange} required />
-            )}
-
-            {/* {formData.role === 'admin' && (
-              <div style={{ marginBottom: '10px' }}>
-                <input
-                  name="telegramBotToken"
-                  placeholder="🤖 Token de Bot Telegram (Opcional)"
-                  onChange={handleChange}
-                  style={{ background: '#1e293b' }}
-                />
-                <small style={{ color: '#888', display: 'block', fontSize: '0.7em', marginTop: '4px' }}>
-                  Pega aquí el token de @BotFather si quieres un bot propio para tu barrio.
-                </small>
-              </div>
-            )} */}
-
-            <div className="password-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-              <div className="password-wrapper">
-                <input name="password" type={showPassword ? "text" : "password"} placeholder="Contraseña" onChange={handleChange} required />
-                <button type="button" className="password-toggle" onClick={() => setShowPassword(!showPassword)} title={showPassword ? "Ocultar" : "Mostrar"}>
-                  {showPassword ? (
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
-                  ) : (
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-                  )}
-                </button>
-              </div>
-              <div className="password-wrapper">
-                <input name="confirmPassword" type={showPassword ? "text" : "password"} placeholder="Confirmar" onChange={handleChange} required />
-                <button type="button" className="password-toggle" onClick={() => setShowPassword(!showPassword)} title={showPassword ? "Ocultar" : "Mostrar"}>
-                  {showPassword ? (
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
-                  ) : (
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-                  )}
-                </button>
-              </div>
-            </div>
-
-            <div style={{ padding: '10px', background: 'rgba(251, 191, 36, 0.05)', borderRadius: '8px', marginTop: '15px', border: '1px solid rgba(251, 191, 36, 0.2)', maxWidth: 'fit-content' }}>
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', fontSize: '0.85em', color: '#cbd5e1' }}>
-                <input
-                  type="checkbox"
-                  id="terms"
-                  checked={acceptedTerms}
-                  onChange={(e) => setAcceptedTerms(e.target.checked)}
-                  style={{ width: '18px', height: '18px', marginTop: '2px', cursor: 'pointer', flexShrink: 0 }}
-                />
-                <label htmlFor="terms" style={{ cursor: 'pointer', lineHeight: '1.4' }}>
-                  He leído y acepto los <button type="button" onClick={() => setShowLegal(true)} style={{ background: 'none', border: 'none', color: '#fbbf24', textDecoration: 'underline', padding: 0, cursor: 'pointer', fontSize: 'inherit', fontWeight: 'bold' }}>Términos y Condiciones y Política de Privacidad</button>
-                </label>
-              </div>
-            </div>
-
-            {showLegal && (
-              <div className="legal-modal-overlay" onClick={() => setShowLegal(false)}>
-                <div className="legal-modal-content" onClick={e => e.stopPropagation()}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '10px' }}>
-                    <h3 style={{ margin: 0, color: '#fbbf24' }}>📜 Términos y Condiciones</h3>
-                    <button onClick={() => setShowLegal(false)} style={{ background: 'none', border: 'none', color: 'white', fontSize: '1.5rem', cursor: 'pointer' }}>✕</button>
-                  </div>
-                  <div className="legal-text-scroll">
-                    <h4>1. Naturaleza y Limitación del Servicio (LSSI-CE)</h4>
-                    <p>De conformidad con la Ley 34/2002 (LSSI-CE), PatrolHood es una plataforma técnica de intermediación social. **USTED RECONOCE QUE ESTA APP NO ES UN SERVICIO DE EMERGENCIA HOMOLOGADO**. El uso de la aplicación no exime de la obligación de contactar con el **112, Policía o Bomberos** a través de sus canales oficiales. Los administradores y desarrolladores no son responsables de la seguridad ciudadana ni de la coordinación de auxilio.</p>
-
-                    <h4>2. Protección de Datos y Privacidad (RGPD y LOPDGDD)</h4>
-                    <p>En cumplimiento del Reglamento (UE) 2016/679 (RGPD) y la LO 3/2018 (LOPDGDD):</p>
-                    <ul style={{ paddingLeft: '15px', color: '#cbd5e1', fontSize: '0.9em' }}>
-                      <li><strong>Responsable:</strong> El Administrador de su comunidad es el Corresponsable del Tratamiento de los datos de su círculo vecinal.</li>
-                      <li><strong>Legitimación (Art. 6.1.a):</strong> Consentimiento explícito del interesado al marcar la casilla de aceptación.</li>
-                      <li><strong>Finalidad:</strong> Gestión de alertas de seguridad vecinal y comunicación interna.</li>
-                      <li><strong>Derechos (Arts. 15-22):</strong> Usted tiene derecho de acceso, rectificación, supresión ("derecho al olvido"), limitación y portabilidad. Puede ejercerlo eliminando su cuenta desde el perfil o contactando con su administrador.</li>
-                    </ul>
-
-                    <h4>3. Exención de Responsabilidad Técnica y Civil</h4>
-                    <p>Al amparo del Art. 1101 del Código Civil, los prestadores del servicio no responderán por daños y perjuicios derivados de: (a) Fallos de red, latencia en notificaciones push o indisponibilidad del servidor; (b) Acciones u omisiones de los vecinos ante una alerta; (c) Falta de veracidad en el contenido publicado por usuarios. La app se entrega como una herramienta para los vecinos de una comunidad, sin garantía implícita de intervención externa por parte de ellos.</p>
-
-                    <h4>4. Naturaleza y Uso del Sistema SOS</h4>
-                    <p>El botón SOS no está conectado a ninguna central de servicios de emergencias públicas. Por ello su uso estará supeditado a la real necesidad de aquel que lo active. Toda activación quedará registrada en un historial de logs de auditoría al que tendrá acceso el administrador de la comunidad en la plataforma y quien regulará y tomará las decisiones pertinentes en caso de emisiones de falsas alarmas mal intencionadas.</p>
-
-                    <h4>5. Retención de Datos y Derecho al Olvido (Art. 5.1.e RGPD)</h4>
-                    <p style={{ background: 'rgba(251,191,36,0.08)', padding: '8px', borderRadius: '6px', borderLeft: '3px solid #fbbf24' }}>
-                      ⏱️ **Conservación Limitada:** Los mensajes y multimedia se eliminan de forma irreversible a los **30 días** para minimizar riesgos de privacidad. Las alertas SOS se conservan 30 días para trazabilidad de seguridad. Al eliminar su cuenta, sus datos identificativos son borrados de inmediato de los servidores activos.
-                    </p>
-
-                    <h4>6. Localización Estática y Privacidad</h4>
-                    <p>La plataforma procesa y visualiza la geolocalización estática del inmueble o punto de interés que el usuario proporciona durante el registro. Dicha información se utiliza con el fin legítimo de facilitar el auxilio por parte de la comunidad (Art. 6.1.d RGPD - Interés vital) de forma voluntaria, siempre que el incidente ocurra dentro del entorno de la propia comunidad. **No existe posibilidad de seguimiento en tiempo real ni monitorización dinámica de su dispositivo.** Lo que se muestra es una etiqueta fijada en un mapa del lugar que usted indica y del que se presupone su titularidad o interés legítimo.</p>
-
-                    <p style={{ marginTop: '20px', fontSize: '0.9em', color: '#94a3b8' }}>* Al marcar la casilla de aceptación, confirmas que has leído y comprendido estos términos en su totalidad.</p>
-                  </div>
-                  <button onClick={() => { setAcceptedTerms(true); setShowLegal(false); }} className="login-btn" style={{ marginTop: '20px' }}>Entendido y Aceptar</button>
+          <AnimatePresence mode="wait">
+            {currentStep === 1 && (
+              <motion.div 
+                key="step1"
+                initial={{ x: 20, opacity: 0 }}
+                animate={{ x: 0, opacity: 1 }}
+                exit={{ x: -20, opacity: 0 }}
+                className="auth-form-step"
+              >
+                <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
+                  <button
+                    type="button"
+                    className={`btn-secondary ${formData.role === 'admin' ? 'active' : ''}`}
+                    onClick={() => setFormData({ ...formData, role: 'admin' })}
+                    style={{ border: formData.role === 'admin' ? '1px solid #fbbf24' : '' }}
+                  >
+                    <Shield size={18} style={{ marginBottom: '5px' }} /><br />Admin
+                  </button>
+                  <button
+                    type="button"
+                    className={`btn-secondary ${formData.role === 'user' ? 'active' : ''}`}
+                    onClick={() => setFormData({ ...formData, role: 'user' })}
+                    style={{ border: formData.role === 'user' ? '1px solid #fbbf24' : '' }}
+                  >
+                    <Home size={18} style={{ marginBottom: '5px' }} /><br />Miembro
+                  </button>
                 </div>
-              </div>
+                <input name="name" placeholder="Nombre" value={formData.name} onChange={handleChange} required />
+                <input name="surname" placeholder="Apellidos" value={formData.surname} onChange={handleChange} required />
+                <div className="step-nav-buttons">
+                  <button onClick={nextStep} className="btn-premium">Siguiente <ChevronRight size={18} /></button>
+                </div>
+              </motion.div>
             )}
 
-            <button type="submit" className="login-btn" disabled={!acceptedTerms} style={{ opacity: acceptedTerms ? 1 : 0.5, cursor: acceptedTerms ? 'pointer' : 'not-allowed' }}>
-              {formData.role === 'admin' ? 'Crear Comunidad' : 'Unirse a Comunidad'}
-            </button>
-            <button type="button" className="link-btn" onClick={() => setIsRegistering(false)}>Volver a Login</button>
-          </form>
-        </div>
+            {currentStep === 2 && (
+              <motion.div 
+                key="step2"
+                initial={{ x: 20, opacity: 0 }}
+                animate={{ x: 0, opacity: 1 }}
+                exit={{ x: -20, opacity: 0 }}
+                className="auth-form-step"
+              >
+                <input name="email" type="email" placeholder="Email" value={formData.email} onChange={handleChange} required />
+                <input name="phone" placeholder="Teléfono" value={formData.phone} onChange={handleChange} required />
+                <input name="address" placeholder="Dirección Postal" value={formData.address} onChange={handleChange} required />
+                <div className="step-nav-buttons">
+                  <button onClick={prevStep} className="btn-secondary"><ChevronLeft size={18} /> Atrás</button>
+                  <button onClick={nextStep} className="btn-premium">Siguiente <ChevronRight size={18} /></button>
+                </div>
+              </motion.div>
+            )}
+
+            {currentStep === 3 && (
+              <motion.div 
+                key="step3"
+                initial={{ x: 20, opacity: 0 }}
+                animate={{ x: 0, opacity: 1 }}
+                exit={{ x: -20, opacity: 0 }}
+                className="auth-form-step"
+              >
+                <input name="communityName" placeholder="Nombre de tu comunidad" value={formData.communityName} onChange={handleChange} required />
+                {formData.role === 'user' && (
+                  <input name="inviteCode" placeholder="Código de Invitación" value={formData.inviteCode} onChange={handleChange} required />
+                )}
+                
+                <div className="password-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                  <div className="password-wrapper">
+                    <input name="password" type={showPassword ? "text" : "password"} placeholder="Contraseña" value={formData.password} onChange={handleChange} required />
+                  </div>
+                  <div className="password-wrapper">
+                    <input name="confirmPassword" type={showPassword ? "text" : "password"} placeholder="Confirmar" value={formData.confirmPassword} onChange={handleChange} required />
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.75rem', color: '#94a3b8' }}>
+                  <input type="checkbox" checked={acceptedTerms} onChange={(e) => setAcceptedTerms(e.target.checked)} />
+                  <label>Acepto los <button type="button" onClick={() => setShowLegal(true)} className="link-btn" style={{ display: 'inline', margin: 0, padding: 0 }}>términos legales</button></label>
+                </div>
+
+                <div className="step-nav-buttons">
+                  <button onClick={prevStep} className="btn-secondary"><ChevronLeft size={18} /> Atrás</button>
+                  <button onClick={handleRegister} className="btn-premium" disabled={loading || !acceptedTerms}>
+                    {loading ? 'Registrando...' : 'Finalizar Registro'}
+                  </button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {showLegal && (
+             <div className="legal-modal-overlay" onClick={() => setShowLegal(false)}>
+                <div className="legal-modal-content" onClick={e => e.stopPropagation()} style={{ background: '#0f172a', padding: '20px', borderRadius: '15px', maxWidth: '90%' }}>
+                  <h3 style={{ color: '#fbbf24' }}>📜 Términos y Condiciones</h3>
+                  <div style={{ maxHeight: '300px', overflowY: 'auto', fontSize: '0.8rem', color: '#cbd5e1' }}>
+                    <p>PatrolHood es una plataforma vecinal. El botón SOS no sustituye al 112...</p>
+                    <p>Tus datos se tratan bajo el RGPD para fines de seguridad comunitaria.</p>
+                  </div>
+                  <button onClick={() => { setAcceptedTerms(true); setShowLegal(false); }} className="btn-premium" style={{ width: '100%', marginTop: '10px' }}>Aceptar</button>
+                </div>
+             </div>
+          )}
+        </motion.div>
       </div>
     )
   }
 
   return (
     <div className="auth-overlay">
-      <div className="auth-box">
-        <img src="/logo_bull.png" alt="PatrolHood Logo" className="logo-img" style={{ maxWidth: '160px', marginBottom: '10px' }} />
+      <motion.div 
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        className="auth-box"
+      >
+        <img src="/logo_bull.png" alt="PatrolHood Logo" className="logo-img" style={{ maxWidth: '120px', marginBottom: '20px' }} />
 
         <div className="premium-header">
-          <span className="welcome-label">BIENVENIDO</span>
-          <h1 className="brand-label" style={{ fontSize: '2.5rem', margin: '0 0 5px 0', background: 'var(--gold-gradient)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>PATROLHOOD</h1>
-          <p style={{ textAlign: 'center', marginBottom: '10px', color: '#94a3b8', fontStyle: 'italic', fontFamily: 'Lora, serif' }}>Seguridad Vecinal Inteligente</p>
+          <span className="welcome-label">BIENVENIDO A</span>
+          <h1 className="brand-label" style={{ fontSize: '2.2rem', background: 'var(--gold-gradient)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>PATROLHOOD</h1>
           <div className="premium-divider"></div>
         </div>
 
-        {deletedMsg && <div className="error-msg" style={{ background: 'rgba(239, 68, 68, 0.2)', color: '#f87171', border: '1px solid #ef4444', marginBottom: '20px', padding: '10px', borderRadius: '8px' }}>⚠️ Usuario eliminado definitivamente</div>}
         {error && <p className="error-msg">{error}</p>}
         <form onSubmit={handleLogin}>
-          <input name="username" placeholder="Teléfono o Nombre" onChange={handleChange} required />
+          <div className="password-wrapper" style={{ marginBottom: '15px' }}>
+             <User size={18} style={{ position: 'absolute', left: '12px', top: '15px', color: '#94a3b8' }} />
+             <input name="username" placeholder="Teléfono o Nombre" onChange={handleChange} required style={{ paddingLeft: '40px' }} />
+          </div>
           <div className="password-wrapper">
-            <input name="password" type={showPassword ? "text" : "password"} placeholder="Contraseña" onChange={handleChange} required />
-            <button type="button" className="password-toggle" onClick={() => setShowPassword(!showPassword)} title={showPassword ? "Ocultar" : "Mostrar"}>
-              {showPassword ? (
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
-              ) : (
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-              )}
+            <Lock size={18} style={{ position: 'absolute', left: '12px', top: '15px', color: '#94a3b8' }} />
+            <input name="password" type={showPassword ? "text" : "password"} placeholder="Contraseña" onChange={handleChange} required style={{ paddingLeft: '40px' }} />
+            <button type="button" className="password-toggle" onClick={() => setShowPassword(!showPassword)}>
+              {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
             </button>
           </div>
-          <button type="submit" className="login-btn" disabled={loading}>
+          <button type="submit" className="btn-premium" style={{ width: '100%', marginTop: '20px' }} disabled={loading}>
             {loading ? 'Entrando...' : 'Entrar'}
           </button>
-          <button type="button" className="link-btn" onClick={() => setIsRegistering(true)}>Crear cuenta</button>
+          <button type="button" className="link-btn" onClick={() => setIsRegistering(true)}>¿No tienes cuenta? Regístrate</button>
         </form>
-      </div>
+      </motion.div>
     </div>
   )
 }
@@ -534,7 +551,9 @@ function Forum({ user, allCommunities, onSwitchCommunity }) {
               className={`forum-tab ${activeChannel === ch.id ? 'active' : ''}`}
               onClick={() => setActiveChannel(ch.id)}
             >
-              {ch.label}
+              <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                {ch.icon} {ch.label}
+              </span>
             </button>
           ))}
         </div>
@@ -567,7 +586,9 @@ function Forum({ user, allCommunities, onSwitchCommunity }) {
         {activeChannel === 'General' && (
           <div className="message-bubble" style={{ background: '#334155', border: '1px solid #fbbf24', color: '#e2e8f0' }}>
             <div className="msg-header">
-              <span className="msg-user" style={{ color: '#fbbf24' }}>👮 Normas de la Comunidad</span>
+              <span className="msg-user" style={{ color: '#fbbf24', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Shield size={18} /> Normas de la Comunidad
+              </span>
             </div>
             <div className="msg-text" style={{ whiteSpace: 'pre-wrap', fontSize: '0.9em' }}>{RULES_TEXT}</div>
           </div>
@@ -1642,22 +1663,22 @@ function App() {
 
         <div className="nav-tabs">
           <button className={`nav-btn ${activeTab === 'map' ? 'active' : ''}`} onClick={() => { setActiveTab('map'); setIsSidebarOpen(false); }}>
-            <span className="nav-icon">🗺️</span>
+            <span className="nav-icon"><MapIcon size={20} /></span>
             <span className="nav-label">Mapa</span>
           </button>
           <button className={`nav-btn ${activeTab === 'forum' ? 'active' : ''}`} onClick={() => { setActiveTab('forum'); setIsSidebarOpen(false); }}>
-            <span className="nav-icon">💬</span>
+            <span className="nav-icon"><MessageSquare size={20} /></span>
             <span className="nav-label">Foro</span>
           </button>
           {user.role !== 'global_admin' && (
             <button className={`nav-btn ${activeTab === 'users' ? 'active' : ''}`} onClick={() => { setActiveTab('users'); setIsSidebarOpen(false); }}>
-              <span className="nav-icon">👥</span>
+              <span className="nav-icon"><User size={20} /></span>
               <span className="nav-label">Vecinos</span>
             </button>
           )}
           {(user.role === 'admin' || user.role === 'moderator') && (
             <button className={`nav-btn ${activeTab === 'dashboard' ? 'active' : ''}`} onClick={() => { setActiveTab('dashboard'); setIsSidebarOpen(false); }}>
-              <span className="nav-icon">📊</span>
+              <span className="nav-icon"><Settings size={20} /></span>
               <span className="nav-label">Dashboard</span>
             </button>
           )}
@@ -1665,23 +1686,23 @@ function App() {
             {user.role === 'global_admin' && (
               <>
                 <button className={`nav-btn ${activeTab === 'sa-communities' ? 'active' : ''}`} onClick={() => { setActiveTab('sa-communities'); setIsSidebarOpen(false); }}>
-                  <span className="nav-icon">🏘️</span>
+                  <span className="nav-icon"><Shield size={20} /></span>
                   <span className="nav-label">Comunidades</span>
                 </button>
                 <button className={`nav-btn ${activeTab === 'sa-users' ? 'active' : ''}`} onClick={() => { setActiveTab('sa-users'); setIsSidebarOpen(false); }}>
-                  <span className="nav-icon">👥</span>
+                  <span className="nav-icon"><User size={20} /></span>
                   <span className="nav-label">Usuarios</span>
                 </button>
                 <button className={`nav-btn ${activeTab === 'sa-alerts' ? 'active' : ''}`} onClick={() => { setActiveTab('sa-alerts'); setIsSidebarOpen(false); }}>
-                  <span className="nav-icon">🚨</span>
+                  <span className="nav-icon"><AlertTriangle size={20} /></span>
                   <span className="nav-label">Alertas</span>
                 </button>
                 <button className={`nav-btn ${activeTab === 'sa-audit' ? 'active' : ''}`} onClick={() => { setActiveTab('sa-audit'); setIsSidebarOpen(false); }}>
-                  <span className="nav-icon">📊</span>
+                  <span className="nav-icon"><Activity size={20} /></span>
                   <span className="nav-label">Auditoría</span>
                 </button>
                 <button className={`nav-btn ${activeTab === 'sa-reported' ? 'active' : ''}`} onClick={() => { setActiveTab('sa-reported'); setIsSidebarOpen(false); }}>
-                  <span className="nav-icon">🚩</span>
+                  <span className="nav-icon"><AlertCircle size={20} /></span>
                   <span className="nav-label">Reportados</span>
                 </button>
               </>
@@ -1912,7 +1933,9 @@ function App() {
         {user.role !== 'global_admin' && (
           <div className="contacts-section" style={{ position: 'relative' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-              <h3 style={{ margin: 0 }}>📌 Contactos de interés</h3>
+              <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <MapPin size={20} /> Contactos de interés
+              </h3>
               {(user.role === 'admin') && (
                 <button
                   onClick={() => setIsAddingContact(true)}
@@ -1924,11 +1947,11 @@ function App() {
             </div>
 
             <ul className="contacts-list">
-              <li><strong>🚨 Emergencia General:</strong> <a href="tel:112">112</a></li>
-              <li><strong>👮 Policía Nacional:</strong> <a href="tel:091">091</a></li>
-              <li><strong>🚔 Guardia Civil:</strong> <a href="tel:062">062</a></li>
-              <li><strong>🚒 Bomberos:</strong> <a href="tel:080">080</a></li>
-              <li><strong>🚓 Policía Local:</strong> <a href="tel:092">092</a></li>
+              <li><strong><AlertTriangle size={18} style={{ verticalAlign: 'middle', marginRight: '5px' }} /> Emergencia General:</strong> <a href="tel:112">112</a></li>
+              <li><strong><Shield size={18} style={{ verticalAlign: 'middle', marginRight: '5px' }} /> Policía Nacional:</strong> <a href="tel:091">091</a></li>
+              <li><strong><Shield size={18} style={{ verticalAlign: 'middle', marginRight: '5px' }} /> Guardia Civil:</strong> <a href="tel:062">062</a></li>
+              <li><strong><Flame size={18} style={{ verticalAlign: 'middle', marginRight: '5px' }} /> Bomberos:</strong> <a href="tel:080">080</a></li>
+              <li><strong><Shield size={18} style={{ verticalAlign: 'middle', marginRight: '5px' }} /> Policía Local:</strong> <a href="tel:092">092</a></li>
               {communityContacts.map(contact => (
                 <li key={contact._id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div>
@@ -2050,7 +2073,7 @@ function App() {
                 e.currentTarget.style.boxShadow = '0 4px 15px rgba(37, 99, 235, 0.3)';
               }}
             >
-              <span>🔔</span> Activar Notificaciones
+              <Bell size={20} /> Activar Notificaciones
             </button>
             <style>{`
               @keyframes pulse-blue {
@@ -2119,14 +2142,16 @@ function App() {
                     }
                   }}
                 >
-                  {sosAlert.emergencyType === 'lost_pet' ? `🐾 ENCONTRADA #${sosAlert.houseNumber}` : `🔕 PARAR #${sosAlert.houseNumber}`}
+                  {sosAlert.emergencyType === 'lost_pet' ? <><CheckCircle size={14} /> ENCONTRADA #{sosAlert.houseNumber}</> : <><RefreshCw size={14} /> PARAR #{sosAlert.houseNumber}</>}
                 </button>
               );
             })}
 
             {/* Banner for other active alerts I can't control */}
             {activeAlerts.some(a => a.userId !== user.id && user.role !== 'admin' && user.role !== 'global_admin') && (
-              <div className="sos-active-banner">🚨 ALERTA ACTIVA</div>
+              <div className="sos-active-banner">
+                <AlertTriangle size={18} /> ALERTA ACTIVA
+              </div>
             )}
           </div>
         )
@@ -2167,8 +2192,8 @@ function App() {
                     >
                       <Popup className="house-popup">
                         <div className="popup-content">
-                          <strong>🏠 #{h.number}</strong>
-                          <p style={{ fontSize: '0.8em', color: '#888' }}>📍 {h.communityName}</p>
+                          <strong><Home size={16} style={{ verticalAlign: 'middle', marginRight: '5px' }} /> #{h.number}</strong>
+                          <p style={{ fontSize: '0.8em', color: '#888' }}><MapPin size={12} style={{ verticalAlign: 'middle', marginRight: '4px' }} /> {h.communityName}</p>
                           <p style={{ fontSize: '0.8em', color: '#fbbf24' }}>Status: {status}</p>
                           {activeAlert && (
                             <div className={activeAlert.emergencyType === 'lost_pet' ? "popup-alert pet" : "popup-alert"} style={{ marginBottom: '10px' }}>
@@ -2210,14 +2235,14 @@ function App() {
                   >
                     <Popup className="house-popup">
                       <div className="popup-content">
-                        <strong>🏠 Casa #{h.number}</strong>
+                        <strong><Home size={16} style={{ verticalAlign: 'middle', marginRight: '5px' }} /> Casa #{h.number}</strong>
 
                         {inhabitants.length > 0 ? (
                           <div className="inhabitants-list" style={{ marginTop: '5px' }}>
                             {inhabitants.map(person => (
                               <div key={person.id} style={{ marginBottom: '8px', borderBottom: '1px solid #eee', paddingBottom: '4px' }}>
-                                <div style={{ fontWeight: 'bold' }}>👤 {person.name} {person.surname}</div>
-                                <div style={{ fontSize: '0.85em', color: '#666' }}>📍 {person.address}</div>
+                                <div style={{ fontWeight: 'bold' }}><User size={14} style={{ verticalAlign: 'middle', marginRight: '5px' }} /> {person.name} {person.surname}</div>
+                                <div style={{ fontSize: '0.85em', color: '#666' }}><MapPin size={12} style={{ verticalAlign: 'middle', marginRight: '5px' }} /> {person.address}</div>
                               </div>
                             ))}
                           </div>
@@ -2277,7 +2302,7 @@ function App() {
                             onClick={() => onDeleteHouse(h.id)}
                             style={{ marginTop: '5px', background: '#ef4444', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '4px', cursor: 'pointer' }}
                           >
-                            🗑️ Borrar (Admin)
+                            <Trash2 size={14} /> Borrar (Admin)
                           </button>
                         )}
                       </div>
@@ -2363,16 +2388,16 @@ function App() {
         showEmergencyMenu && (
           <div className="modal-overlay" onClick={() => setShowEmergencyMenu(false)}>
             <div className="emergency-menu" onClick={e => e.stopPropagation()}>
-              <h2>EMERGENCIA</h2>
+              <h2 className="premium-title">EMERGENCIA</h2>
               <div className="emergency-grid">
                 {EMERGENCY_TYPES.map(e => (
                   <button key={e.id} className="emergency-option" onClick={() => triggerSOS(e.id)}>
-                    <span className="emergency-emoji">{e.emoji}</span>
+                    <span className="emergency-icon">{e.icon}</span>
                     <span>{e.label}</span>
                   </button>
                 ))}
               </div>
-              <button className="cancel-btn" onClick={() => setShowEmergencyMenu(false)}>Cancelar</button>
+              <button className="cancel-btn" onClick={() => setShowEmergencyMenu(false)}>Cerrar</button>
             </div>
           </div>
         )
@@ -2385,7 +2410,9 @@ function App() {
               <h2 style={{ color: '#ef4444' }}>⚠️ ¿CONFIRMAR ALERTA?</h2>
               <div style={{ fontSize: '1.2em', margin: '20px 0' }}>
                 Has seleccionado:<br />
-                <strong style={{ fontSize: '1.5em' }}>{pendingSOS.emoji} {pendingSOS.label.toUpperCase()}</strong>
+                <strong style={{ fontSize: '1.5em', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
+                  {pendingSOS.icon} {pendingSOS.label.toUpperCase()}
+                </strong>
               </div>
               <p style={{ color: '#94a3b8', marginBottom: '20px' }}>Esta acción notificará a todos tus vecinos de inmediato.</p>
               <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
@@ -2398,9 +2425,9 @@ function App() {
                 <button
                   onClick={confirmSOS}
                   className="sos-button"
-                  style={{ width: 'auto', padding: '15px 25px', fontSize: '1em', marginTop: 0 }}
+                  style={{ width: 'auto', padding: '15px 25px', fontSize: '1.2em', marginTop: 0, display: 'flex', alignItems: 'center', gap: '8px' }}
                 >
-                  🚨 CONFIRMAR
+                  <AlertTriangle size={24} /> CONFIRMAR
                 </button>
               </div>
             </div>
