@@ -154,7 +154,14 @@ function AutoCenter({ houses, userMapLabel, communityCenter, user }) {
     } else if (user?.role === 'global_admin') {
       // 3. For global admin with no community selected, show Iberia
       map.setView([40.4168, -3.7038], 6)
- function AuthOverlay({ onLogin, deletedMsg }) {
+      hasCentered.current = true
+    }
+  }, [houses, userMapLabel, communityCenter, user, map])
+
+  return null
+}
+
+function AuthOverlay({ onLogin, deletedMsg }) {
   const [isRegistering, setIsRegistering] = useState(false)
   const [currentStep, setCurrentStep] = useState(1)
   const [showPassword, setShowPassword] = useState(false)
@@ -1658,7 +1665,7 @@ function App() {
             fontSize: '0.9em', display: 'flex', alignItems: 'center', gap: '5px', alignSelf: 'center'
           }}
         >
-          🔄 Refrescar
+          <RefreshCw size={16} /> Refrescar
         </button>
 
         <div className="nav-tabs">
