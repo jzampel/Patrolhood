@@ -493,7 +493,7 @@ const SuperAdminDashboard = ({ user, initialTab = 0, onSwitchCommunity, activeAl
                                                         </>
                                                     )}
                                                     {!['SOS_START', 'SOS_STOP'].includes(l.action) && (
-                                                        <pre style={{ margin: 0, whiteSpace: 'pre-wrap', fontSize: '0.8em' }}>{JSON.stringify(l.details, null, 2)}</pre>
+                                                        <pre style={{ margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontSize: '0.8em' }}>{JSON.stringify(l.details, null, 2)}</pre>
                                                     )}
                                                 </div>
                                             )}

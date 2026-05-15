@@ -152,11 +152,15 @@ function AdminDashboard({ user }) {
                                                                 <div>📅 Fin: {new Date(log.details.endedAt).toLocaleTimeString()}</div>
                                                             </>
                                                         )}
-                                                        {!['SOS_START', 'SOS_STOP'].includes(log.action) && JSON.stringify(log.details)}
+                                                        {!['SOS_START', 'SOS_STOP'].includes(log.action) && (
+                                                            <pre style={{ margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontSize: '0.9em', background: '#1e293b', padding: '6px', borderRadius: '4px' }}>
+                                                                {JSON.stringify(log.details, null, 2)}
+                                                            </pre>
+                                                        )}
                                                     </div>
                                                 )}
                                             </div>
-                                            <div style={{ fontSize: '0.75em', color: '#64748b', textAlign: 'right', whiteSpace: 'nowrap', marginLeft: '10px' }}>
+                                            <div style={{ fontSize: '0.75em', color: '#64748b', textAlign: 'right', marginLeft: '10px', minWidth: '70px' }}>
                                                 {new Date(log.timestamp).toLocaleString()}
                                             </div>
                                         </div>

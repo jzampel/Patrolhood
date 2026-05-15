@@ -182,6 +182,7 @@ app.post('/api/login', loginLimiter, async (req, res) => {
         if (user && await bcrypt.compare(String(password), user.password)) {
             // Ban logic has been moved to forum-only. Users can still log in and use the app.
             // Auto-unban if expired
+            const now = new Date();
             if (user.banned && user.bannedUntil && user.bannedUntil <= now) {
                 user.banned = false; user.bannedUntil = null; user.banReason = null;
                 await user.save();
@@ -606,7 +607,7 @@ async function seedSuperAdmin() {
 app.get('/api/users', authenticate, checkCommunity, async (req, res) => {
     const { communityId } = req.query;
     try {
-        const users = await User.find({ communityId }, 'id name surname address phone role mapLabel publicPhone');
+        const users = await User.find({ communityId }, 'id name surname address phone role mapLabel publicPhone banned bannedUntil banReason');
         res.json({ success: true, users });
     } catch (error) { res.status(500).json({ success: false }); }
 });
