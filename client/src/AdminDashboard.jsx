@@ -190,6 +190,18 @@ function AdminDashboard({ user }) {
                                             </div>
                                             {msg.text && <p style={{ marginTop: '8px', color: '#e2e8f0' }}>{msg.text}</p>}
                                             {msg.image && <img src={msg.image} alt="adjunto" style={{ maxHeight: '80px', borderRadius: '6px', marginTop: '6px' }} />}
+                                            {msg.reports && msg.reports.length > 0 && (
+                                                <div style={{ marginTop: '10px' }}>
+                                                    <h4 style={{ margin: '0 0 5px 0', fontSize: '0.85em', color: '#94a3b8' }}>Detalles de los reportes:</h4>
+                                                    {msg.reports.map((r, i) => (
+                                                        <div key={i} style={{ fontSize: '0.8em', color: '#cbd5e1', background: '#0f172a', padding: '8px', borderRadius: '4px', marginBottom: '4px' }}>
+                                                            <strong>Reportado por:</strong> {typeof r === 'string' ? r : r.reporterName || r.reportedBy} <br/>
+                                                            <strong>Motivo:</strong> {typeof r === 'string' ? 'Contenido inapropiado' : r.reason || 'Sin motivo'} <br/>
+                                                            <strong>Fecha:</strong> {typeof r === 'string' || !r.date ? 'N/A' : new Date(r.date).toLocaleString()}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
                                         </div>
                                     ))
                                 }

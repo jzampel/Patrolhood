@@ -511,8 +511,20 @@ const SuperAdminDashboard = ({ user, initialTab = 0, onSwitchCommunity, activeAl
                                                 <strong>{r.user}</strong>
                                                 <span style={{ color: '#ef4444' }}>⚠️ {r.reports?.length} reportes</span>
                                             </div>
-                                            <p style={{ margin: '8px 0' }}>{r.text}</p>
-                                            <div style={{ fontSize: '0.8em', color: '#64748b' }}>#{r.channel}</div>
+                                            <p style={{ margin: '8px 0', color: '#e2e8f0' }}>{r.text}</p>
+                                            <div style={{ fontSize: '0.8em', color: '#64748b', marginBottom: '8px' }}>Foro: #{r.channel}</div>
+                                            {r.reports && r.reports.length > 0 && (
+                                                <div style={{ marginTop: '10px' }}>
+                                                    <h4 style={{ margin: '0 0 5px 0', fontSize: '0.85em', color: '#94a3b8' }}>Detalles de los reportes:</h4>
+                                                    {r.reports.map((rep, i) => (
+                                                        <div key={i} style={{ fontSize: '0.8em', color: '#cbd5e1', background: '#0f172a', padding: '8px', borderRadius: '4px', marginBottom: '4px' }}>
+                                                            <strong>Reportado por:</strong> {typeof rep === 'string' ? rep : rep.reporterName || rep.reportedBy} <br/>
+                                                            <strong>Motivo:</strong> {typeof rep === 'string' ? 'Contenido inapropiado' : rep.reason || 'Sin motivo'} <br/>
+                                                            <strong>Fecha:</strong> {typeof rep === 'string' || !rep.date ? 'N/A' : new Date(rep.date).toLocaleString()}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
                                         </div>
                                     ))
                             )

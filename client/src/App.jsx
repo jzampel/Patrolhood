@@ -547,10 +547,11 @@ function Forum({ user, allCommunities, onSwitchCommunity }) {
   }
 
   const reportMessage = async (msgId) => {
-    if (!window.confirm('¿Reportar este mensaje por contenido inapropiado?')) return;
+    const reason = window.prompt('¿Cuál es el motivo del reporte?', 'Contenido inapropiado');
+    if (!reason) return;
     const data = await safeFetch(`${import.meta.env.VITE_API_URL || ''}/api/forum/${msgId}/report`, {
       method: 'POST',
-      body: JSON.stringify({ communityId: user.communityId })
+      body: JSON.stringify({ communityId: user.communityId, reason })
     });
     if (data.success) {
       alert('Mensaje reportado. Gracias por tu colaboración.');

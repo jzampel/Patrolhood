@@ -180,12 +180,7 @@ app.post('/api/login', loginLimiter, async (req, res) => {
         
         // SECURITY FIX: Use bcrypt to compare password
         if (user && await bcrypt.compare(String(password), user.password)) {
-            // Check if user is banned
-            const now = new Date();
-            if (user.banned && (!user.bannedUntil || user.bannedUntil > now)) {
-                const until = user.bannedUntil ? ` hasta el ${user.bannedUntil.toLocaleDateString('es-ES')}` : ' permanentemente';
-                return res.status(403).json({ success: false, message: `Tu cuenta ha sido suspendida${until}. Motivo: ${user.banReason || 'Incumplimiento de normas.'}` });
-            }
+            // Ban logic has been moved to forum-only. Users can still log in and use the app.
             // Auto-unban if expired
             if (user.banned && user.bannedUntil && user.bannedUntil <= now) {
                 user.banned = false; user.bannedUntil = null; user.banReason = null;
@@ -862,17 +857,58 @@ app.delete('/api/forum/:id', authenticate, checkCommunity, async (req, res) => {
 });
 
 app.post('/api/forum/:id/report', authenticate, checkCommunity, async (req, res) => {
-    const { communityId } = req.body;
+    const { communityId, reason } = req.body;
     try {
         const msg = await ForumMessage.findOne({ _id: req.params.id, communityId });
         if (!msg) return res.status(404).json({ success: false, message: 'Mensaje no encontrado' });
 
         if (!msg.reports) msg.reports = [];
-        if (!msg.reports.includes(req.user.id)) {
-            msg.reports.push(req.user.id);
+        
+        // Support legacy string arrays or new object arrays
+        const alreadyReported = msg.reports.some(r => typeof r === 'string' ? r === req.user.id : r.reportedBy === req.user.id);
+        
+        if (!alreadyReported) {
+            msg.reports.push({
+                reportedBy: req.user.id,
+                reporterName: req.user.name + ' ' + (req.user.surname || ''),
+                reason: reason || 'Contenido inapropiado',
+                date: new Date()
+            });
+            msg.markModified('reports');
             await msg.save();
         }
         res.json({ success: true, reportsCount: msg.reports.length });
+    } catch (error) { res.status(500).json({ success: false }); }
+});
+
+app.post('/api/forum/:id/clear-reports', authenticate, checkCommunity, async (req, res) => {
+    const { communityId } = req.body;
+    if (req.user.role !== 'admin' && req.user.role !== 'moderator' && req.user.role !== 'global_admin') {
+        return res.status(403).json({ success: false, message: 'Solo moderadores' });
+    }
+    try {
+        const msg = await ForumMessage.findOne({ _id: req.params.id, communityId });
+        if (msg) {
+            msg.reports = [];
+            msg.markModified('reports');
+            await msg.save();
+            await logAction(communityId, req.user, 'CLEAR_FORUM_REPORTS', { author: msg.user, text: msg.text });
+        }
+        res.json({ success: true });
+    } catch (error) { res.status(500).json({ success: false }); }
+});
+
+app.get('/api/admin/reported-messages', authenticate, checkCommunity, async (req, res) => {
+    const { communityId } = req.query;
+    if (req.user.role !== 'admin' && req.user.role !== 'moderator' && req.user.role !== 'global_admin') {
+        return res.status(403).json({ success: false, message: 'Solo moderadores' });
+    }
+    try {
+        const messages = await ForumMessage.find({ 
+            communityId, 
+            reports: { $exists: true, $not: { $size: 0 } } 
+        }).sort({ timestamp: -1 });
+        res.json({ success: true, messages });
     } catch (error) { res.status(500).json({ success: false }); }
 });
 
