@@ -1124,6 +1124,13 @@ function App() {
     // Fetch houses from server
     safeFetch(`${import.meta.env.VITE_API_URL || ''}/api/houses${communityParam}`)
       .then(data => {
+        if (data.status === 401) {
+          console.warn('🔑 Token expired or invalid (401). Logging out...');
+          localStorage.removeItem('user');
+          localStorage.removeItem('token');
+          setUser(null);
+          return;
+        }
         if (data.success && data.houses) setHouses(data.houses);
       })
       .catch(err => console.error('Error fetching houses:', err));
@@ -1131,6 +1138,7 @@ function App() {
     // Fetch users for map labels
     safeFetch(`${import.meta.env.VITE_API_URL || ''}/api/users${communityParam}`)
       .then(data => {
+        if (data.status === 401) return; // Handled by first fetch
         if (data.success && data.users) setUsers(data.users);
       })
       .catch(err => console.error('Error fetching users:', err));
@@ -1138,6 +1146,7 @@ function App() {
     // Fetch community contacts
     safeFetch(`${import.meta.env.VITE_API_URL || ''}/api/contacts${communityParam}`)
       .then(data => {
+        if (data.status === 401) return;
         if (data.success && data.contacts) setCommunityContacts(data.contacts);
       })
       .catch(err => console.error('Error fetching contacts:', err));
@@ -1145,6 +1154,7 @@ function App() {
     // Fetch active SOS alerts
     safeFetch(`${import.meta.env.VITE_API_URL || ''}/api/sos/active${communityParam}`)
       .then(data => {
+        if (data.status === 401) return;
         if (data.success && data.alerts) setActiveAlerts(data.alerts);
       })
       .catch(err => console.error('Error fetching active SOS:', err));
@@ -1158,6 +1168,14 @@ function App() {
 
     const syncUser = async () => {
       const data = await safeFetch(`${import.meta.env.VITE_API_URL || ''}/api/users/${user.id}?communityId=${user.communityId}`)
+      if (data.status === 401) {
+        console.warn('🔑 Token expired or invalid during sync (401). logging out...');
+        localStorage.removeItem('user')
+        localStorage.removeItem('token')
+        setUser(null)
+        return
+      }
+
       if (data.success && data.user) {
         setUser(prev => {
           if (!prev) return data.user;
@@ -1501,7 +1519,7 @@ function App() {
     if (data.success) {
       console.log('✅ Casa guardada en servidor:', data.house)
       if (houseData.owner === user.phone) {
-        setUser(prev => ({ ...prev, houseNumber: houseData.number }))
+        setUser(prev => ({ ...prev, mapLabel: houseData.number }))
       }
     } else {
       alert('❌ Error al guardar la etiqueta: ' + (data.error || 'Error desconocido'))

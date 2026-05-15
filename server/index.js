@@ -2,8 +2,8 @@ require('dotenv').config();
 const crypto = require('crypto');
 // SECURITY FIX: Never use hardcoded fallbacks for JWT_SECRET.
 // If it's not provided, we generate a random one (forces logout on restart but keeps it secure)
-if (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'f98a2c3d5e7b1a4c6e8f0a2d3c4b5e6f7g8h9i0j1k2l3m4n5o6p7q8r9s0t1u2v3w4x5y6z7') {
-    console.warn("⚠️ WARNING: JWT_SECRET not found or is default. Generating a random secure secret...");
+if (!process.env.JWT_SECRET) {
+    console.warn("⚠️ WARNING: JWT_SECRET not found. Generating a random secure secret for this session...");
     process.env.JWT_SECRET = crypto.randomBytes(64).toString('hex');
 }
 process.env.ONESIGNAL_APP_ID = process.env.ONESIGNAL_APP_ID || '064d0c75-1f00-42ab-955b-c369d44a114e';
@@ -214,7 +214,8 @@ app.post('/api/login', loginLimiter, async (req, res) => {
                     telegramBotUsername: community?.telegramBotUsername,
                     communityCenter: community?.center,
                     email: user.email,
-                    telegramChatId: user.telegramChatId
+                    telegramChatId: user.telegramChatId,
+                    mapLabel: user.mapLabel
                 }
             });
         } else {
