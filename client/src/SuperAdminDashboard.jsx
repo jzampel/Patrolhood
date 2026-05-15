@@ -465,10 +465,13 @@ const SuperAdminDashboard = ({ user, initialTab = 0, onSwitchCommunity, activeAl
                             logsLoading ? <p>Cargando registros...</p> : (
                                 logs.length === 0 ? <p>Sin registros.</p> :
                                     logs.map(l => (
-                                        <div key={l._id} style={{ ...styles.card, borderLeft: l.action === 'SOS_START' ? '4px solid #ef4444' : l.action === 'SOS_STOP' ? '4px solid #22c55e' : '4px solid #fbbf24' }}>
+                                        <div key={l._id} style={{ ...styles.card, borderLeft: l.action === 'SOS_START' ? '4px solid #ef4444' : l.action === 'SOS_STOP' ? '4px solid #22c55e' : l.action === 'BAN_USER' ? '4px solid #f59e0b' : l.action === 'UNBAN_USER' ? '4px solid #22c55e' : '4px solid #fbbf24' }}>
                                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                                                <div style={{ fontWeight: 'bold', color: l.action === 'SOS_START' ? '#f87171' : l.action === 'SOS_STOP' ? '#4ade80' : '#fbbf24' }}>
-                                                    {l.action === 'SOS_START' ? '🔴 ALERTA INICIADA' : l.action === 'SOS_STOP' ? '🟢 ALERTA FINALIZADA' : l.action}
+                                                <div style={{ fontWeight: 'bold', color: l.action === 'SOS_START' ? '#f87171' : l.action === 'SOS_STOP' ? '#4ade80' : l.action === 'BAN_USER' ? '#f59e0b' : l.action === 'UNBAN_USER' ? '#22c55e' : '#fbbf24' }}>
+                                                    {l.action === 'SOS_START' ? '🔴 ALERTA INICIADA' : 
+                                                     l.action === 'SOS_STOP' ? '🟢 ALERTA FINALIZADA' : 
+                                                     l.action === 'BAN_USER' ? '🔨 USUARIO SUSPENDIDO' : 
+                                                     l.action === 'UNBAN_USER' ? '✅ USUARIO INDULTADO' : l.action}
                                                 </div>
                                                 <div style={{ fontSize: '0.75em', color: '#64748b' }}>{new Date(l.timestamp).toLocaleString()}</div>
                                             </div>
@@ -492,7 +495,19 @@ const SuperAdminDashboard = ({ user, initialTab = 0, onSwitchCommunity, activeAl
                                                             <div>📅 <strong>Fin:</strong> {new Date(l.details.endedAt).toLocaleTimeString()}</div>
                                                         </>
                                                     )}
-                                                    {!['SOS_START', 'SOS_STOP'].includes(l.action) && (
+                                                    {l.action === 'BAN_USER' && (
+                                                        <>
+                                                            <div>👤 <strong>Usuario:</strong> {l.details.target}</div>
+                                                            <div>📝 <strong>Motivo:</strong> {l.details.reason}</div>
+                                                            <div>⏳ <strong>Duración:</strong> {l.details.days ? `${l.details.days} días` : 'Permanente'}</div>
+                                                        </>
+                                                    )}
+                                                    {l.action === 'UNBAN_USER' && (
+                                                        <>
+                                                            <div>👤 <strong>Usuario:</strong> {l.details.target}</div>
+                                                        </>
+                                                    )}
+                                                    {!['SOS_START', 'SOS_STOP', 'BAN_USER', 'UNBAN_USER'].includes(l.action) && (
                                                         <pre style={{ margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontSize: '0.8em' }}>{JSON.stringify(l.details, null, 2)}</pre>
                                                     )}
                                                 </div>

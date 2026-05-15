@@ -132,8 +132,11 @@ function AdminDashboard({ user }) {
                                     logs.map(log => (
                                         <div key={log._id} style={{ ...styles.card, borderLeft: log.action === 'SOS_START' ? '4px solid #ef4444' : log.action === 'SOS_STOP' ? '4px solid #22c55e' : '4px solid #fbbf24', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                                             <div style={{ flex: 1 }}>
-                                                <div style={{ fontWeight: 'bold', color: log.action === 'SOS_START' ? '#f87171' : log.action === 'SOS_STOP' ? '#4ade80' : '#fbbf24' }}>
-                                                    {log.action === 'SOS_START' ? '🔴 ALERTA INICIADA' : log.action === 'SOS_STOP' ? '🟢 ALERTA FINALIZADA' : log.action.replace(/_/g, ' ')}
+                                                <div style={{ fontWeight: 'bold', color: log.action === 'SOS_START' ? '#f87171' : log.action === 'SOS_STOP' ? '#4ade80' : log.action === 'BAN_USER' ? '#f59e0b' : log.action === 'UNBAN_USER' ? '#22c55e' : '#fbbf24' }}>
+                                                    {log.action === 'SOS_START' ? '🔴 ALERTA INICIADA' : 
+                                                     log.action === 'SOS_STOP' ? '🟢 ALERTA FINALIZADA' : 
+                                                     log.action === 'BAN_USER' ? '🔨 USUARIO SUSPENDIDO' : 
+                                                     log.action === 'UNBAN_USER' ? '✅ USUARIO INDULTADO' : log.action.replace(/_/g, ' ')}
                                                 </div>
                                                 <div style={{ fontSize: '0.85em', color: '#94a3b8', margin: '4px 0' }}>Por: <strong>{log.adminName}</strong></div>
                                                 
@@ -152,7 +155,19 @@ function AdminDashboard({ user }) {
                                                                 <div>📅 Fin: {new Date(log.details.endedAt).toLocaleTimeString()}</div>
                                                             </>
                                                         )}
-                                                        {!['SOS_START', 'SOS_STOP'].includes(log.action) && (
+                                                        {log.action === 'BAN_USER' && (
+                                                            <>
+                                                                <div>👤 Usuario: {log.details.target}</div>
+                                                                <div>📝 Motivo: {log.details.reason}</div>
+                                                                <div>⏳ Duración: {log.details.days ? `${log.details.days} días` : 'Permanente'}</div>
+                                                            </>
+                                                        )}
+                                                        {log.action === 'UNBAN_USER' && (
+                                                            <>
+                                                                <div>👤 Usuario: {log.details.target}</div>
+                                                            </>
+                                                        )}
+                                                        {!['SOS_START', 'SOS_STOP', 'BAN_USER', 'UNBAN_USER'].includes(log.action) && (
                                                             <pre style={{ margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontSize: '0.9em', background: '#1e293b', padding: '6px', borderRadius: '4px' }}>
                                                                 {JSON.stringify(log.details, null, 2)}
                                                             </pre>
