@@ -224,7 +224,7 @@ function AdminDashboard({ user }) {
                                         </div>
                                         <div>
                                             {m.banned
-                                                ? <button style={styles.btn('#22c55e')} onClick={() => unbanUser(m.id)}>✅ Desbanear</button>
+                                                ? <button style={styles.btn('#22c55e')} onClick={() => unbanUser(m.id)}>✅ Indultar</button>
                                                 : <button style={styles.btn('#ef4444')} onClick={() => setBanModal({ userId: m.id, name: `${m.name} ${m.surname}` })}>🔨 Banear</button>
                                             }
                                         </div>

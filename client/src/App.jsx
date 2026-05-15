@@ -524,7 +524,7 @@ function Forum({ user, allCommunities, onSwitchCommunity }) {
     e.preventDefault()
     if (!newMessage.trim() && !imagePreview) return
 
-    await safeFetch(`${import.meta.env.VITE_API_URL || ''}/api/forum`, {
+    const data = await safeFetch(`${import.meta.env.VITE_API_URL || ''}/api/forum`, {
       method: 'POST',
       body: JSON.stringify({
         channel: activeChannel,
@@ -535,6 +535,12 @@ function Forum({ user, allCommunities, onSwitchCommunity }) {
         image: imagePreview
       })
     })
+    
+    if (data.status === 403) {
+        alert(data.error || data.message || 'No puedes enviar mensajes.');
+        return;
+    }
+    
     setNewMessage('')
     setImagePreview(null)
   }

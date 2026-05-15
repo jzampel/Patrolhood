@@ -649,6 +649,45 @@ app.put('/api/users/:id', authenticate, checkCommunity, async (req, res) => {
     } catch (error) { res.status(500).json({ success: false }); }
 });
 
+app.post('/api/users/:id/ban', authenticate, checkCommunity, async (req, res) => {
+    if (req.user.role !== 'admin' && req.user.role !== 'moderator' && req.user.role !== 'global_admin') {
+        return res.status(403).json({ success: false, message: 'No autorizado' });
+    }
+    const { days, reason } = req.body;
+    try {
+        const user = await User.findOne({ id: req.params.id, communityId: req.user.communityId === 'global' ? undefined : req.user.communityId });
+        if (!user) return res.status(404).json({ success: false });
+        
+        user.banned = true;
+        user.banReason = reason || 'Incumplimiento de normas';
+        if (days) {
+            user.bannedUntil = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+        } else {
+            user.bannedUntil = null; // Permanent
+        }
+        await user.save();
+        await logAction(req.body.communityId, req.user, 'BAN_USER', { target: user.name, reason, days });
+        res.json({ success: true });
+    } catch (error) { res.status(500).json({ success: false }); }
+});
+
+app.post('/api/users/:id/unban', authenticate, checkCommunity, async (req, res) => {
+    if (req.user.role !== 'admin' && req.user.role !== 'moderator' && req.user.role !== 'global_admin') {
+        return res.status(403).json({ success: false, message: 'No autorizado' });
+    }
+    try {
+        const user = await User.findOne({ id: req.params.id, communityId: req.user.communityId === 'global' ? undefined : req.user.communityId });
+        if (!user) return res.status(404).json({ success: false });
+        
+        user.banned = false;
+        user.bannedUntil = null;
+        user.banReason = null;
+        await user.save();
+        await logAction(req.body.communityId, req.user, 'UNBAN_USER', { target: user.name });
+        res.json({ success: true });
+    } catch (error) { res.status(500).json({ success: false }); }
+});
+
 app.get('/api/houses', authenticate, checkCommunity, async (req, res) => {
     const { communityId } = req.query;
     try {
