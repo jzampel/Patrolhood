@@ -1612,3 +1612,9 @@ body {
     opacity: 0.8;
   }
 }
+
+/* TACTICAL DARK SATELLITE MAP TILES */
+.leaflet-tile {
+  filter: brightness(0.45) contrast(1.25) saturate(0.8);
+  transition: filter 0.3s ease;
+}

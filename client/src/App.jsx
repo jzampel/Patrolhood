@@ -2111,9 +2111,9 @@ function App() {
               ref={mapRef}
             >
               <TileLayer
-                url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-                attribution='&copy; OpenStreetMap contributors &copy; CARTO'
-                maxZoom={20}
+                url="https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}"
+                attribution='&copy; Google'
+                maxZoom={22}
               />
               <AutoCenter houses={houses} userMapLabel={user.mapLabel} communityCenter={user.communityCenter} user={user} />
               <MapFocusController focusLocation={mapFocusPosition} />
