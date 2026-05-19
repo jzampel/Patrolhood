@@ -22,12 +22,6 @@ const ActiveSOSSchema = new mongoose.Schema({
             attempts: { type: Number, default: 0 },
             lastError: String,
             lastAt: Date
-        },
-        telegram: {
-            status: { type: String, enum: ['PENDING', 'SENT', 'FAILED'], default: 'PENDING' },
-            attempts: { type: Number, default: 0 },
-            lastError: String,
-            lastAt: Date
         }
     },
     timestamp: { type: Date, default: Date.now, index: { expires: '30d' } }, // Physical deletion after 30 days

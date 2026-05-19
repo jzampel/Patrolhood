@@ -15,7 +15,6 @@ const cors = require('cors');
 const path = require('path');
 const jwt = require('jsonwebtoken');
 const mongoose = require('mongoose');
-const TelegramBot = require('node-telegram-bot-api');
 const { createAdapter } = require('@socket.io/redis-adapter');
 const { createClient } = require('redis');
 const { Queue, Worker } = require('bullmq');
@@ -83,8 +82,7 @@ app.use(express.static(path.join(__dirname, '../client/dist')));
 
 // --- SHARED MODULES ---
 const connectDB = require('./shared/db');
-const { pubClient, subClient, queueConnection, acquireLock, releaseLock, isRedisAvailable } = require('./shared/redis');
-const { startBot, sendAlert: sendTelegramAlert, initAllLocal: initAllBots } = require('./services/telegram');
+const { pubClient, subClient, queueConnection, acquireLock, releaseLock, isRedisConnected } = require('./shared/redis');
 const { sendNotification } = require('./services/onesignal');
 
 const server = http.createServer(app);
@@ -92,7 +90,7 @@ const io = new Server(server, {
     cors: { origin: "*", methods: ["GET", "POST"] }
 });
 
-if (isRedisAvailable) {
+if (pubClient && subClient) {
     io.adapter(createAdapter(pubClient, subClient));
 }
 
@@ -118,10 +116,7 @@ connectDB().then(() => {
     seedSuperAdmin();
 });
 
-const sosQueue = isRedisAvailable ? new Queue('SOS_QUEUE', { connection: queueConnection }) : null;
-
-// --- TELEGRAM INIT ---
-initAllBots();
+const sosQueue = queueConnection ? new Queue('SOS_QUEUE', { connection: queueConnection }) : null;
 
 // --- AUTH MIDDLEWARE ---
 const authenticate = (req, res, next) => {
@@ -207,10 +202,8 @@ app.post('/api/login', loginLimiter, async (req, res) => {
                     role: user.role,
                     communityId: user.communityId,
                     communityName: user.communityName,
-                    telegramBotUsername: community?.telegramBotUsername,
                     communityCenter: community?.center,
                     email: user.email,
-                    telegramChatId: user.telegramChatId,
                     mapLabel: user.mapLabel
                 }
             });
@@ -224,7 +217,7 @@ app.post('/api/login', loginLimiter, async (req, res) => {
 });
 
 app.post('/api/register', loginLimiter, async (req, res) => {
-    const { name, surname, address, phone, email, password, communityName, inviteCode, role, telegramBotToken } = req.body;
+    const { name, surname, address, phone, email, password, communityName, inviteCode, role } = req.body;
     try {
         const existingUser = await User.findOne({ $or: [{ phone }, { email }] });
         if (existingUser) return res.status(400).json({ success: false, message: 'El teléfono o email ya está registrado' });
@@ -239,10 +232,9 @@ app.post('/api/register', loginLimiter, async (req, res) => {
             const newUser = new User({ id: Date.now().toString(), name, surname, address, phone, email, password: hashedPassword, communityName, communityId, role });
             await newUser.save();
 
-            const newCommunity = new Community({ id: communityId, name: communityName, telegramBotToken, adminId: newUser.id });
+            const newCommunity = new Community({ id: communityId, name: communityName, adminId: newUser.id });
             await newCommunity.save();
 
-            if (telegramBotToken) startCommunityBot(communityName, telegramBotToken);
             res.json({ success: true, user: newUser });
         } else {
             const invite = await Invite.findOne({ code: inviteCode, used: false });
@@ -259,7 +251,8 @@ app.post('/api/register', loginLimiter, async (req, res) => {
 
             // SECURITY FIX: Hash password
             const hashedPassword = await bcrypt.hash(String(password), 10);
-            const newUser = new User({ id: Date.now().toString(), name, surname, address, phone, email, password: hashedPassword, communityName, communityId: community.id, role });
+            // SECURITY FIX: Use the role specified in the invite, not the role parameter from user request (prevents privilege escalation)
+            const newUser = new User({ id: Date.now().toString(), name, surname, address, phone, email, password: hashedPassword, communityName, communityId: community.id, role: invite.role });
             await newUser.save();
 
             const tokenPayload = {
@@ -278,7 +271,7 @@ app.post('/api/register', loginLimiter, async (req, res) => {
 app.post('/api/admin/invite', authenticate, async (req, res) => {
     if (req.user.role !== 'admin' && req.user.role !== 'global_admin') return res.status(403).json({ success: false, message: 'Solo administradores' });
     const { role, communityId, communityName } = req.body;
-    if (req.user.communityId !== communityId) return res.status(403).json({ success: false, message: 'Mismatch comunidad' });
+    if (req.user.role !== 'global_admin' && req.user.communityId !== communityId) return res.status(403).json({ success: false, message: 'Mismatch comunidad' });
     const code = Math.random().toString(36).substring(2, 8).toUpperCase();
     try {
         await Invite.create({ code, role, communityId, communityName });
@@ -305,30 +298,7 @@ app.post('/api/community/center', authenticate, checkCommunity, async (req, res)
         await community.save();
         await logAction(communityId, req.user, 'UPDATE_MAP_CENTER', { center });
         res.json({ success: true, center: community.center });
-    } catch (error) { res.status(500).json({ success: false }); }
-});
-
-// Update community telegram bot token
-app.post('/api/community/bot-token', authenticate, checkCommunity, async (req, res) => {
-    const { communityId, telegramBotToken, adminId } = req.body;
-    try {
-        const community = await Community.findOne({ id: communityId, adminId });
-        if (!community) return res.status(403).json({ success: false, message: 'No autorizado' });
-
-        community.telegramBotToken = telegramBotToken;
-        await community.save();
-
-        await logAction(communityId, req.user, 'UPDATE_BOT_TOKEN', { hasToken: !!telegramBotToken });
-
-        if (telegramBotToken) {
-            startCommunityBot(community.name, telegramBotToken);
-        }
-
-        res.json({ success: true, message: 'Token de Telegram actualizado' });
-    } catch (error) {
-        console.error('Error updating bot token:', error);
-        res.status(500).json({ success: false, message: error.message });
-    }
+    } catch (error) { res.status(500).json({ success: false, message: error.message }); }
 });
 
 app.get('/api/admin/audit-logs', authenticate, checkCommunity, async (req, res) => {
@@ -489,12 +459,11 @@ app.delete('/api/superadmin/users/:id', authenticate, async (req, res) => {
 // Create Community (SuperAdmin)
 app.post('/api/superadmin/communities', authenticate, async (req, res) => {
     if (req.user.role !== 'global_admin') return res.status(403).json({ success: false });
-    const { name, telegramBotToken, center } = req.body;
+    const { name, center } = req.body;
     try {
         const newCommunity = new Community({
             id: Date.now().toString(),
             name,
-            telegramBotToken,
             center: center || [40.4168, -3.7038]
         });
         await newCommunity.save();
@@ -614,16 +583,16 @@ app.get('/api/users', authenticate, checkCommunity, async (req, res) => {
 
 app.get('/api/users/:id', authenticate, checkCommunity, async (req, res) => {
     try {
-        const user = await User.findOne({ id: req.params.id }, 'id name surname address phone role mapLabel telegramChatId communityId communityName publicPhone quietHours');
+        const user = await User.findOne({ id: req.params.id }, 'id name surname address phone role mapLabel communityId communityName publicPhone quietHours');
         if (user) {
             const community = await Community.findOne({ id: user.communityId });
-            res.json({ success: true, user: { ...user.toObject(), telegramBotUsername: community?.telegramBotUsername, communityCenter: community?.center } });
+            res.json({ success: true, user: { ...user.toObject(), communityCenter: community?.center } });
         } else res.status(404).json({ success: false });
     } catch (error) { res.status(500).json({ success: false }); }
 });
 
 app.put('/api/users/:id', authenticate, checkCommunity, async (req, res) => {
-    const { name, surname, phone, email, address, houseNumber, telegramChatId, quietHours, publicPhone } = req.body;
+    const { name, surname, phone, email, address, houseNumber, quietHours, publicPhone } = req.body;
     try {
         const user = await User.findOne({ id: req.params.id });
         if (!user) return res.status(404).json({ success: false });
@@ -632,7 +601,6 @@ app.put('/api/users/:id', authenticate, checkCommunity, async (req, res) => {
         if (phone) user.phone = phone;
         if (email) user.email = email;
         if (address) user.address = address;
-        if (telegramChatId !== undefined) user.telegramChatId = telegramChatId;
         if (houseNumber !== undefined) user.mapLabel = houseNumber;
         if (quietHours !== undefined) user.quietHours = quietHours;
         if (publicPhone !== undefined) user.publicPhone = publicPhone;
@@ -840,37 +808,30 @@ app.post('/api/forum', authenticate, checkCommunity, async (req, res) => {
         // Sockets (Local + Redis Bridge)
         io.to(communityId).emit('forum_message', newMessage);
 
-        // Telegram Notification (Async / Resilient)
+        // OneSignal Notification (Queue if available, else direct)
         if (channel !== 'ALERTAS') {
             const forumMsgText = text ? text : (image ? "📷 [Imagen]" : "");
-            Community.findOne({ id: communityId }).then(community => {
-                if (community) {
-                    sendTelegramAlert(community.name, `💬 *Foro [${channel}]:* ${user}: ${forumMsgText}`);
+            const title = `💬 Foro [${channel}]`;
+            const body = `${user}: ${forumMsgText.substring(0, 100)}`;
+            const { sendNotification } = require('./services/onesignal');
 
-                    // OneSignal Notification (Queue if available, else direct)
-                    const title = `💬 Foro [${channel}]`;
-                    const body = `${user}: ${forumMsgText.substring(0, 100)}`;
-                    const { sendNotification } = require('./services/onesignal');
-
-                    if (isRedisAvailable && sosQueue) {
-                        sosQueue.add('NOTIFY_FORUM', { title, body, communityId, senderId: req.user.id })
-                            .catch(e => console.error('Forum OneSignal queue error:', e));
-                    } else {
-                        // Local/Monolithic fallback
-                        User.find({ communityId, id: { $ne: req.user.id } }, 'id').then(users => {
-                            const userIds = users.map(u => String(u.id));
-                            if (userIds.length > 0) {
-                                sendNotification({
-                                    title,
-                                    body,
-                                    userIds,
-                                    data: { type: 'FORUM', communityId: String(communityId) }
-                                }).catch(e => console.error('Local forum notification error:', e));
-                            }
-                        }).catch(e => console.error('Local forum users lookup error:', e));
+            if (isRedisConnected() && sosQueue) {
+                sosQueue.add('NOTIFY_FORUM', { title, body, communityId, senderId: req.user.id })
+                    .catch(e => console.error('Forum OneSignal queue error:', e));
+            } else {
+                // Local/Monolithic fallback
+                User.find({ communityId, id: { $ne: req.user.id } }, 'id').then(users => {
+                    const userIds = users.map(u => String(u.id));
+                    if (userIds.length > 0) {
+                        sendNotification({
+                            title,
+                            body,
+                            userIds,
+                            data: { type: 'FORUM', communityId: String(communityId) }
+                        }).catch(e => console.error('Local forum notification error:', e));
                     }
-                }
-            }).catch(e => console.error('Forum notification error:', e));
+                }).catch(e => console.error('Local forum users lookup error:', e));
+            }
         }
 
         res.json({ success: true, message: newMessage });
@@ -962,17 +923,33 @@ app.get('/api/contacts', authenticate, checkCommunity, async (req, res) => {
 });
 
 app.post('/api/contacts', authenticate, checkCommunity, async (req, res) => {
+    if (req.user.role !== 'admin' && req.user.role !== 'moderator' && req.user.role !== 'global_admin') {
+        return res.status(403).json({ success: false, message: 'No autorizado' });
+    }
     const { communityId, communityName, name, phone, icon } = req.body;
     try {
-        const contact = new EmergencyContact({ communityName, name, phone, icon });
+        // SECURITY FIX: Copy communityId to EmergencyContact constructor
+        const contact = new EmergencyContact({ communityId, communityName, name, phone, icon });
         await contact.save();
         res.json({ success: true, contact });
-    } catch (error) { res.status(500).json({ success: false }); }
+    } catch (error) { 
+        console.error('Error creating contact:', error);
+        res.status(500).json({ success: false }); 
+    }
 });
 
 app.delete('/api/contacts/:id', authenticate, checkCommunity, async (req, res) => {
+    if (req.user.role !== 'admin' && req.user.role !== 'moderator' && req.user.role !== 'global_admin') {
+        return res.status(403).json({ success: false, message: 'No autorizado' });
+    }
     try {
-        await EmergencyContact.findByIdAndDelete(req.params.id);
+        // SECURITY & MULTI-TENANCY FIX: Ensure the contact belongs to the user's community unless they are global_admin
+        const query = { _id: req.params.id };
+        if (req.user.role !== 'global_admin') {
+            query.communityId = req.user.communityId;
+        }
+        const contact = await EmergencyContact.findOneAndDelete(query);
+        if (!contact) return res.status(404).json({ success: false, message: 'Contacto no encontrado' });
         res.json({ success: true });
     } catch (error) { res.status(500).json({ success: false }); }
 });
@@ -987,7 +964,7 @@ app.post('/api/sos', authenticate, checkCommunity, sosLimiter, async (req, res) 
     const dedupeKey = `dedupe:sos:${communityId}:${houseNumber}`;
     try {
         let isDuplicate = null;
-        if (isRedisAvailable) {
+        if (isRedisConnected()) {
             try {
                 isDuplicate = await pubClient.get(dedupeKey);
             } catch (redisErr) {
@@ -1032,7 +1009,7 @@ app.post('/api/sos', authenticate, checkCommunity, sosLimiter, async (req, res) 
             userName
         });
 
-        if (isRedisAvailable) {
+        if (isRedisConnected()) {
             try {
                 await pubClient.set(dedupeKey, alert._id.toString(), { EX: 120 });
             } catch (redisErr) {
@@ -1051,7 +1028,7 @@ app.post('/api/sos', authenticate, checkCommunity, sosLimiter, async (req, res) 
         io.to(communityId).emit('emergency_alert', { ...req.body, alertId: alert._id });
 
         // 4. DELEGATE Jobs
-        if (isRedisAvailable && sosQueue) {
+        if (isRedisConnected() && sosQueue) {
             try {
                 const jobOpts = {
                     attempts: 5,
@@ -1059,7 +1036,6 @@ app.post('/api/sos', authenticate, checkCommunity, sosLimiter, async (req, res) 
                     removeOnComplete: true
                 };
                 await sosQueue.add('NOTIFY_ONESIGNAL', { alertId: alert._id }, { jobId: `os:${alert._id}`, ...jobOpts });
-                await sosQueue.add('NOTIFY_TELEGRAM', { alertId: alert._id }, { jobId: `tg:${alert._id}`, ...jobOpts });
                 await sosQueue.add('STATUS_UPDATE', { alertId: alert._id, nextStatus: 'DISPATCHED' }, { jobId: `status:${alert._id}`, ...jobOpts });
                 return res.json({ success: true, alertId: alert._id });
             } catch (queueErr) {
@@ -1103,16 +1079,6 @@ app.post('/api/sos', authenticate, checkCommunity, sosLimiter, async (req, res) 
         }).then(alertMsg => io.to(alert.communityId).emit('forum_message', alertMsg))
             .catch(e => console.error('Local forum alert error:', e));
 
-        const community = await Community.findOne({ id: communityId });
-        if (community && community.telegramBotToken) {
-            const sosText = `🚨 *¡ALERTA VECINAL!* 🚨\n\n` +
-                `🔴 *Tipo:* ${alert.emergencyTypeLabel.toUpperCase()}\n` +
-                `🏠 *Casa:* #${alert.houseNumber}\n` +
-                `👤 *Vecino:* ${alert.userName}\n\n` +
-                `⚠️ _Atención inmediata requerida_`;
-            sendTelegramAlert(community.name, sosText);
-        }
-
         res.json({ success: true, alertId: alert._id });
     } catch (error) {
         console.error('Error in POST /api/sos (Producer):', error);
@@ -1136,7 +1102,7 @@ app.get('/api/sos/active', authenticate, checkCommunity, async (req, res) => {
 
 // --- BULLMQ WORKER (Only if Redis available) ---
 let sosWorker = null;
-if (isRedisAvailable) {
+if (queueConnection) {
     sosWorker = new Worker('SOS_QUEUE', async job => {
         const { alertId, nextStatus } = job.data;
         const alert = await ActiveSOS.findById(alertId);
@@ -1221,32 +1187,7 @@ if (isRedisAvailable) {
             }
         }
 
-        if (job.name === 'NOTIFY_TELEGRAM') {
-            if (alert.channels?.telegram?.status === 'SENT') return;
 
-            const community = await Community.findOne({ id: alert.communityId });
-            if (community) {
-                const sosText = `🚨 *¡ALERTA VECINAL!* 🚨\n\n` +
-                    `🔴 *Tipo:* ${alert.emergencyTypeLabel.toUpperCase()}\n` +
-                    `🏠 *Casa:* #${alert.houseNumber}\n` +
-                    `👤 *Vecino:* ${alert.userName}\n\n` +
-                    `⚠️ _Atención inmediata requerida_`;
-                try {
-                    await sendTelegramAlert(community.name, sosText);
-                    await ActiveSOS.findByIdAndUpdate(alertId, {
-                        'channels.telegram.status': 'SENT',
-                        'channels.telegram.lastAt': new Date()
-                    });
-                } catch (e) {
-                    console.error('Telegram Worker Error:', e);
-                    await ActiveSOS.findByIdAndUpdate(alertId, {
-                        'channels.telegram.status': 'FAILED',
-                        'channels.telegram.lastError': e.message,
-                        $inc: { 'channels.telegram.attempts': 1 }
-                    });
-                }
-            }
-        }
 
         if (job.name === 'CLEANUP_EXPIRED') {
             const expiredAlerts = await ActiveSOS.find({
@@ -1262,7 +1203,7 @@ if (isRedisAvailable) {
                     await ActiveSOS.findByIdAndUpdate(alert._id, { status: 'EXPIRED', isActive: false });
                     activeAlerts.delete(alert.communityId);
                     const dedupeKey = `dedupe:sos:${alert.communityId}:${alert.houseNumber}`;
-                    if (isRedisAvailable) await pubClient.del(dedupeKey);
+                    if (isRedisConnected()) await pubClient.del(dedupeKey);
                     io.to(alert.communityId).emit('stop_alert'); // Or emit specific EXPIRED event
                     console.log(`⏰ [Cleanup] Expired alert ${alert._id}`);
                 } finally {
@@ -1314,7 +1255,7 @@ app.post('/api/sos/stop', authenticate, checkCommunity, async (req, res) => {
 
         // 2. Clear Redis Dedupe Key
         const dedupeKey = `dedupe:sos:${communityId}:${alert.houseNumber}`;
-        if (isRedisAvailable) {
+        if (isRedisConnected()) {
             await pubClient.del(dedupeKey);
         } else {
             localDedupeCache.delete(dedupeKey);
@@ -1371,26 +1312,6 @@ io.on('connection', (socket) => {
             if (activeAlerts.has(communityId)) {
                 socket.emit('emergency_alert', activeAlerts.get(communityId));
             }
-        }
-    });
-
-    // Retro-compatibility with older clients (will be phased out)
-    socket.on('emergency_alert', async (data) => {
-        console.log('⚠️ Legacy socket SOS received. Redirecting to API logic...');
-        // We could just call the internal logic here or ignore it. 
-        // For survival during migration, let's keep it but ideally clients use POST.
-        // Actually, let's just emit it for now but the POST flow is the "new truth".
-        activeAlerts.set(data.communityId, data);
-        io.to(data.communityId).emit('emergency_alert', data);
-    });
-
-    socket.on('stop_alert', (data) => {
-        const { communityId, userId, role } = data;
-        const current = activeAlerts.get(communityId);
-        if (current && (role === 'admin' || userId === current.userId)) {
-            activeAlerts.delete(communityId);
-            io.to(communityId).emit('stop_alert');
-            ActiveSOS.updateMany({ communityId, isActive: true }, { isActive: false }).exec();
         }
     });
 });

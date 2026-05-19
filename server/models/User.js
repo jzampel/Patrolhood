@@ -13,7 +13,6 @@ const UserSchema = new mongoose.Schema({
     communityName: { type: String, required: true }, // Keep for legacy/display
     mapLabel: { type: String }, // House Number linked to map
     avatar: { type: String }, // For future use
-    telegramChatId: { type: String }, // Telegram Chat ID for notifications
     // Moderation
     banned: { type: Boolean, default: false },
     bannedUntil: { type: Date, default: null },

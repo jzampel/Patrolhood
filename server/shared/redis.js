@@ -51,11 +51,15 @@ const releaseLock = async (key) => {
     } catch (e) { }
 };
 
+const isRedisConnected = () => {
+    return isRedisAvailable;
+};
+
 module.exports = {
     pubClient,
     subClient,
     queueConnection,
-    isRedisAvailable,
+    isRedisConnected,
     acquireLock,
     releaseLock
 };

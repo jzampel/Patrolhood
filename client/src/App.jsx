@@ -169,7 +169,7 @@ function AuthOverlay({ onLogin, deletedMsg }) {
   const [formData, setFormData] = useState({
     username: '', password: '',
     name: '', surname: '', address: '', phone: '', email: '', confirmPassword: '', inviteCode: '',
-    communityName: '', role: 'user', telegramBotToken: '' 
+    communityName: '', role: 'user' 
   })
   const [error, setError] = useState('')
   const [showLegal, setShowLegal] = useState(false)
@@ -891,11 +891,8 @@ function App() {
   const [offlineCount, setOfflineCount] = useState(0)
   const [allCommunities, setAllCommunities] = useState([]) // Listado de comunidades para selectores
 
-  // PWA Install Logic
   const [deferredPrompt, setDeferredPrompt] = useState(null)
   const [showInstallBtn, setShowInstallBtn] = useState(false)
-  const [telegramBotTokenInput, setTelegramBotTokenInput] = useState('')
-  const [showTelegramHelp, setShowTelegramHelp] = useState(false)
   const [osDebugInfo, setOsDebugInfo] = useState({ subscribed: false, externalId: null })
 
   const handleInstallClick = async () => {
@@ -1006,21 +1003,7 @@ function App() {
     }
   }
 
-  const deactivateTelegram = async () => {
-    if (!window.confirm('¿Quieres desactivar las alertas por Telegram?')) return
 
-    const data = await safeFetch(`${import.meta.env.VITE_API_URL || ''}/api/users/${user.id}`, {
-      method: 'PUT',
-      body: JSON.stringify({ telegramChatId: null })
-    })
-
-    if (data.success) {
-      setUser(prev => ({ ...prev, telegramChatId: null }))
-      alert('Alertas desactivadas correctamente.')
-    } else {
-      alert('Error al desactivar alertas: ' + data.error)
-    }
-  }
 
   const forceHardRefresh = async () => {
     if (!window.confirm('¿Quieres forzar la limpieza de caché? Se cerrará la sesión y se reiniciará la app para cargar las últimas actualizaciones.')) return
@@ -1169,7 +1152,7 @@ function App() {
   }, [user?.communityId]); // Re-fetch all when community changes
 
 
-  // Auto-sync user profile (to detect Telegram link etc)
+  // Auto-sync user profile
   useEffect(() => {
     if (!user?.id) return
 
@@ -1477,21 +1460,7 @@ function App() {
     }
   }
 
-  const updateTelegramBotToken = async () => {
-    if (!telegramBotTokenInput) return alert('Por favor, introduce un token válido.');
-    if (!window.confirm('¿Quieres actualizar el Token del bot de Telegram para esta comunidad?')) return;
 
-    const data = await safeFetch(`${import.meta.env.VITE_API_URL || ''}/api/community/bot-token`, {
-      method: 'POST',
-      body: JSON.stringify({ communityId: user.communityId, telegramBotToken: telegramBotTokenInput, adminId: user.id })
-    });
-    if (data.success) {
-      alert('✅ Token actualizado correctamente. El bot se está reiniciando.');
-      setTelegramBotTokenInput('');
-    } else {
-      alert('❌ Error al actualizar el token: ' + (data.error || 'Error desconocido'));
-    }
-  }
 
   const selfDeleteAccount = async (password) => {
     if (!password) return;
@@ -1754,36 +1723,7 @@ function App() {
           </div>
         </div>
 
-        {/* Telegram Connect Button - Only show if NOT connected and NOT global_admin */}
-        {/* {!user.telegramChatId && user.role !== 'global_admin' && (
-          <div style={{ padding: '10px 20px' }}>
-            {user.telegramBotUsername ? (
-              <a
-                href={`https://t.me/${user.telegramBotUsername}?start=${user.id}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
-                  background: '#0088cc',
-                  color: 'white', padding: '10px', borderRadius: '8px',
-                  textDecoration: 'none', fontWeight: 'bold', fontSize: '0.9em'
-                }}
-              >
-                <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
-                  <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.638z" />
-                </svg>
-                Activar Alertas (Telegram)
-              </a>
-            ) : (
-              <div style={{ background: '#334155', color: '#94a3b8', padding: '10px', borderRadius: '8px', fontSize: '0.8em', textAlign: 'center' }}>
-                🤖 Bot de Telegram no configurado para esta comunidad.
-              </div>
-            )}
-            <p style={{ fontSize: '0.7em', color: '#94a3b8', textAlign: 'center', marginTop: '5px' }}>
-              Únete al bot para recibir alertas fiables en tu móvil.
-            </p>
-          </div>
-        )} */}
+
 
         {/* FCM Native Notifications Section */}
         {user.role !== 'global_admin' && (
@@ -1803,7 +1743,7 @@ function App() {
                   🔔 Activar Notificaciones App
                 </button>
                 <p style={{ fontSize: '0.7em', color: '#94a3b8', textAlign: 'center', marginTop: '5px', marginBottom: '12px' }}>
-                  Recibe alertas directas sin necesidad de Telegram.
+                  Recibe alertas directas y notificaciones push al instante.
                 </p>
               </>
             )}
@@ -2041,19 +1981,7 @@ function App() {
           </div>
         )}
 
-        {/* {user.telegramChatId && user.role !== 'global_admin' && (
-          <div style={{ textAlign: 'center', marginBottom: '15px' }}>
-            <button
-              onClick={deactivateTelegram}
-              style={{
-                background: 'none', border: 'none', color: '#64748b',
-                textDecoration: 'underline', fontSize: '0.8em', cursor: 'pointer'
-              }}
-            >
-              Desactivar alertas (Telegram)
-            </button>
-          </div>
-        )} */}
+
 
         {!notificationsEnabled && user.role !== 'global_admin' && (
           <div style={{ padding: '0 20px 20px 20px' }}>

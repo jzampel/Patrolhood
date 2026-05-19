@@ -37,7 +37,7 @@ const SuperAdminDashboard = ({ user, initialTab = 0, onSwitchCommunity, activeAl
 
     // Form states
     const [userForm, setUserForm] = useState({ name: '', surname: '', phone: '', email: '', password: '', role: 'user', communityId: '', mapLabel: '', address: '' });
-    const [commForm, setCommForm] = useState({ name: '', telegramBotToken: '', center: [40.4168, -3.7038] });
+    const [commForm, setCommForm] = useState({ name: '', center: [40.4168, -3.7038] });
 
     const fetchCommunities = async () => {
         setLoading(true);
@@ -243,7 +243,7 @@ const SuperAdminDashboard = ({ user, initialTab = 0, onSwitchCommunity, activeAl
                             <p style={{ color: '#94a3b8', fontSize: '0.85em', margin: 0 }}>Toca en una comunidad para ver y administrar sus casas.</p>
                             <button style={styles.btn('#3b82f6')} onClick={() => {
                                 setEditingComm(null);
-                                setCommForm({ name: '', telegramBotToken: '', center: [40.4168, -3.7038] });
+                                setCommForm({ name: '', center: [40.4168, -3.7038] });
                                 setShowCommModal(true);
                             }}>+ Nueva Comunidad</button>
                         </div>
@@ -263,7 +263,7 @@ const SuperAdminDashboard = ({ user, initialTab = 0, onSwitchCommunity, activeAl
                                         </div>
                                         <div style={{ display: 'flex', gap: '6px' }} onClick={e => e.stopPropagation()}>
                                             <button style={styles.smallBtn('#3b82f6')} onClick={() => onSwitchCommunity(c.id, c.name, c.center)}>🗺️ Ir</button>
-                                            <button style={styles.smallBtn('#64748b')} onClick={() => { setEditingComm(c); setCommForm({ name: c.name, telegramBotToken: c.telegramBotToken || '', center: c.center }); setShowCommModal(true); }}>✏️ Editar</button>
+                                            <button style={styles.smallBtn('#64748b')} onClick={() => { setEditingComm(c); setCommForm({ name: c.name, center: c.center }); setShowCommModal(true); }}>✏️ Editar</button>
                                             <button style={styles.smallBtn('#ef4444')} onClick={() => deleteComm(c.id)}>🗑️</button>
                                         </div>
                                     </div>
@@ -589,7 +589,7 @@ const SuperAdminDashboard = ({ user, initialTab = 0, onSwitchCommunity, activeAl
                     <form style={styles.modalContent} onSubmit={handleCommSubmit}>
                         <h2 style={{ color: '#fbbf24' }}>{editingComm ? 'Editar Comunidad' : 'Nueva Comunidad'}</h2>
                         <input style={styles.input} placeholder="Nombre Comunidad" value={commForm.name} onChange={e => setCommForm({ ...commForm, name: e.target.value })} required />
-                        {/* <input style={styles.input} placeholder="Telegram Bot Token (Opcional, configurar más tarde)" value={commForm.telegramBotToken} onChange={e => setCommForm({...commForm, telegramBotToken: e.target.value})} /> */}
+
 
                         <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
                             <button type="button" style={styles.btn('#475569')} onClick={() => setShowCommModal(false)}>Cancelar</button>
