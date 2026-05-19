@@ -983,12 +983,9 @@ app.post('/api/sos', authenticate, checkCommunity, sosLimiter, async (req, res) 
         }
 
         // --- TTL CALCULATION ---
-        let ttlMinutes = 20; // Default
+        let ttlMinutes = 30; // Expiración general en 30 minutos (30')
         const label = (emergencyTypeLabel || '').toLowerCase();
-        if (label.includes('robo')) ttlMinutes = 15;
-        else if (label.includes('medica')) ttlMinutes = 30;
-        else if (label.includes('incendio')) ttlMinutes = 45;
-        else if (label.includes('mascota')) ttlMinutes = 60 * 24 * 7; // Pet alerts: 7 days
+        if (label.includes('mascota')) ttlMinutes = 60 * 24 * 7; // Pet alerts: 7 days
         const expiresAt = new Date(Date.now() + ttlMinutes * 60000);
 
         // 1. Persist to DB
@@ -1302,6 +1299,38 @@ async function recoverActiveSOS() {
     }
 }
 recoverActiveSOS();
+
+async function runCleanupExpired() {
+    try {
+        const expiredAlerts = await ActiveSOS.find({
+            status: { $in: ['CREATED', 'DISPATCHED', 'ACKED'] },
+            expiresAt: { $lt: new Date() }
+        });
+
+        for (const alert of expiredAlerts) {
+            const hasLock = isRedisConnected() ? await acquireLock(`community:${alert.communityId}`) : true;
+            if (!hasLock) continue;
+
+            try {
+                await ActiveSOS.findByIdAndUpdate(alert._id, { status: 'EXPIRED', isActive: false });
+                activeAlerts.delete(alert.communityId);
+                const dedupeKey = `dedupe:sos:${alert.communityId}:${alert.houseNumber}`;
+                if (isRedisConnected()) {
+                    await pubClient.del(dedupeKey);
+                } else {
+                    localDedupeCache.delete(dedupeKey);
+                }
+                io.to(alert.communityId).emit('stop_alert');
+                console.log(`⏰ [Interval Cleanup] Expired alert ${alert._id}`);
+            } finally {
+                if (isRedisConnected()) await releaseLock(`community:${alert.communityId}`);
+            }
+        }
+    } catch (err) {
+        console.error('Error running cleanup expired:', err);
+    }
+}
+setInterval(runCleanupExpired, 60000);
 
 // --- SOCKETS ---
 
