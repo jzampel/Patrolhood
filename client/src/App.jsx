@@ -888,16 +888,26 @@ function App() {
     let minLat = 90, maxLat = -90, minLng = 180, maxLng = -180;
     let validCount = 0;
     houses.forEach(h => {
-      if (h.position && h.position.lat && h.position.lng) {
-        validCount++;
-        if (h.position.lat < minLat) minLat = h.position.lat;
-        if (h.position.lat > maxLat) maxLat = h.position.lat;
-        if (h.position.lng < minLng) minLng = h.position.lng;
-        if (h.position.lng > maxLng) maxLng = h.position.lng;
+      if (h.position) {
+        let lat, lng;
+        if (Array.isArray(h.position)) {
+          lat = h.position[0];
+          lng = h.position[1];
+        } else if (typeof h.position === 'object') {
+          lat = h.position.lat;
+          lng = h.position.lng;
+        }
+        if (typeof lat === 'number' && typeof lng === 'number' && !isNaN(lat) && !isNaN(lng)) {
+          validCount++;
+          if (lat < minLat) minLat = lat;
+          if (lat > maxLat) maxLat = lat;
+          if (lng < minLng) minLng = lng;
+          if (lng > maxLng) maxLng = lng;
+        }
       }
     });
     if (validCount === 0) return null;
-    const padding = 0.0012;
+    const padding = 0.0016;
     return [
       [minLat - padding, minLng - padding],
       [minLat - padding, maxLng + padding],
