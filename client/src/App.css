@@ -665,11 +665,11 @@ textarea {
 .house-label {
   background: rgba(15, 23, 42, 0.95);
   color: white;
-  width: 36px;
-  height: 36px;
+  width: 31px;
+  height: 31px;
   border-radius: 6px;
   border: 2px solid white;
-  font-weight: 800;
+  font-weight: 600;
   font-size: 1.1rem;
   display: flex;
   align-items: center;
