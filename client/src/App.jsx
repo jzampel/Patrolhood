@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import AdminDashboard from './AdminDashboard'
 import SuperAdminDashboard from './SuperAdminDashboard'
 import io from 'socket.io-client'
-import { MapContainer, TileLayer, CircleMarker, Popup, Marker, useMapEvents, Polygon } from 'react-leaflet'
+import { MapContainer, TileLayer, CircleMarker, Popup, Marker, useMapEvents } from 'react-leaflet'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import './App.css'
@@ -883,38 +883,6 @@ function App() {
   const mapRef = useRef(null)
   const [allCommunitiesHouses, setAllCommunitiesHouses] = useState([]) // global_admin: etiquetas de todas las comunidades
   const [houses, setHouses] = useState([])
-  const getCommunityHole = () => {
-    if (!houses || houses.length === 0) return null;
-    let minLat = 90, maxLat = -90, minLng = 180, maxLng = -180;
-    let validCount = 0;
-    houses.forEach(h => {
-      if (h.position) {
-        let lat, lng;
-        if (Array.isArray(h.position)) {
-          lat = h.position[0];
-          lng = h.position[1];
-        } else if (typeof h.position === 'object') {
-          lat = h.position.lat;
-          lng = h.position.lng;
-        }
-        if (typeof lat === 'number' && typeof lng === 'number' && !isNaN(lat) && !isNaN(lng)) {
-          validCount++;
-          if (lat < minLat) minLat = lat;
-          if (lat > maxLat) maxLat = lat;
-          if (lng < minLng) minLng = lng;
-          if (lng > maxLng) maxLng = lng;
-        }
-      }
-    });
-    if (validCount === 0) return null;
-    const padding = 0.0016;
-    return [
-      [minLat - padding, minLng - padding],
-      [minLat - padding, maxLng + padding],
-      [maxLat + padding, maxLng + padding],
-      [maxLat + padding, minLng - padding]
-    ];
-  };
   const [users, setUsers] = useState([])
   const [communityContacts, setCommunityContacts] = useState([])
   const [isAddingContact, setIsAddingContact] = useState(false)
@@ -2139,7 +2107,7 @@ function App() {
               center={user.communityCenter || [40.4168, -3.7038]}
               zoom={18}
               zoomControl={false}
-              style={{ height: '100%', width: '100%', background: '#0f172a' }}
+              style={{ height: '100%', width: '100%', background: '#222' }}
               ref={mapRef}
             >
               <TileLayer
@@ -2147,27 +2115,6 @@ function App() {
                 attribution='&copy; Google'
                 maxZoom={22}
               />
-              {(() => {
-                const hole = getCommunityHole();
-                if (!hole) return null;
-                return (
-                  <Polygon
-                    positions={[
-                      [[-90, -180], [-90, 180], [90, 180], [90, -180]],
-                      hole
-                    ]}
-                    pathOptions={{
-                      fillColor: '#0f172a',
-                      fillOpacity: 0.65,
-                      stroke: true,
-                      color: '#fbbf24',
-                      weight: 2.5,
-                      dashArray: '6, 8',
-                      interactive: false
-                    }}
-                  />
-                );
-              })()}
               <AutoCenter houses={houses} userMapLabel={user.mapLabel} communityCenter={user.communityCenter} user={user} />
               <MapFocusController focusLocation={mapFocusPosition} />
               {activeAlerts.map(a => (
