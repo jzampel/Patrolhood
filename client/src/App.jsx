@@ -2107,13 +2107,13 @@ function App() {
               center={user.communityCenter || [40.4168, -3.7038]}
               zoom={18}
               zoomControl={false}
-              style={{ height: '100%', width: '100%', background: '#222' }}
+              style={{ height: '100%', width: '100%', background: '#0f172a' }}
               ref={mapRef}
             >
               <TileLayer
-                url="https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}"
-                attribution='&copy; Google'
-                maxZoom={22}
+                url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+                attribution='&copy; OpenStreetMap contributors &copy; CARTO'
+                maxZoom={20}
               />
               <AutoCenter houses={houses} userMapLabel={user.mapLabel} communityCenter={user.communityCenter} user={user} />
               <MapFocusController focusLocation={mapFocusPosition} />
