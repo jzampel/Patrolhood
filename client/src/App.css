@@ -1613,8 +1613,8 @@ body {
   }
 }
 
-/* TACTICAL DARK SATELLITE MAP TILES */
+/* TACTICAL SATELLITE MAP TILES */
 .leaflet-tile {
-  filter: brightness(0.45) contrast(1.25) saturate(0.8);
+  filter: brightness(0.95) contrast(1.05);
   transition: filter 0.3s ease;
 }
